@@ -1,0 +1,908 @@
+{
+  "id": "22bda5d5-0813-51c9-8110-9379322ae6f4",
+  "revision": 5,
+  "last_node_id": 14,
+  "last_link_id": 13,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        60,
+        120
+      ],
+      "size": [
+        420,
+        95
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "主模型 · BF16",
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "models": [
+          {
+            "name": "qwen_image_2.1_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/diffusion_models/qwen_image_2.1_bf16.safetensors",
+            "directory": "diffusion_models"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        280
+      ],
+      "size": [
+        420,
+        125
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "title": "文本编码器 · BF16",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "models": [
+          {
+            "name": "qwen3vl_8b_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/text_encoders/qwen3vl_8b_bf16.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen3vl_8b_bf16.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        60,
+        485
+      ],
+      "size": [
+        420,
+        70
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8,
+            11
+          ]
+        }
+      ],
+      "title": "VAE · BF16",
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "models": [
+          {
+            "name": "qwen_image_2.1_vae_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/vae/qwen_image_2.1_vae_bf16.safetensors",
+            "directory": "vae"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "QwenImage21Cache",
+      "pos": [
+        580,
+        120
+      ],
+      "size": [
+        350,
+        110
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "title": "KV 缓存",
+      "properties": {
+        "Node name for S&R": "QwenImage21Cache",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+      },
+      "widgets_values": [
+        "auto",
+        "default"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        580,
+        310
+      ],
+      "size": [
+        480,
+        440
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 7,
+          "shape": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8,
+          "shape": 7
+        },
+        {
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "title": "编辑指令",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+      },
+      "widgets_values": [
+        "一只橘猫坐在窗边，柔和自然光，真实摄影",
+        "",
+        2048
+      ]
+    },
+    {
+      "id": 7,
+      "type": "LoadImage",
+      "pos": [
+        580,
+        820
+      ],
+      "size": [
+        480,
+        310
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "上传参考图",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "KSampler",
+      "pos": [
+        1150,
+        310
+      ],
+      "size": [
+        310,
+        335
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "title": "采样 · 40 步 / 种子 42",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+      },
+      "widgets_values": [
+        42,
+        "fixed",
+        40,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ]
+    },
+    {
+      "id": 9,
+      "type": "VAEDecode",
+      "pos": [
+        1550,
+        310
+      ],
+      "size": [
+        230,
+        75
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "title": "VAE 解码",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+      }
+    },
+    {
+      "id": 10,
+      "type": "SaveImage",
+      "pos": [
+        1550,
+        500
+      ],
+      "size": [
+        480,
+        480
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "title": "保存 PNG",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+      },
+      "widgets_values": [
+        "qwen-image-2.1/reference/Qwen21"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        1230
+      ],
+      "size": [
+        980,
+        190
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "参数与用法 · 默认 2K",
+      "properties": {},
+      "widgets_values": [
+        "上传参考图，填写编辑指令后运行。\n\n分辨率下拉：1K / 2K（默认）/ 原图；比例跟随图片。\n\n40 步 · 种子 42 · 每次 1 张。PNG 见保存节点。"
+      ],
+      "color": "#343",
+      "bgcolor": "#232"
+    },
+    {
+      "id": 14,
+      "type": "22fd4722-b358-59ea-8dfe-64253cdcc70f",
+      "pos": [
+        1150,
+        820
+      ],
+      "size": [
+        310,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "showAdvanced": false,
+      "inputs": [
+        {
+          "name": "choice",
+          "label": "分辨率",
+          "type": "COMBO",
+          "widget": {
+            "name": "choice"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "resolution",
+          "label": "分辨率",
+          "type": "INT",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "title": "分辨率 · 默认 2K",
+      "properties": {
+        "previewExposures": []
+      },
+      "widgets_values": [
+        "2K"
+      ],
+      "widgets_values_named": {
+        "choice": "2K"
+      }
+    }
+  ],
+  "links": [
+    [
+      2,
+      1,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      5,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      2,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      5,
+      6,
+      0,
+      8,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      6,
+      1,
+      8,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      7,
+      0,
+      6,
+      1,
+      "IMAGE"
+    ],
+    [
+      8,
+      3,
+      0,
+      6,
+      2,
+      "VAE"
+    ],
+    [
+      9,
+      6,
+      2,
+      8,
+      3,
+      "LATENT"
+    ],
+    [
+      10,
+      8,
+      0,
+      9,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      3,
+      0,
+      9,
+      1,
+      "VAE"
+    ],
+    [
+      12,
+      9,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      13,
+      14,
+      0,
+      6,
+      3,
+      "INT"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "1. BF16 模型",
+      "bounding": [
+        35,
+        65,
+        470,
+        525
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "2. 提示词、参考图与输出尺寸",
+      "bounding": [
+        550,
+        65,
+        520,
+        1100
+      ],
+      "color": "#6b8f5b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "3. 采样",
+      "bounding": [
+        1120,
+        250,
+        370,
+        735
+      ],
+      "color": "#a08045",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "4. 解码与保存",
+      "bounding": [
+        1515,
+        250,
+        550,
+        760
+      ],
+      "color": "#8b668d",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "参数与用法",
+      "bounding": [
+        35,
+        1180,
+        1030,
+        270
+      ],
+      "color": "#54735a",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6,
+      "offset": [
+        70,
+        80
+      ]
+    },
+    "qwen_workflow": {
+      "description": "Qwen-Image 2.1 单参考图基础版，默认 2K",
+      "source_notebook": "Qwen_Image_2_1_Colab.ipynb",
+      "source_git_commit": "7921a1b",
+      "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+      "model_repo": "Comfy-Org/Qwen-Image-2.1",
+      "model_revision": "cb504a4090723e43f17ad01cec0359490e2de613",
+      "original_diffusers_model": "Qwen/Qwen-Image-2.1",
+      "original_diffusers_model_revision": "d26bb61231c349cf6b7896fa83353113880e1ba3",
+      "official_template": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json",
+      "reference_image_required": true,
+      "lora_enabled_by_default": false,
+      "lora_included": false,
+      "size_selection": {
+        "node": "CustomCombo",
+        "default_resolution": "2K",
+        "options": [
+          "1K",
+          "2K",
+          "原图"
+        ],
+        "uses_legacy_size_table": false,
+        "resolution_node": "TextEncodeQwenImage21",
+        "ui": "built-in subgraph with only resolution and aspect ratio controls exposed"
+      },
+      "built_in_nodes_only": true
+    }
+  },
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "22fd4722-b358-59ea-8dfe-64253cdcc70f",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 15,
+          "lastLinkId": 16,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "Qwen 参考图尺寸",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            0,
+            70,
+            120,
+            90
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            850,
+            70,
+            120,
+            90
+          ]
+        },
+        "inputs": [
+          {
+            "id": "0b04d479-a455-557b-90be-36590e489659",
+            "name": "choice",
+            "label": "分辨率",
+            "type": "COMBO",
+            "linkIds": [
+              15
+            ],
+            "pos": [
+              40,
+              100
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "56ec6a50-94bb-535d-9c8b-636e94fa8fcf",
+            "name": "resolution",
+            "label": "分辨率",
+            "type": "INT",
+            "linkIds": [
+              16
+            ],
+            "pos": [
+              880,
+              100
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 14,
+            "type": "CustomCombo",
+            "pos": [
+              160,
+              70
+            ],
+            "size": [
+              280,
+              205
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "showAdvanced": false,
+            "inputs": [
+              {
+                "name": "choice",
+                "type": "COMBO",
+                "widget": {
+                  "name": "choice"
+                },
+                "link": 15
+              }
+            ],
+            "outputs": [
+              {
+                "name": "STRING",
+                "type": "STRING",
+                "links": []
+              },
+              {
+                "name": "INDEX",
+                "type": "INT",
+                "links": [
+                  14
+                ]
+              }
+            ],
+            "title": "分辨率 · 下拉选择 / 默认 2K",
+            "properties": {
+              "Node name for S&R": "CustomCombo",
+              "cnr_id": "comfy-core",
+              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+            },
+            "widgets_values": [
+              "2K",
+              1,
+              "1K",
+              "2K",
+              "原图",
+              ""
+            ]
+          },
+          {
+            "id": 15,
+            "type": "ComfyMathExpression",
+            "pos": [
+              480,
+              70
+            ],
+            "size": [
+              310,
+              120
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "showAdvanced": false,
+            "inputs": [
+              {
+                "name": "values.a",
+                "type": "INT",
+                "link": 14
+              }
+            ],
+            "outputs": [
+              {
+                "name": "FLOAT",
+                "type": "FLOAT",
+                "links": []
+              },
+              {
+                "name": "INT",
+                "type": "INT",
+                "links": [
+                  16
+                ]
+              },
+              {
+                "name": "BOOL",
+                "type": "BOOLEAN",
+                "links": []
+              }
+            ],
+            "title": "尺寸换算 · 自动",
+            "properties": {
+              "Node name for S&R": "ComfyMathExpression",
+              "cnr_id": "comfy-core",
+              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+            },
+            "widgets_values": [
+              "1024 * (a + 1) if a < 2 else 0"
+            ]
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 15,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 14,
+            "target_slot": 0,
+            "type": "COMBO"
+          },
+          {
+            "id": 14,
+            "origin_id": 14,
+            "origin_slot": 1,
+            "target_id": 15,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 16,
+            "origin_id": 15,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "INT"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  }
+}
