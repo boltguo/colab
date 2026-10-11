@@ -73,7 +73,7 @@
       "properties": {
         "Node name for S&R": "CLIPLoader",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
         "models": [
           {
             "name": "qwen3vl_8b_int8_convrot.safetensors",
@@ -117,7 +117,7 @@
       "properties": {
         "Node name for S&R": "VAELoader",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
         "models": [
           {
             "name": "qwen_image_2.1_vae_bf16.safetensors",
@@ -164,7 +164,7 @@
       "properties": {
         "Node name for S&R": "QwenImage21Cache",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "cpu",
@@ -239,7 +239,7 @@
       "properties": {
         "Node name for S&R": "TextEncodeQwenImage21",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "将 <image1> 的背景改为日落时的海边，保留主体、构图和细节。",
@@ -280,7 +280,7 @@
       "properties": {
         "Node name for S&R": "LoadImage",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "",
@@ -336,7 +336,7 @@
       "properties": {
         "Node name for S&R": "KSampler",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         42,
@@ -387,7 +387,7 @@
       "properties": {
         "Node name for S&R": "VAEDecode",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       }
     },
     {
@@ -422,7 +422,7 @@
       "properties": {
         "Node name for S&R": "SaveImage",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "qwen-image-2.1-uncensored/reference/Qwen21_UC"
@@ -640,7 +640,7 @@
     "qwen_workflow": {
       "description": "Qwen-Image 2.1 Uncensored 单参考图编辑，默认 2K",
       "source_notebook": "notebooks/qwen-image-2.1-uncensored/Qwen_Image_2.1_Uncensored_A100_40GB.ipynb",
-      "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+      "comfyui_revision": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
       "gguf_repo": "leejet/ComfyUI-GGUF",
       "gguf_revision": "373048b8403a7820620065210a691263d4da0a61",
       "model_repo": "abenzerps/Qwen-Image-2.1-Uncensored-GGUF",
@@ -781,7 +781,7 @@
             "properties": {
               "Node name for S&R": "CustomCombo",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "2K",
@@ -837,7 +837,7 @@
             "properties": {
               "Node name for S&R": "ComfyMathExpression",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "1024 * (a + 1) if a < 2 else 0"
