@@ -42,17 +42,13 @@
       },
       "widgets_values": [
         "video/MiniMax_H3",
-        "mp4",
-        "av1",
-        "re-encode",
-        0
+        "auto",
+        "auto"
       ],
       "widgets_values_named": {
         "filename_prefix": "video/MiniMax_H3",
-        "format": "mp4",
-        "format.codec": "av1",
-        "format.codec.encoding": "re-encode",
-        "format.codec.encoding.crf": 0
+        "format": "auto",
+        "format.codec": "auto"
       },
       "title": "保存视频与声音"
     },
@@ -130,7 +126,7 @@
         {
           "name": "megapixels",
           "type": "FLOAT",
-          "label": "清晰度（总像素）",
+          "label": "总像素（MP）",
           "widget": {
             "name": "megapixels"
           },
@@ -292,9 +288,9 @@
         768,
         5,
         757358688076805,
-        "minimax_h3_fl2va_pruned_bf16.safetensors",
-        "qwen3vl_32b_minimax_h3_bf16.safetensors",
-        "minimax_h3_video_vae_fp16.safetensors",
+        "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "minimax_h3_video_vae_int8_convrot.safetensors",
         "minimax_h3_audio_vae_fp32.safetensors",
         false,
         "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
@@ -307,16 +303,16 @@
         "height": 768,
         "value_1": 5,
         "noise_seed": 757358688076805,
-        "unet_name": "minimax_h3_fl2va_pruned_bf16.safetensors",
-        "clip_name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
-        "vae_name": "minimax_h3_video_vae_fp16.safetensors",
+        "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors",
         "vae_name_1": "minimax_h3_audio_vae_fp32.safetensors",
         "value": false,
         "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
         "strength_model_1": 1,
         "value_2": 8
       },
-      "title": "首帧图生视频 · 基础模式 / 50 步"
+      "title": "首帧图生视频 · 基础模式 / 20 步"
     },
     {
       "id": 116,
@@ -337,10 +333,10 @@
       "title": "怎么使用",
       "properties": {},
       "widgets_values": [
-        "上传首帧图片，修改提示词后点击运行。\n\n视频比例自动跟随首帧，无需设置宽高。时长按需调整。\n\n默认 5 秒、50 步。结果在“保存视频与声音”节点查看。"
+        "上传首帧图片，修改提示词后点击运行。\n\n视频比例自动跟随首帧，无需设置宽高。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
       ],
       "widgets_values_named": {
-        "text": "上传首帧图片，修改提示词后点击运行。\n\n视频比例自动跟随首帧，无需设置宽高。时长按需调整。\n\n默认 5 秒、50 步。结果在“保存视频与声音”节点查看。"
+        "text": "上传首帧图片，修改提示词后点击运行。\n\n视频比例自动跟随首帧，无需设置宽高。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -695,17 +691,17 @@
               "Node name for S&R": "VAELoader",
               "models": [
                 {
-                  "name": "minimax_h3_video_vae_fp16.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_fp16.safetensors",
+                  "name": "minimax_h3_video_vae_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_int8_convrot.safetensors",
                   "directory": "vae"
                 }
               ]
             },
             "widgets_values": [
-              "minimax_h3_video_vae_fp16.safetensors"
+              "minimax_h3_video_vae_int8_convrot.safetensors"
             ],
             "widgets_values_named": {
-              "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+              "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
             },
             "title": "加载视频解码模型"
           },
@@ -956,12 +952,12 @@
             },
             "widgets_values": [
               "simple",
-              50,
+              20,
               1
             ],
             "widgets_values_named": {
               "scheduler": "simple",
-              "steps": 50,
+              "steps": 20,
               "denoise": 1
             },
             "title": "采样调度与步数"
@@ -1135,18 +1131,18 @@
               "Node name for S&R": "UNETLoader",
               "models": [
                 {
-                  "name": "minimax_h3_fl2va_pruned_bf16.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_fl2va_pruned_bf16.safetensors",
+                  "name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
                   "directory": "diffusion_models"
                 }
               ]
             },
             "widgets_values": [
-              "minimax_h3_fl2va_pruned_bf16.safetensors",
+              "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
               "default"
             ],
             "widgets_values_named": {
-              "unet_name": "minimax_h3_fl2va_pruned_bf16.safetensors",
+              "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
               "weight_dtype": "default"
             },
             "title": "加载视频生成模型"
@@ -1194,19 +1190,19 @@
               "Node name for S&R": "CLIPLoader",
               "models": [
                 {
-                  "name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors",
+                  "name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
                   "directory": "text_encoders"
                 }
               ]
             },
             "widgets_values": [
-              "qwen3vl_32b_minimax_h3_bf16.safetensors",
+              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "minimax",
               "default"
             ],
             "widgets_values_named": {
-              "clip_name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
+              "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
               "type": "minimax",
               "device": "default"
             },
@@ -1313,13 +1309,13 @@
             },
             "widgets_values": [
               24,
-              10,
+              8,
               "sRGB",
               "none"
             ],
             "widgets_values_named": {
               "fps": 24,
-              "bit_depth": 10,
+              "bit_depth": 8,
               "color_space": "sRGB",
               "codec": "none"
             },
@@ -1808,11 +1804,11 @@
               "Node name for S&R": "PrimitiveInt"
             },
             "widgets_values": [
-              50,
+              20,
               "fixed"
             ],
             "widgets_values_named": {
-              "value": 50,
+              "value": 20,
               "fixed": "fixed"
             },
             "title": "基础采样步数"
@@ -2373,7 +2369,7 @@
             "id": "7a61dac1-95d3-5b89-b015-6d189e0e9d5c",
             "name": "megapixels",
             "type": "FLOAT",
-            "label": "清晰度（总像素）",
+            "label": "总像素（MP）",
             "linkIds": [
               2
             ],
@@ -2443,7 +2439,7 @@
                   "name": "megapixels"
                 },
                 "link": 2,
-                "label": "清晰度（总像素）"
+                "label": "总像素（MP）"
               }
             ],
             "outputs": [
@@ -2597,35 +2593,38 @@
       "source": "https://github.com/Comfy-Org/workflow_templates/blob/b4119d0fcecf78a376e087305ec4f485c66a03f5/templates/video_minimax_h3_i2v.json",
       "source_revision": "b4119d0fcecf78a376e087305ec4f485c66a03f5",
       "model_mapping": {
-        "minimax_h3_fl2va_pruned_int8_convrot.safetensors": "minimax_h3_fl2va_pruned_bf16.safetensors",
-        "minimax_h3_ref2va_pruned_int8_convrot.safetensors": "minimax_h3_ref2va_pruned_bf16.safetensors",
-        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": "qwen3vl_32b_minimax_h3_bf16.safetensors",
-        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors": "qwen3vl_32b_minimax_h3_bf16.safetensors",
-        "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_fp16.safetensors"
+        "minimax_h3_fl2va_pruned_int8_convrot.safetensors": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "minimax_h3_ref2va_pruned_int8_convrot.safetensors": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_int8_convrot.safetensors"
       },
-      "default_path": "基础模式；加速关闭；50 步",
+      "default_path": "基础模式；加速关闭；20 步",
       "notebook": "notebooks/minimax-h3/MiniMaxH3_A100_80GB.ipynb",
-      "task": "首帧图生视频 · 基础模式 / 50 步",
+      "task": "首帧图生视频 · 基础模式 / 20 步",
       "ui_language": "zh-CN",
       "size_mode": "自动跟随首帧",
       "default_megapixels": 0.98,
       "model_revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
-      "default_steps": 50,
+      "default_steps": 20,
       "precision": {
-        "diffusion": "BF16",
-        "text_encoder": "BF16",
-        "video_vae_weights": "FP16",
-        "vae_compute": "FP32",
-        "audio_vae": "FP32"
+        "diffusion": "INT8 ConvRot",
+        "text_encoder": "INT8 ConvRot",
+        "video_vae_weights": "INT8 ConvRot",
+        "video_vae_compute": "FP16 (auto)",
+        "audio_vae": "FP32",
+        "vae_compute": "auto"
       },
       "export": {
-        "format": "mp4",
-        "codec": "av1",
-        "bit_depth": 10,
-        "crf": 0,
+        "format": "mp4 (auto)",
+        "codec": "h264 (auto)",
+        "bit_depth": 8,
+        "crf": 18,
         "color_space": "sRGB",
         "fps": 24
-      }
+      },
+      "attention": "pytorch",
+      "vram_headroom_gb": 4
     },
     "component_licenses": {
       "workflow_templates": "MIT License\n\nCopyright (c) 2023-present Comfy Org\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
