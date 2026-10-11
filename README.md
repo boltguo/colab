@@ -8,7 +8,7 @@
 
 MiniMax H3 和原版 Qwen 笔记本选择 **A100 80GB**；新增的 Uncensored GGUF 笔记本接受 **A100 40GB / 80GB**。依次运行：环境 → 模型与工作流 → 打开 ComfyUI → 下载结果。点击新窗口链接后保持 Colab 连接。
 
-[MiniMax 视频工作流](workflows/minimax-h3/README.md)：文生、首帧、首尾帧、双图参考；04 尚未提供音频或视频上传入口。
+[MiniMax 视频工作流](workflows/minimax-h3/README.md)：文生、首帧、首尾帧、双图参考；默认 BF16 主模型与文本编码器、50 步、清晰度 0.98、10-bit AV1 导出；04 尚未提供音频或视频上传入口。
 
 [Qwen 图片工作流](workflows/qwen-image-2.1/README.md)：文生、参考图及 LoRA 版本；默认 2K，下拉选择分辨率。
 

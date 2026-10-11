@@ -42,13 +42,17 @@
       },
       "widgets_values": [
         "video/MiniMax_H3",
-        "auto",
-        "auto"
+        "mp4",
+        "av1",
+        "re-encode",
+        0
       ],
       "widgets_values_named": {
         "filename_prefix": "video/MiniMax_H3",
-        "format": "auto",
-        "codec": "auto"
+        "format": "mp4",
+        "format.codec": "av1",
+        "format.codec.encoding": "re-encode",
+        "format.codec.encoding.crf": 0
       },
       "title": "保存视频与声音"
     },
@@ -108,10 +112,10 @@
         "previewExposures": []
       },
       "widgets_values": [
-        0.4
+        0.98
       ],
       "widgets_values_named": {
-        "megapixels": 0.4
+        "megapixels": 0.98
       },
       "title": "输出尺寸 · 自动跟随参考图 1"
     },
@@ -134,10 +138,10 @@
       "title": "怎么使用",
       "properties": {},
       "widgets_values": [
-        "上传两张参考图片，用 <Picture 1> / <Picture 2> 对应图片，修改提示词后运行。\n\n比例跟随参考图 1。默认 5 秒、20 步。当前尚未提供音频、视频上传入口。"
+        "上传两张参考图片，用 <Picture 1> / <Picture 2> 对应图片，修改提示词后运行。\n\n比例跟随参考图 1。默认 5 秒、50 步。当前尚未提供音频、视频上传入口。"
       ],
       "widgets_values_named": {
-        "text": "上传两张参考图片，用 <Picture 1> / <Picture 2> 对应图片，修改提示词后运行。\n\n比例跟随参考图 1。默认 5 秒、20 步。当前尚未提供音频、视频上传入口。"
+        "text": "上传两张参考图片，用 <Picture 1> / <Picture 2> 对应图片，修改提示词后运行。\n\n比例跟随参考图 1。默认 5 秒、50 步。当前尚未提供音频、视频上传入口。"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -176,7 +180,7 @@
         "models": [
           {
             "name": "minimax_h3_video_vae_fp16.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_fp16.safetensors",
             "directory": "vae"
           }
         ]
@@ -223,7 +227,7 @@
         "models": [
           {
             "name": "minimax_h3_audio_vae_fp32.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_audio_vae_fp32.safetensors",
             "directory": "vae"
           }
         ]
@@ -426,12 +430,12 @@
       },
       "widgets_values": [
         "simple",
-        20,
+        50,
         1
       ],
       "widgets_values_named": {
         "scheduler": "simple",
-        "steps": 20,
+        "steps": 50,
         "denoise": 1
       },
       "title": "采样调度与步数"
@@ -595,18 +599,18 @@
         "Node name for S&R": "UNETLoader",
         "models": [
           {
-            "name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "name": "minimax_h3_ref2va_pruned_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_ref2va_pruned_bf16.safetensors",
             "directory": "diffusion_models"
           }
         ]
       },
       "widgets_values": [
-        "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "minimax_h3_ref2va_pruned_bf16.safetensors",
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "unet_name": "minimax_h3_ref2va_pruned_bf16.safetensors",
         "weight_dtype": "default"
       },
       "title": "加载视频生成模型"
@@ -643,19 +647,19 @@
         "Node name for S&R": "CLIPLoader",
         "models": [
           {
-            "name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+            "name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "qwen3vl_32b_minimax_h3_bf16.safetensors",
         "minimax",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "clip_name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
         "type": "minimax",
         "device": "default"
       },
@@ -751,11 +755,15 @@
       },
       "widgets_values": [
         24,
-        8
+        10,
+        "sRGB",
+        "none"
       ],
       "widgets_values_named": {
         "fps": 24,
-        "bit_depth": 8
+        "bit_depth": 10,
+        "color_space": "sRGB",
+        "codec": "none"
       },
       "title": "合成带声音的视频"
     },
@@ -1026,14 +1034,14 @@
         1344,
         768,
         124,
-        "match"
+        "max"
       ],
       "widgets_values_named": {
         "prompt": "",
         "width": 1344,
         "height": 768,
         "length": 124,
-        "ref_image_size": "match"
+        "ref_image_size": "max"
       },
       "title": "多模态参考条件与提示词"
     },
@@ -1336,11 +1344,11 @@
         "Node name for S&R": "PrimitiveInt"
       },
       "widgets_values": [
-        20,
+        50,
         "fixed"
       ],
       "widgets_values_named": {
-        "value": 20,
+        "value": 50,
         "fixed": "fixed"
       }
     },
@@ -1426,7 +1434,7 @@
         "models": [
           {
             "name": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
             "directory": "loras"
           }
         ]
@@ -1850,15 +1858,36 @@
       "source": "https://github.com/Comfy-Org/workflow_templates/blob/b4119d0fcecf78a376e087305ec4f485c66a03f5/templates/video_minimax_h3_r2v.json",
       "source_revision": "b4119d0fcecf78a376e087305ec4f485c66a03f5",
       "model_mapping": {
-        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "minimax_h3_fl2va_pruned_int8_convrot.safetensors": "minimax_h3_fl2va_pruned_bf16.safetensors",
+        "minimax_h3_ref2va_pruned_int8_convrot.safetensors": "minimax_h3_ref2va_pruned_bf16.safetensors",
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": "qwen3vl_32b_minimax_h3_bf16.safetensors",
+        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors": "qwen3vl_32b_minimax_h3_bf16.safetensors",
         "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_fp16.safetensors"
       },
-      "default_path": "基础模式；加速关闭；20 步",
+      "default_path": "基础模式；加速关闭；50 步",
       "notebook": "notebooks/minimax-h3/MiniMaxH3_A100_80GB.ipynb",
-      "task": "多模态参考视频 · 基础模式 / 20 步",
+      "task": "多模态参考视频 · 基础模式 / 50 步",
       "ui_language": "zh-CN",
       "size_mode": "自动跟随参考图 1",
-      "default_megapixels": 0.4
+      "default_megapixels": 0.98,
+      "model_revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "default_steps": 50,
+      "precision": {
+        "diffusion": "BF16",
+        "text_encoder": "BF16",
+        "video_vae_weights": "FP16",
+        "vae_compute": "FP32",
+        "audio_vae": "FP32"
+      },
+      "export": {
+        "format": "mp4",
+        "codec": "av1",
+        "bit_depth": 10,
+        "crf": 0,
+        "color_space": "sRGB",
+        "fps": 24
+      },
+      "ref_image_size": "max"
     },
     "component_licenses": {
       "workflow_templates": "MIT License\n\nCopyright (c) 2023-present Comfy Org\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
@@ -2004,12 +2033,12 @@
             },
             "widgets_values": [
               "nearest-exact",
-              0.4,
+              0.98,
               32
             ],
             "widgets_values_named": {
               "upscale_method": "nearest-exact",
-              "megapixels": 0.4,
+              "megapixels": 0.98,
               "resolution_steps": 32
             },
             "title": "按图片比例缩放"

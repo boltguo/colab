@@ -42,13 +42,17 @@
       },
       "widgets_values": [
         "video/MiniMax_H3",
-        "auto",
-        "auto"
+        "mp4",
+        "av1",
+        "re-encode",
+        0
       ],
       "widgets_values_named": {
         "filename_prefix": "video/MiniMax_H3",
-        "format": "auto",
-        "codec": "auto"
+        "format": "mp4",
+        "format.codec": "av1",
+        "format.codec.encoding": "re-encode",
+        "format.codec.encoding.crf": 0
       },
       "title": "保存视频与声音"
     },
@@ -157,10 +161,10 @@
         "previewExposures": []
       },
       "widgets_values": [
-        0.4
+        0.98
       ],
       "widgets_values_named": {
-        "megapixels": 0.4
+        "megapixels": 0.98
       },
       "title": "输出尺寸 · 自动跟随首帧"
     },
@@ -288,8 +292,8 @@
         768,
         5,
         757358688076805,
-        "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "minimax_h3_fl2va_pruned_bf16.safetensors",
+        "qwen3vl_32b_minimax_h3_bf16.safetensors",
         "minimax_h3_video_vae_fp16.safetensors",
         "minimax_h3_audio_vae_fp32.safetensors",
         false,
@@ -303,8 +307,8 @@
         "height": 768,
         "value_1": 5,
         "noise_seed": 757358688076805,
-        "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-        "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "unet_name": "minimax_h3_fl2va_pruned_bf16.safetensors",
+        "clip_name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
         "vae_name": "minimax_h3_video_vae_fp16.safetensors",
         "vae_name_1": "minimax_h3_audio_vae_fp32.safetensors",
         "value": false,
@@ -312,7 +316,7 @@
         "strength_model_1": 1,
         "value_2": 8
       },
-      "title": "首尾帧视频 · 基础模式 / 20 步"
+      "title": "首尾帧视频 · 基础模式 / 50 步"
     },
     {
       "id": 116,
@@ -333,10 +337,10 @@
       "title": "怎么使用",
       "properties": {},
       "widgets_values": [
-        "分别上传首帧和尾帧，填写中间的动作后点击运行。\n\n视频比例跟随首帧；两张图建议使用相同比例。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
+        "分别上传首帧和尾帧，填写中间的动作后点击运行。\n\n视频比例跟随首帧；两张图建议使用相同比例。时长按需调整。\n\n默认 5 秒、50 步。结果在“保存视频与声音”节点查看。"
       ],
       "widgets_values_named": {
-        "text": "分别上传首帧和尾帧，填写中间的动作后点击运行。\n\n视频比例跟随首帧；两张图建议使用相同比例。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
+        "text": "分别上传首帧和尾帧，填写中间的动作后点击运行。\n\n视频比例跟随首帧；两张图建议使用相同比例。时长按需调整。\n\n默认 5 秒、50 步。结果在“保存视频与声音”节点查看。"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -748,7 +752,7 @@
               "models": [
                 {
                   "name": "minimax_h3_video_vae_fp16.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_fp16.safetensors",
                   "directory": "vae"
                 }
               ]
@@ -805,7 +809,7 @@
               "models": [
                 {
                   "name": "minimax_h3_audio_vae_fp32.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_audio_vae_fp32.safetensors",
                   "directory": "vae"
                 }
               ]
@@ -1008,12 +1012,12 @@
             },
             "widgets_values": [
               "simple",
-              4,
+              50,
               1
             ],
             "widgets_values_named": {
               "scheduler": "simple",
-              "steps": 4,
+              "steps": 50,
               "denoise": 1
             },
             "title": "采样调度与步数"
@@ -1187,18 +1191,18 @@
               "Node name for S&R": "UNETLoader",
               "models": [
                 {
-                  "name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                  "name": "minimax_h3_fl2va_pruned_bf16.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_fl2va_pruned_bf16.safetensors",
                   "directory": "diffusion_models"
                 }
               ]
             },
             "widgets_values": [
-              "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+              "minimax_h3_fl2va_pruned_bf16.safetensors",
               "default"
             ],
             "widgets_values_named": {
-              "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+              "unet_name": "minimax_h3_fl2va_pruned_bf16.safetensors",
               "weight_dtype": "default"
             },
             "title": "加载视频生成模型"
@@ -1246,19 +1250,19 @@
               "Node name for S&R": "CLIPLoader",
               "models": [
                 {
-                  "name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
-                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+                  "name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_bf16.safetensors",
                   "directory": "text_encoders"
                 }
               ]
             },
             "widgets_values": [
-              "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+              "qwen3vl_32b_minimax_h3_bf16.safetensors",
               "minimax",
               "default"
             ],
             "widgets_values_named": {
-              "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+              "clip_name": "qwen3vl_32b_minimax_h3_bf16.safetensors",
               "type": "minimax",
               "device": "default"
             },
@@ -1365,11 +1369,15 @@
             },
             "widgets_values": [
               24,
-              8
+              10,
+              "sRGB",
+              "none"
             ],
             "widgets_values_named": {
               "fps": 24,
-              "bit_depth": 8
+              "bit_depth": 10,
+              "color_space": "sRGB",
+              "codec": "none"
             },
             "title": "合成带声音的视频"
           },
@@ -1856,11 +1864,11 @@
               "Node name for S&R": "PrimitiveInt"
             },
             "widgets_values": [
-              20,
+              50,
               "fixed"
             ],
             "widgets_values_named": {
-              "value": 20,
+              "value": 50,
               "fixed": "fixed"
             },
             "title": "基础采样步数"
@@ -2512,12 +2520,12 @@
             },
             "widgets_values": [
               "nearest-exact",
-              0.4,
+              0.98,
               32
             ],
             "widgets_values_named": {
               "upscale_method": "nearest-exact",
-              "megapixels": 0.4,
+              "megapixels": 0.98,
               "resolution_steps": 32
             },
             "title": "按图片比例缩放"
@@ -2645,16 +2653,36 @@
       "source": "https://github.com/Comfy-Org/workflow_templates/blob/b4119d0fcecf78a376e087305ec4f485c66a03f5/templates/video_minimax_h3_i2v.json",
       "source_revision": "b4119d0fcecf78a376e087305ec4f485c66a03f5",
       "model_mapping": {
-        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "minimax_h3_fl2va_pruned_int8_convrot.safetensors": "minimax_h3_fl2va_pruned_bf16.safetensors",
+        "minimax_h3_ref2va_pruned_int8_convrot.safetensors": "minimax_h3_ref2va_pruned_bf16.safetensors",
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": "qwen3vl_32b_minimax_h3_bf16.safetensors",
+        "qwen3vl_32b_minimax_h3_int8_convrot.safetensors": "qwen3vl_32b_minimax_h3_bf16.safetensors",
         "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_fp16.safetensors"
       },
-      "default_path": "基础模式；加速关闭；20 步",
+      "default_path": "基础模式；加速关闭；50 步",
       "notebook": "notebooks/minimax-h3/MiniMaxH3_A100_80GB.ipynb",
-      "task": "首尾帧视频 · 基础模式 / 20 步",
+      "task": "首尾帧视频 · 基础模式 / 50 步",
       "adaptation": "Official I2V subgraph; expose its existing last_frame input with a second native LoadImage.",
       "ui_language": "zh-CN",
       "size_mode": "自动跟随首帧",
-      "default_megapixels": 0.4
+      "default_megapixels": 0.98,
+      "model_revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "default_steps": 50,
+      "precision": {
+        "diffusion": "BF16",
+        "text_encoder": "BF16",
+        "video_vae_weights": "FP16",
+        "vae_compute": "FP32",
+        "audio_vae": "FP32"
+      },
+      "export": {
+        "format": "mp4",
+        "codec": "av1",
+        "bit_depth": 10,
+        "crf": 0,
+        "color_space": "sRGB",
+        "fps": 24
+      }
     },
     "component_licenses": {
       "workflow_templates": "MIT License\n\nCopyright (c) 2023-present Comfy Org\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
