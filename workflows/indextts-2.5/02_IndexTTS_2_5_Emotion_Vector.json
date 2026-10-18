@@ -1,0 +1,267 @@
+{
+  "id": "b101a5c1-2502-4e10-9a02-000000000002",
+  "revision": 0,
+  "last_node_id": 5,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "MarkdownNote",
+      "pos": [
+        40,
+        -180
+      ],
+      "size": [
+        1180,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "使用说明 · 02 情绪滑块控制克隆（音色参考 + 8 维情绪向量）",
+      "properties": {},
+      "widgets_values": [
+        "- **输入**：在「1. 上传音色参考音频」上传参考声音，在「2. 情绪滑块 (0~1)」调节 8 种情绪强度（高兴/愤怒/悲伤/恐惧/反感/低落/惊讶/自然）\n- **参数**：`emo_alpha`（0~1）可整体缩放情绪向量强度；`language` 支持 `zh / en / ja / es / ar`；`duration_factor` 调节语速\n- **输出**：在右侧「4. 试听并保存 MP3」节点直接试听或下载"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 1,
+      "type": "LoadAudio",
+      "pos": [
+        40,
+        0
+      ],
+      "size": [
+        340,
+        140
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        }
+      ],
+      "title": "1. 上传音色参考音频",
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "ref_audio.mp3",
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 2,
+      "type": "EmoSettingsNode",
+      "pos": [
+        40,
+        190
+      ],
+      "size": [
+        340,
+        250
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "emo_vector",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "2. 情绪滑块 (0~1)",
+      "properties": {
+        "Node name for S&R": "EmoSettingsNode"
+      },
+      "widgets_values": [
+        0.8,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "IndexTTS2_5Node",
+      "pos": [
+        430,
+        0
+      ],
+      "size": [
+        420,
+        580
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "reference_audio",
+          "type": "AUDIO",
+          "link": 1
+        },
+        {
+          "name": "emo_ref_audio",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "emo_vector",
+          "type": "STRING",
+          "widget": {
+            "name": "emo_vector"
+          },
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "slot_index": 0,
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "slot_index": 1,
+          "links": []
+        },
+        {
+          "name": "subtitle",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": []
+        }
+      ],
+      "title": "3. IndexTTS 2.5 情绪向量合成",
+      "properties": {
+        "Node name for S&R": "IndexTTS2_5Node"
+      },
+      "widgets_values": [
+        "太棒了！今天终于把这个声音克隆工作流跑通了！",
+        "zh",
+        1.0,
+        42,
+        "fixed",
+        1.0,
+        "",
+        "",
+        false,
+        false,
+        false,
+        true,
+        0.8,
+        0.8,
+        30,
+        10.0,
+        0.0,
+        3,
+        1500,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "type": "SaveAudioMP3",
+      "pos": [
+        900,
+        0
+      ],
+      "size": [
+        320,
+        150
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 3
+        }
+      ],
+      "outputs": [],
+      "title": "4. 试听并保存 MP3",
+      "properties": {
+        "Node name for S&R": "SaveAudioMP3"
+      },
+      "widgets_values": [
+        "indextts-2.5/emo_vector/IndexTTS25",
+        "V0",
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      2,
+      "STRING"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9,
+      "offset": [
+        40,
+        240
+      ]
+    },
+    "indextts_workflow": {
+      "notebook": "notebooks/indextts-2.5/IndexTTS_2.5.ipynb",
+      "model_repo": "IndexTeam/IndexTTS-2.5",
+      "gpu": "A100 40GB/80GB, H100 80GB, RTX 6000 96GB"
+    }
+  },
+  "version": 0.4
+}
