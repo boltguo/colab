@@ -1,8 +1,8 @@
 {
-  "id": "b7486cfe-dd33-4ffe-b734-4100ed63e947",
-  "revision": 3,
-  "last_node_id": 140,
-  "last_link_id": 248,
+  "id": "9340437a-286f-4481-a058-6e8a3a84b752",
+  "revision": 4,
+  "last_node_id": 116,
+  "last_link_id": 246,
   "nodes": [
     {
       "id": 92,
@@ -16,13 +16,13 @@
         560
       ],
       "flags": {},
-      "order": 3,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 248,
+          "link": 194,
           "label": "视频",
           "localized_name": "视频"
         }
@@ -41,39 +41,104 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        "minimax-h3/t2v/MiniMax_H3",
+        "minimax-h3/i2v/MiniMax_H3",
         "auto",
         "auto"
       ],
       "widgets_values_named": {
-        "filename_prefix": "minimax-h3/t2v/MiniMax_H3",
+        "filename_prefix": "minimax-h3/i2v/MiniMax_H3",
         "format": "auto",
         "format.codec": "auto"
       },
       "title": "保存视频与声音"
     },
     {
-      "id": 115,
-      "type": "ResolutionSelector",
+      "id": 114,
+      "type": "LoadImage",
       "pos": [
         60,
-        450
+        400
       ],
       "size": [
         440,
-        190
+        450
       ],
       "flags": {},
       "order": 0,
       "mode": 0,
-      "showAdvanced": true,
       "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            218,
+            246
+          ],
+          "label": "图片",
+          "localized_name": "图片"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩",
+          "localized_name": "遮罩"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "",
+        "upload": "image"
+      },
+      "title": "首帧图片 · 上传后选择"
+    },
+    {
+      "id": 115,
+      "type": "17089543-3a5a-5bc5-885f-58b3c96ea4e4",
+      "pos": [
+        60,
+        930
+      ],
+      "size": [
+        440,
+        125
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "showAdvanced": false,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "label": "参考图片",
+          "link": 246
+        },
+        {
+          "name": "megapixels",
+          "type": "FLOAT",
+          "label": "总像素（MP）",
+          "widget": {
+            "name": "megapixels"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
           "name": "width",
           "type": "INT",
           "links": [
-            246
+            219
           ],
           "label": "宽",
           "localized_name": "宽"
@@ -82,76 +147,43 @@
           "name": "height",
           "type": "INT",
           "links": [
-            247
+            220
           ],
           "label": "高",
           "localized_name": "高"
         }
       ],
       "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.33.0",
-        "Node name for S&R": "ResolutionSelector"
+        "previewExposures": []
       },
       "widgets_values": [
-        "16:9 (Widescreen)",
-        0.98,
-        32
+        0.98
       ],
       "widgets_values_named": {
-        "aspect_ratio": "16:9 (Widescreen)",
-        "megapixels": 0.98,
-        "multiple": 32
+        "megapixels": 0.98
       },
-      "title": "输出尺寸 · 选择画面比例"
+      "title": "输出尺寸 · 自动跟随首帧"
     },
     {
-      "id": 116,
-      "type": "MarkdownNote",
-      "pos": [
-        60,
-        80
-      ],
-      "size": [
-        440,
-        250
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "使用说明",
-      "properties": {},
-      "widgets_values": [
-        "- **输入**：填写中文提示词（画面、动作、声音）\n- **参数**：选择画面比例；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
-      ],
-      "widgets_values_named": {
-        "text": "- **输入**：填写中文提示词（画面、动作、声音）\n- **参数**：选择画面比例；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
-      },
-      "color": "#222",
-      "bgcolor": "#000"
-    },
-    {
-      "id": 140,
-      "type": "79dd8a95-ce9d-4c14-b264-2162e8bec5ce",
+      "id": 105,
+      "type": "4c314f31-ecda-4b08-ae98-faaba1bf613f",
       "pos": [
         590,
         80
       ],
       "size": [
         620,
-        800
+        920
       ],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
           "name": "first_frame",
           "shape": 7,
           "type": "IMAGE",
-          "link": null,
+          "link": 218,
           "label": "首帧",
           "localized_name": "首帧"
         },
@@ -169,7 +201,7 @@
           "widget": {
             "name": "width"
           },
-          "link": 246,
+          "link": 219,
           "label": "宽",
           "localized_name": "宽"
         },
@@ -179,7 +211,7 @@
           "widget": {
             "name": "height"
           },
-          "link": 247,
+          "link": 220,
           "label": "高",
           "localized_name": "高"
         },
@@ -239,7 +271,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            248
+            194
           ],
           "label": "视频",
           "localized_name": "视频"
@@ -251,7 +283,7 @@
         "previewExposures": []
       },
       "widgets_values": [
-        "写实电影风格的动作预告片。雨后的黄昏都市，高楼之间有飞行车辆穿梭；浅景深、轻微胶片颗粒、城市薄雾，动作自然有力量。主角被追赶，在楼顶连续奔跑和跳跃。\n\n镜头一：高位侧拍，主角冲向屋顶边缘，追兵从身后的门口出现，外套被风吹起。\n镜头二：主角跃过两栋楼之间的空隙，身体在半空舒展，背景是高楼和车辆光轨，带轻微慢动作。\n镜头三：低机位拍摄落地、翻滚、起身，主角继续奔跑。\n镜头四：主角抵达下一处屋顶边缘，纵身跃起，以剪影收尾。\n\n镜头干净利落地切换，不使用叠化。声音包括风声、急促脚步、城市环境声和低沉配乐；每次跳跃配合重音，结尾音乐爆发后收束。不要字幕、文字、标志或水印，保持真实摄影质感。",
+        "写实科技产品广告。以参考图片中的透明游戏鼠标为主体，保持外观、材质和环境一致。深黑色摄影棚、微弱反光的桌面，蓝色与暖橙色轮廓光照亮透明外壳和内部金属元件。\n\n镜头一：从输入图片的画面开始，镜头缓慢推进；蓝橙灯光逐渐增强，透过透明外壳展示内部电路。\n镜头二：切到滚轮和内部零件的微距侧面，镜头缓慢横移，暖橙色光束掠过金属纹理。\n镜头三：低机位展示鼠标缓缓悬浮并转动，透明边缘泛起光芒，最后逐渐暗下。\n\n声音包括低沉电子氛围、清脆机械点击和轻微转场风声，结尾渐弱。不要字幕、标志或水印。",
         1344,
         768,
         5,
@@ -266,7 +298,7 @@
         8
       ],
       "widgets_values_named": {
-        "prompt": "写实电影风格的动作预告片。雨后的黄昏都市，高楼之间有飞行车辆穿梭；浅景深、轻微胶片颗粒、城市薄雾，动作自然有力量。主角被追赶，在楼顶连续奔跑和跳跃。\n\n镜头一：高位侧拍，主角冲向屋顶边缘，追兵从身后的门口出现，外套被风吹起。\n镜头二：主角跃过两栋楼之间的空隙，身体在半空舒展，背景是高楼和车辆光轨，带轻微慢动作。\n镜头三：低机位拍摄落地、翻滚、起身，主角继续奔跑。\n镜头四：主角抵达下一处屋顶边缘，纵身跃起，以剪影收尾。\n\n镜头干净利落地切换，不使用叠化。声音包括风声、急促脚步、城市环境声和低沉配乐；每次跳跃配合重音，结尾音乐爆发后收束。不要字幕、文字、标志或水印，保持真实摄影质感。",
+        "prompt": "写实科技产品广告。以参考图片中的透明游戏鼠标为主体，保持外观、材质和环境一致。深黑色摄影棚、微弱反光的桌面，蓝色与暖橙色轮廓光照亮透明外壳和内部金属元件。\n\n镜头一：从输入图片的画面开始，镜头缓慢推进；蓝橙灯光逐渐增强，透过透明外壳展示内部电路。\n镜头二：切到滚轮和内部零件的微距侧面，镜头缓慢横移，暖橙色光束掠过金属纹理。\n镜头三：低机位展示鼠标缓缓悬浮并转动，透明边缘泛起光芒，最后逐渐暗下。\n\n声音包括低沉电子氛围、清脆机械点击和轻微转场风声，结尾渐弱。不要字幕、标志或水印。",
         "width": 1344,
         "height": 768,
         "value_1": 5,
@@ -280,50 +312,93 @@
         "strength_model_1": 1,
         "value_2": 8
       },
-      "title": "文生视频 · 基础模式 / 20 步"
+      "title": "首帧图生视频 · 基础模式 / 20 步"
+    },
+    {
+      "id": 116,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        80
+      ],
+      "size": [
+        440,
+        250
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "使用说明",
+      "properties": {},
+      "widgets_values": [
+        "- **输入**：上传首帧图片，填写动作与声音提示词\n- **参数**：比例自动跟随首帧；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
+      ],
+      "widgets_values_named": {
+        "text": "- **输入**：上传首帧图片，填写动作与声音提示词\n- **参数**：比例自动跟随首帧；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
     }
   ],
   "links": [
     [
-      246,
-      115,
-      0,
-      140,
-      2,
-      "INT"
-    ],
-    [
-      247,
-      115,
-      1,
-      140,
-      3,
-      "INT"
-    ],
-    [
-      248,
-      140,
+      194,
+      105,
       0,
       92,
       0,
       "VIDEO"
+    ],
+    [
+      218,
+      114,
+      0,
+      105,
+      0,
+      "IMAGE"
+    ],
+    [
+      219,
+      115,
+      0,
+      105,
+      2,
+      "INT"
+    ],
+    [
+      220,
+      115,
+      1,
+      105,
+      3,
+      "INT"
+    ],
+    [
+      246,
+      114,
+      0,
+      115,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [],
   "definitions": {
     "subgraphs": [
       {
-        "id": "79dd8a95-ce9d-4c14-b264-2162e8bec5ce",
+        "id": "4c314f31-ecda-4b08-ae98-faaba1bf613f",
         "version": 1,
         "state": {
           "lastGroupId": 6,
-          "lastNodeId": 140,
-          "lastLinkId": 248,
+          "lastNodeId": 126,
+          "lastLinkId": 245,
           "lastRerouteId": 0
         },
         "revision": 0,
         "config": {},
-        "name": "文生视频 · MiniMax H3",
+        "name": "首帧图生视频 · MiniMax H3",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -573,7 +648,7 @@
         "widgets": [],
         "nodes": [
           {
-            "id": 119,
+            "id": 11,
             "type": "VAELoader",
             "pos": [
               -2020,
@@ -584,7 +659,7 @@
               100
             ],
             "flags": {},
-            "order": 2,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -631,7 +706,7 @@
             "title": "加载视频解码模型"
           },
           {
-            "id": 120,
+            "id": 24,
             "type": "VAELoader",
             "pos": [
               -2020,
@@ -642,7 +717,7 @@
               100
             ],
             "flags": {},
-            "order": 3,
+            "order": 11,
             "mode": 0,
             "inputs": [
               {
@@ -688,7 +763,7 @@
             "title": "加载音频解码模型"
           },
           {
-            "id": 121,
+            "id": 23,
             "type": "VAEDecodeAudio",
             "pos": [
               760,
@@ -701,7 +776,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 4,
+            "order": 10,
             "mode": 0,
             "inputs": [
               {
@@ -738,7 +813,7 @@
             "title": "解码音频"
           },
           {
-            "id": 122,
+            "id": 10,
             "type": "VAEDecode",
             "pos": [
               760,
@@ -751,7 +826,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 5,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -788,7 +863,7 @@
             "title": "解码视频画面"
           },
           {
-            "id": 123,
+            "id": 17,
             "type": "KSamplerSelect",
             "pos": [
               0,
@@ -827,7 +902,7 @@
             "title": "选择采样器"
           },
           {
-            "id": 124,
+            "id": 9,
             "type": "BasicScheduler",
             "pos": [
               0,
@@ -838,7 +913,7 @@
               150
             ],
             "flags": {},
-            "order": 6,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -888,7 +963,7 @@
             "title": "采样调度与步数"
           },
           {
-            "id": 125,
+            "id": 14,
             "type": "SamplerCustomAdvanced",
             "pos": [
               420,
@@ -965,7 +1040,7 @@
             "title": "视频与音频采样"
           },
           {
-            "id": 126,
+            "id": 16,
             "type": "BasicGuider",
             "pos": [
               0,
@@ -976,7 +1051,7 @@
               80
             ],
             "flags": {},
-            "order": 8,
+            "order": 9,
             "mode": 0,
             "inputs": [
               {
@@ -1013,7 +1088,7 @@
             "title": "生成条件引导"
           },
           {
-            "id": 127,
+            "id": 6,
             "type": "UNETLoader",
             "pos": [
               -2020,
@@ -1024,7 +1099,7 @@
               120
             ],
             "flags": {},
-            "order": 9,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -1073,7 +1148,7 @@
             "title": "加载视频生成模型"
           },
           {
-            "id": 128,
+            "id": 13,
             "type": "CLIPLoader",
             "pos": [
               -2020,
@@ -1084,7 +1159,7 @@
               150
             ],
             "flags": {},
-            "order": 10,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
@@ -1134,7 +1209,7 @@
             "title": "加载文本编码模型"
           },
           {
-            "id": 129,
+            "id": 15,
             "type": "RandomNoise",
             "pos": [
               0,
@@ -1145,7 +1220,7 @@
               90
             ],
             "flags": {},
-            "order": 11,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
@@ -1186,7 +1261,7 @@
             "title": "随机种子"
           },
           {
-            "id": 130,
+            "id": 91,
             "type": "CreateVideo",
             "pos": [
               1090,
@@ -1247,7 +1322,7 @@
             "title": "合成带声音的视频"
           },
           {
-            "id": 131,
+            "id": 104,
             "type": "MiniMaxH3ImageToVideo",
             "pos": [
               -1300,
@@ -1358,13 +1433,13 @@
               "Node name for S&R": "MiniMaxH3ImageToVideo"
             },
             "widgets_values": [
-              "写实电影风格的动作预告片。雨后的黄昏都市，高楼之间有飞行车辆穿梭；浅景深、轻微胶片颗粒、城市薄雾，动作自然有力量。主角被追赶，在楼顶连续奔跑和跳跃。\n\n镜头一：高位侧拍，主角冲向屋顶边缘，追兵从身后的门口出现，外套被风吹起。\n镜头二：主角跃过两栋楼之间的空隙，身体在半空舒展，背景是高楼和车辆光轨，带轻微慢动作。\n镜头三：低机位拍摄落地、翻滚、起身，主角继续奔跑。\n镜头四：主角抵达下一处屋顶边缘，纵身跃起，以剪影收尾。\n\n镜头干净利落地切换，不使用叠化。声音包括风声、急促脚步、城市环境声和低沉配乐；每次跳跃配合重音，结尾音乐爆发后收束。不要字幕、文字、标志或水印，保持真实摄影质感。",
+              "写实科技产品广告。以参考图片中的透明游戏鼠标为主体，保持外观、材质和环境一致。深黑色摄影棚、微弱反光的桌面，蓝色与暖橙色轮廓光照亮透明外壳和内部金属元件。\n\n镜头一：从输入图片的画面开始，镜头缓慢推进；蓝橙灯光逐渐增强，透过透明外壳展示内部电路。\n镜头二：切到滚轮和内部零件的微距侧面，镜头缓慢横移，暖橙色光束掠过金属纹理。\n镜头三：低机位展示鼠标缓缓悬浮并转动，透明边缘泛起光芒，最后逐渐暗下。\n\n声音包括低沉电子氛围、清脆机械点击和轻微转场风声，结尾渐弱。不要字幕、标志或水印。",
               1344,
               768,
               124
             ],
             "widgets_values_named": {
-              "prompt": "写实电影风格的动作预告片。雨后的黄昏都市，高楼之间有飞行车辆穿梭；浅景深、轻微胶片颗粒、城市薄雾，动作自然有力量。主角被追赶，在楼顶连续奔跑和跳跃。\n\n镜头一：高位侧拍，主角冲向屋顶边缘，追兵从身后的门口出现，外套被风吹起。\n镜头二：主角跃过两栋楼之间的空隙，身体在半空舒展，背景是高楼和车辆光轨，带轻微慢动作。\n镜头三：低机位拍摄落地、翻滚、起身，主角继续奔跑。\n镜头四：主角抵达下一处屋顶边缘，纵身跃起，以剪影收尾。\n\n镜头干净利落地切换，不使用叠化。声音包括风声、急促脚步、城市环境声和低沉配乐；每次跳跃配合重音，结尾音乐爆发后收束。不要字幕、文字、标志或水印，保持真实摄影质感。",
+              "prompt": "写实科技产品广告。以参考图片中的透明游戏鼠标为主体，保持外观、材质和环境一致。深黑色摄影棚、微弱反光的桌面，蓝色与暖橙色轮廓光照亮透明外壳和内部金属元件。\n\n镜头一：从输入图片的画面开始，镜头缓慢推进；蓝橙灯光逐渐增强，透过透明外壳展示内部电路。\n镜头二：切到滚轮和内部零件的微距侧面，镜头缓慢横移，暖橙色光束掠过金属纹理。\n镜头三：低机位展示鼠标缓缓悬浮并转动，透明边缘泛起光芒，最后逐渐暗下。\n\n声音包括低沉电子氛围、清脆机械点击和轻微转场风声，结尾渐弱。不要字幕、标志或水印。",
               "width": 1344,
               "height": 768,
               "length": 124
@@ -1372,7 +1447,7 @@
             "title": "首尾帧条件与提示词"
           },
           {
-            "id": 132,
+            "id": 107,
             "type": "ComfyMathExpression",
             "pos": [
               -1710,
@@ -1443,7 +1518,7 @@
             "title": "时长换算帧数 · 自动计算"
           },
           {
-            "id": 133,
+            "id": 111,
             "type": "PrimitiveFloat",
             "pos": [
               -2020,
@@ -1493,7 +1568,7 @@
             }
           },
           {
-            "id": 134,
+            "id": 121,
             "type": "LoraLoaderModelOnly",
             "pos": [
               -2020,
@@ -1569,7 +1644,7 @@
             "title": "加速权重 · 仅加速分支使用"
           },
           {
-            "id": 135,
+            "id": 122,
             "type": "ComfySwitchNode",
             "pos": [
               -400,
@@ -1634,7 +1709,7 @@
             }
           },
           {
-            "id": 136,
+            "id": 123,
             "type": "ComfySwitchNode",
             "pos": [
               -400,
@@ -1698,7 +1773,7 @@
             }
           },
           {
-            "id": 137,
+            "id": 124,
             "type": "PrimitiveInt",
             "pos": [
               -750,
@@ -1739,7 +1814,7 @@
             "title": "基础采样步数"
           },
           {
-            "id": 138,
+            "id": 125,
             "type": "PrimitiveInt",
             "pos": [
               -750,
@@ -1791,7 +1866,7 @@
             "title": "加速采样步数"
           },
           {
-            "id": 139,
+            "id": 126,
             "type": "PrimitiveBoolean",
             "pos": [
               -750,
@@ -1909,103 +1984,103 @@
         "links": [
           {
             "id": 23,
-            "origin_id": 120,
+            "origin_id": 24,
             "origin_slot": 0,
-            "target_id": 121,
+            "target_id": 23,
             "target_slot": 1,
             "type": "VAE"
           },
           {
             "id": 8,
-            "origin_id": 119,
+            "origin_id": 11,
             "origin_slot": 0,
-            "target_id": 122,
+            "target_id": 10,
             "target_slot": 1,
             "type": "VAE"
           },
           {
             "id": 40,
-            "origin_id": 129,
+            "origin_id": 15,
             "origin_slot": 0,
-            "target_id": 125,
+            "target_id": 14,
             "target_slot": 0,
             "type": "NOISE"
           },
           {
             "id": 12,
-            "origin_id": 126,
+            "origin_id": 16,
             "origin_slot": 0,
-            "target_id": 125,
+            "target_id": 14,
             "target_slot": 1,
             "type": "GUIDER"
           },
           {
             "id": 16,
-            "origin_id": 123,
+            "origin_id": 17,
             "origin_slot": 0,
-            "target_id": 125,
+            "target_id": 14,
             "target_slot": 2,
             "type": "SAMPLER"
           },
           {
             "id": 18,
-            "origin_id": 124,
+            "origin_id": 9,
             "origin_slot": 0,
-            "target_id": 125,
+            "target_id": 14,
             "target_slot": 3,
             "type": "SIGMAS"
           },
           {
             "id": 188,
-            "origin_id": 131,
+            "origin_id": 104,
             "origin_slot": 1,
-            "target_id": 125,
+            "target_id": 14,
             "target_slot": 4,
             "type": "LATENT"
           },
           {
             "id": 187,
-            "origin_id": 131,
+            "origin_id": 104,
             "origin_slot": 0,
-            "target_id": 126,
+            "target_id": 16,
             "target_slot": 1,
             "type": "CONDITIONING"
           },
           {
             "id": 167,
-            "origin_id": 122,
+            "origin_id": 10,
             "origin_slot": 0,
-            "target_id": 130,
+            "target_id": 91,
             "target_slot": 0,
             "type": "IMAGE"
           },
           {
             "id": 166,
-            "origin_id": 121,
+            "origin_id": 23,
             "origin_slot": 0,
-            "target_id": 130,
+            "target_id": 91,
             "target_slot": 1,
             "type": "AUDIO"
           },
           {
             "id": 189,
-            "origin_id": 128,
+            "origin_id": 13,
             "origin_slot": 0,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 0,
             "type": "CLIP"
           },
           {
             "id": 190,
-            "origin_id": 119,
+            "origin_id": 11,
             "origin_slot": 0,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 1,
             "type": "VAE"
           },
           {
             "id": 168,
-            "origin_id": 130,
+            "origin_id": 91,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
@@ -2015,7 +2090,7 @@
             "id": 195,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 2,
             "type": "IMAGE"
           },
@@ -2023,7 +2098,7 @@
             "id": 196,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 3,
             "type": "IMAGE"
           },
@@ -2031,15 +2106,15 @@
             "id": 197,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 4,
             "type": "STRING"
           },
           {
             "id": 199,
-            "origin_id": 132,
+            "origin_id": 107,
             "origin_slot": 1,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 7,
             "type": "INT"
           },
@@ -2047,7 +2122,7 @@
             "id": 200,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 5,
             "type": "INT"
           },
@@ -2055,15 +2130,15 @@
             "id": 201,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 131,
+            "target_id": 104,
             "target_slot": 6,
             "type": "INT"
           },
           {
             "id": 205,
-            "origin_id": 133,
+            "origin_id": 111,
             "origin_slot": 0,
-            "target_id": 132,
+            "target_id": 107,
             "target_slot": 0,
             "type": "FLOAT"
           },
@@ -2071,7 +2146,7 @@
             "id": 206,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 133,
+            "target_id": 111,
             "target_slot": 0,
             "type": "FLOAT"
           },
@@ -2079,7 +2154,7 @@
             "id": 207,
             "origin_id": -10,
             "origin_slot": 6,
-            "target_id": 129,
+            "target_id": 15,
             "target_slot": 0,
             "type": "INT"
           },
@@ -2087,7 +2162,7 @@
             "id": 221,
             "origin_id": -10,
             "origin_slot": 7,
-            "target_id": 127,
+            "target_id": 6,
             "target_slot": 0,
             "type": "COMBO"
           },
@@ -2095,7 +2170,7 @@
             "id": 223,
             "origin_id": -10,
             "origin_slot": 9,
-            "target_id": 119,
+            "target_id": 11,
             "target_slot": 0,
             "type": "COMBO"
           },
@@ -2103,23 +2178,23 @@
             "id": 224,
             "origin_id": -10,
             "origin_slot": 10,
-            "target_id": 120,
+            "target_id": 24,
             "target_slot": 0,
             "type": "COMBO"
           },
           {
             "id": 225,
-            "origin_id": 125,
+            "origin_id": 14,
             "origin_slot": 0,
-            "target_id": 122,
+            "target_id": 10,
             "target_slot": 0,
             "type": "LATENT"
           },
           {
             "id": 226,
-            "origin_id": 125,
+            "origin_id": 14,
             "origin_slot": 0,
-            "target_id": 121,
+            "target_id": 23,
             "target_slot": 0,
             "type": "LATENT"
           },
@@ -2127,79 +2202,79 @@
             "id": 227,
             "origin_id": -10,
             "origin_slot": 8,
-            "target_id": 128,
+            "target_id": 13,
             "target_slot": 0,
             "type": "COMBO"
           },
           {
             "id": 229,
-            "origin_id": 127,
+            "origin_id": 6,
             "origin_slot": 0,
-            "target_id": 134,
+            "target_id": 121,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
             "id": 232,
-            "origin_id": 127,
+            "origin_id": 6,
             "origin_slot": 0,
-            "target_id": 135,
+            "target_id": 122,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
             "id": 233,
-            "origin_id": 134,
+            "origin_id": 121,
             "origin_slot": 0,
-            "target_id": 135,
+            "target_id": 122,
             "target_slot": 1,
             "type": "MODEL"
           },
           {
             "id": 234,
-            "origin_id": 135,
+            "origin_id": 122,
             "origin_slot": 0,
-            "target_id": 124,
+            "target_id": 9,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
             "id": 235,
-            "origin_id": 136,
+            "origin_id": 123,
             "origin_slot": 0,
-            "target_id": 124,
+            "target_id": 9,
             "target_slot": 1,
             "type": "INT"
           },
           {
             "id": 236,
-            "origin_id": 137,
+            "origin_id": 124,
             "origin_slot": 0,
-            "target_id": 136,
+            "target_id": 123,
             "target_slot": 0,
             "type": "INT"
           },
           {
             "id": 237,
-            "origin_id": 138,
+            "origin_id": 125,
             "origin_slot": 0,
-            "target_id": 136,
+            "target_id": 123,
             "target_slot": 1,
             "type": "INT"
           },
           {
             "id": 238,
-            "origin_id": 139,
+            "origin_id": 126,
             "origin_slot": 0,
-            "target_id": 135,
+            "target_id": 122,
             "target_slot": 2,
             "type": "BOOLEAN"
           },
           {
             "id": 239,
-            "origin_id": 139,
+            "origin_id": 126,
             "origin_slot": 0,
-            "target_id": 136,
+            "target_id": 123,
             "target_slot": 2,
             "type": "BOOLEAN"
           },
@@ -2207,15 +2282,15 @@
             "id": 240,
             "origin_id": -10,
             "origin_slot": 11,
-            "target_id": 139,
+            "target_id": 126,
             "target_slot": 0,
             "type": "BOOLEAN"
           },
           {
             "id": 241,
-            "origin_id": 135,
+            "origin_id": 122,
             "origin_slot": 0,
-            "target_id": 126,
+            "target_id": 16,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -2223,7 +2298,7 @@
             "id": 243,
             "origin_id": -10,
             "origin_slot": 12,
-            "target_id": 134,
+            "target_id": 121,
             "target_slot": 1,
             "type": "COMBO"
           },
@@ -2231,7 +2306,7 @@
             "id": 244,
             "origin_id": -10,
             "origin_slot": 13,
-            "target_id": 134,
+            "target_id": 121,
             "target_slot": 2,
             "type": "FLOAT"
           },
@@ -2239,8 +2314,260 @@
             "id": 245,
             "origin_id": -10,
             "origin_slot": 14,
-            "target_id": 138,
+            "target_id": 125,
             "target_slot": 0,
+            "type": "INT"
+          }
+        ],
+        "extra": {}
+      },
+      {
+        "id": "17089543-3a5a-5bc5-885f-58b3c96ea4e4",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 120,
+          "lastLinkId": 5,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "自动跟随图片比例",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            0,
+            65,
+            144,
+            90
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            875,
+            65,
+            120,
+            90
+          ]
+        },
+        "inputs": [
+          {
+            "id": "02c6cc4b-a27f-59f4-bcda-f3e7fc2a3106",
+            "name": "image",
+            "type": "IMAGE",
+            "label": "参考图片",
+            "linkIds": [
+              1
+            ],
+            "pos": [
+              120,
+              90
+            ]
+          },
+          {
+            "id": "7a61dac1-95d3-5b89-b015-6d189e0e9d5c",
+            "name": "megapixels",
+            "type": "FLOAT",
+            "label": "总像素（MP）",
+            "linkIds": [
+              2
+            ],
+            "pos": [
+              120,
+              120
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "0fa033db-de39-50eb-8b16-4359f09dd9fa",
+            "name": "width",
+            "type": "INT",
+            "label": "宽",
+            "linkIds": [
+              4
+            ],
+            "pos": [
+              900,
+              90
+            ]
+          },
+          {
+            "id": "487675c5-908d-51b5-87ee-0c06f78573c7",
+            "name": "height",
+            "type": "INT",
+            "label": "高",
+            "linkIds": [
+              5
+            ],
+            "pos": [
+              900,
+              120
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 119,
+            "type": "ImageScaleToTotalPixels",
+            "pos": [
+              220,
+              100
+            ],
+            "size": [
+              280,
+              170
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "showAdvanced": false,
+            "inputs": [
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 1,
+                "label": "图片",
+                "localized_name": "图片"
+              },
+              {
+                "name": "megapixels",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "megapixels"
+                },
+                "link": 2,
+                "label": "总像素（MP）"
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  3
+                ],
+                "label": "图片",
+                "localized_name": "图片"
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.33.0",
+              "Node name for S&R": "ImageScaleToTotalPixels"
+            },
+            "widgets_values": [
+              "nearest-exact",
+              0.98,
+              32
+            ],
+            "widgets_values_named": {
+              "upscale_method": "nearest-exact",
+              "megapixels": 0.98,
+              "resolution_steps": 32
+            },
+            "title": "按图片比例缩放"
+          },
+          {
+            "id": 120,
+            "type": "GetImageSize",
+            "pos": [
+              570,
+              100
+            ],
+            "size": [
+              230,
+              100
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 3,
+                "label": "图片",
+                "localized_name": "图片"
+              }
+            ],
+            "outputs": [
+              {
+                "name": "width",
+                "type": "INT",
+                "links": [
+                  4
+                ],
+                "label": "宽",
+                "localized_name": "宽"
+              },
+              {
+                "name": "height",
+                "type": "INT",
+                "links": [
+                  5
+                ],
+                "label": "高",
+                "localized_name": "高"
+              },
+              {
+                "name": "batch_size",
+                "type": "INT",
+                "links": [],
+                "label": "数量",
+                "localized_name": "数量"
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.33.0",
+              "Node name for S&R": "GetImageSize"
+            },
+            "title": "读取输出宽高"
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 119,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 2,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 119,
+            "target_slot": 1,
+            "type": "FLOAT"
+          },
+          {
+            "id": 3,
+            "origin_id": 119,
+            "origin_slot": 0,
+            "target_id": 120,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 4,
+            "origin_id": 120,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 5,
+            "origin_id": 120,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 1,
             "type": "INT"
           }
         ],
@@ -2250,11 +2577,6 @@
   },
   "config": {},
   "extra": {
-    "frontendVersion": "1.49.6",
-    "VHS_latentpreview": false,
-    "VHS_latentpreviewrate": 0,
-    "VHS_MetadataImage": true,
-    "VHS_KeepIntermediate": true,
     "ds": {
       "scale": 0.9,
       "offset": [
@@ -2262,8 +2584,13 @@
         60
       ]
     },
+    "frontendVersion": "1.49.6",
+    "VHS_KeepIntermediate": true,
+    "VHS_MetadataImage": true,
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
     "minimax_h3_setup": {
-      "source": "https://github.com/Comfy-Org/workflow_templates/blob/b4119d0fcecf78a376e087305ec4f485c66a03f5/templates/video_minimax_h3_t2v.json",
+      "source": "https://github.com/Comfy-Org/workflow_templates/blob/b4119d0fcecf78a376e087305ec4f485c66a03f5/templates/video_minimax_h3_i2v.json",
       "source_revision": "b4119d0fcecf78a376e087305ec4f485c66a03f5",
       "model_mapping": {
         "minimax_h3_fl2va_pruned_int8_convrot.safetensors": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
@@ -2273,12 +2600,12 @@
         "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_int8_convrot.safetensors"
       },
       "default_path": "基础模式；加速关闭；20 步",
-      "notebook": "notebooks/minimax-h3/MiniMaxH3_A100_80GB.ipynb",
-      "task": "文生视频 · 基础模式 / 20 步",
+      "notebook": "notebooks/minimax-h3/MiniMaxH3.ipynb",
+      "task": "首帧图生视频 · 基础模式 / 20 步",
       "ui_language": "zh-CN",
-      "size_mode": "手动选择输出比例",
-      "model_revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "size_mode": "自动跟随首帧",
       "default_megapixels": 0.98,
+      "model_revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
       "default_steps": 20,
       "precision": {
         "diffusion": "INT8 ConvRot",

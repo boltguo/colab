@@ -1,8 +1,8 @@
 {
-  "id": "dd7effc3-e538-4bea-85d4-e3648d44e1f3",
-  "revision": 5,
-  "last_node_id": 14,
-  "last_link_id": 13,
+  "id": "9834e419-5c64-483a-965f-291829e6d505",
+  "revision": 0,
+  "last_node_id": 15,
+  "last_link_id": 14,
   "nodes": [
     {
       "id": 1,
@@ -24,7 +24,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1
+            2
           ]
         }
       ],
@@ -51,7 +51,7 @@
       "type": "CLIPLoader",
       "pos": [
         60,
-        440
+        280
       ],
       "size": [
         420,
@@ -94,7 +94,7 @@
       "type": "VAELoader",
       "pos": [
         60,
-        650
+        485
       ],
       "size": [
         420,
@@ -132,47 +132,6 @@
       ]
     },
     {
-      "id": 4,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        60,
-        280
-      ],
-      "size": [
-        420,
-        110
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            2
-          ]
-        }
-      ],
-      "title": "LoRA · Anime consistency（已启用）",
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly",
-        "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
-      },
-      "widgets_values": [
-        "Qwen2.1_Anime_consistency.safetensors",
-        1.0
-      ]
-    },
-    {
       "id": 5,
       "type": "QwenImage21Cache",
       "pos": [
@@ -184,7 +143,7 @@
         110
       ],
       "flags": {},
-      "order": 8,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -206,7 +165,7 @@
       "properties": {
         "Node name for S&R": "QwenImage21Cache",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "cpu",
@@ -237,6 +196,12 @@
           "name": "images.image_1",
           "type": "IMAGE",
           "link": 7,
+          "shape": 7
+        },
+        {
+          "name": "images.image_2",
+          "type": "IMAGE",
+          "link": 14,
           "shape": 7
         },
         {
@@ -277,14 +242,14 @@
           ]
         }
       ],
-      "title": "编辑指令",
+      "title": "双图编辑指令",
       "properties": {
         "Node name for S&R": "TextEncodeQwenImage21",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
-        "保持 <image1> 中动漫角色的面部特征、发型与服装一致，改为在夜晚天台仰望星空，柔和月光与城市背景光斑。",
+        "保留 <image1> 中的主体，将背景替换为 <image2> 的场景。保留主体的外观、颜色和细节，匹配场景的光照与透视，让主体自然融入环境。",
         "",
         2048
       ]
@@ -318,11 +283,51 @@
           "links": []
         }
       ],
-      "title": "上传参考图",
+      "title": "上传图 1 · 主图 / 输出比例",
       "properties": {
         "Node name for S&R": "LoadImage",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "LoadImage",
+      "pos": [
+        580,
+        1180
+      ],
+      "size": [
+        480,
+        310
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "上传图 2 · 参考图",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "",
@@ -341,7 +346,7 @@
         335
       ],
       "flags": {},
-      "order": 9,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -378,7 +383,7 @@
       "properties": {
         "Node name for S&R": "KSampler",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         42,
@@ -402,7 +407,7 @@
         75
       ],
       "flags": {},
-      "order": 10,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -429,7 +434,7 @@
       "properties": {
         "Node name for S&R": "VAEDecode",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       }
     },
     {
@@ -444,7 +449,7 @@
         480
       ],
       "flags": {},
-      "order": 11,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -464,35 +469,11 @@
       "properties": {
         "Node name for S&R": "SaveImage",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
-        "qwen-image-2.1/reference-lora/Qwen21"
+        "qwen-image-2.1/two-images/Qwen21"
       ]
-    },
-    {
-      "id": 11,
-      "type": "MarkdownNote",
-      "pos": [
-        60,
-        1230
-      ],
-      "size": [
-        980,
-        190
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "使用说明",
-      "properties": {},
-      "widgets_values": [
-        "- **输入**：上传参考图，用 `<image1>` 编写角色一致性编辑指令（LoRA 强度 1.0）\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图片；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
-      ],
-      "color": "#343",
-      "bgcolor": "#232"
     },
     {
       "id": 14,
@@ -540,20 +521,36 @@
       "widgets_values_named": {
         "choice": "2K"
       }
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        635
+      ],
+      "size": [
+        420,
+        210
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "使用说明",
+      "properties": {},
+      "widgets_values": [
+        "- **输入**：上传图 1（主图）与图 2（参考图），用 `<image1>` / `<image2>` 编写指令\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图 1；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
+      ],
+      "color": "#343",
+      "bgcolor": "#232"
     }
   ],
   "links": [
     [
-      1,
-      1,
-      0,
-      4,
-      0,
-      "MODEL"
-    ],
-    [
       2,
-      4,
+      1,
       0,
       5,
       0,
@@ -604,7 +601,7 @@
       3,
       0,
       6,
-      2,
+      3,
       "VAE"
     ],
     [
@@ -644,19 +641,27 @@
       14,
       0,
       6,
-      3,
+      4,
       "INT"
+    ],
+    [
+      14,
+      15,
+      0,
+      6,
+      2,
+      "IMAGE"
     ]
   ],
   "groups": [
     {
       "id": 1,
-      "title": "1. BF16 模型与 LoRA",
+      "title": "1. 模型",
       "bounding": [
         35,
         65,
         470,
-        710
+        525
       ],
       "color": "#3f789e",
       "font_size": 24,
@@ -664,12 +669,12 @@
     },
     {
       "id": 2,
-      "title": "2. 提示词、参考图与输出尺寸",
+      "title": "2. 双图与编辑指令",
       "bounding": [
         550,
         65,
         520,
-        1100
+        1460
       ],
       "color": "#6b8f5b",
       "font_size": 24,
@@ -700,43 +705,29 @@
       "color": "#8b668d",
       "font_size": 24,
       "flags": {}
-    },
-    {
-      "id": 5,
-      "title": "参数与用法",
-      "bounding": [
-        35,
-        1180,
-        1030,
-        270
-      ],
-      "color": "#54735a",
-      "font_size": 24,
-      "flags": {}
     }
   ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.6,
+      "scale": 0.55,
       "offset": [
         70,
         80
       ]
     },
     "qwen_workflow": {
-      "description": "Qwen-Image 2.1 单参考图 LoRA 版，默认 2K",
-      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1_A100_80GB.ipynb",
-      "source_git_commit": "7921a1b",
+      "description": "Qwen-Image 2.1 双图编辑基础版，默认 2K",
+      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb",
       "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
       "model_repo": "Comfy-Org/Qwen-Image-2.1",
       "model_revision": "cb504a4090723e43f17ad01cec0359490e2de613",
-      "original_diffusers_model": "Qwen/Qwen-Image-2.1",
-      "original_diffusers_model_revision": "d26bb61231c349cf6b7896fa83353113880e1ba3",
       "official_template": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json",
       "reference_image_required": true,
-      "lora_enabled_by_default": true,
-      "lora_included": true,
+      "reference_image_count": 2,
+      "output_size_reference": "image_1",
+      "lora_enabled_by_default": false,
+      "lora_included": false,
       "size_selection": {
         "node": "CustomCombo",
         "default_resolution": "2K",
@@ -860,7 +851,7 @@
             "properties": {
               "Node name for S&R": "CustomCombo",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "2K",
@@ -916,7 +907,7 @@
             "properties": {
               "Node name for S&R": "ComfyMathExpression",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "1024 * (a + 1) if a < 2 else 0"

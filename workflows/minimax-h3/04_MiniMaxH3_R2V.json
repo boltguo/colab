@@ -1837,7 +1837,7 @@
         "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_int8_convrot.safetensors"
       },
       "default_path": "基础模式；加速关闭；20 步",
-      "notebook": "notebooks/minimax-h3/MiniMaxH3_A100_80GB.ipynb",
+      "notebook": "notebooks/minimax-h3/MiniMaxH3.ipynb",
       "task": "多模态参考视频 · 基础模式 / 20 步",
       "ui_language": "zh-CN",
       "size_mode": "自动跟随参考图 1",

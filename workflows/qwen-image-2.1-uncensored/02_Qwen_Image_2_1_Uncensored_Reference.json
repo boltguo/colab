@@ -1,8 +1,8 @@
 {
-  "id": "d2247dc2-29b6-5402-96e6-8f9ff836f472",
+  "id": "6b6c4b81-7a80-567d-81e1-af3c8d85bcbd",
   "revision": 0,
-  "last_node_id": 15,
-  "last_link_id": 14,
+  "last_node_id": 14,
+  "last_link_id": 13,
   "nodes": [
     {
       "id": 1,
@@ -77,8 +77,8 @@
         "models": [
           {
             "name": "qwen3vl_8b_int8_convrot.safetensors",
-            "url": "https://huggingface.co/abenzerps/Qwen-Image-2.1-Uncensored-GGUF/resolve/6b34e59458d3eb7ba6a6f86a116aed5253dc02c3/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
-            "directory": "text_encoders"
+            "directory": "text_encoders",
+            "url": "https://huggingface.co/abenzerps/Qwen-Image-2.1-Uncensored-GGUF/resolve/6b34e59458d3eb7ba6a6f86a116aed5253dc02c3/text_encoders/qwen3vl_8b_int8_convrot.safetensors"
           }
         ]
       },
@@ -198,12 +198,6 @@
           "shape": 7
         },
         {
-          "name": "images.image_2",
-          "type": "IMAGE",
-          "link": 14,
-          "shape": 7
-        },
-        {
           "name": "vae",
           "type": "VAE",
           "link": 8,
@@ -241,14 +235,14 @@
           ]
         }
       ],
-      "title": "双图编辑指令",
+      "title": "编辑指令",
       "properties": {
         "Node name for S&R": "TextEncodeQwenImage21",
         "cnr_id": "comfy-core",
         "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
-        "保留 <image1> 中的主体，将背景替换为 <image2> 的场景。保留主体的外观、颜色和细节，匹配场景的光照与透视，让主体自然融入环境。",
+        "将 <image1> 的背景改为日落时的海边，保留主体、构图和细节。",
         "",
         2048
       ]
@@ -282,47 +276,7 @@
           "links": []
         }
       ],
-      "title": "上传图 1 · 主图 / 输出比例",
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "cnr_id": "comfy-core",
-        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
-      },
-      "widgets_values": [
-        "",
-        "image"
-      ]
-    },
-    {
-      "id": 15,
-      "type": "LoadImage",
-      "pos": [
-        580,
-        1180
-      ],
-      "size": [
-        480,
-        310
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            14
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "title": "上传图 2 · 参考图",
+      "title": "上传参考图",
       "properties": {
         "Node name for S&R": "LoadImage",
         "cnr_id": "comfy-core",
@@ -471,7 +425,7 @@
         "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
-        "qwen-image-2.1-uncensored/two-images/Qwen21_UC"
+        "qwen-image-2.1-uncensored/reference/Qwen21_UC"
       ]
     },
     {
@@ -540,7 +494,7 @@
       "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "- **输入**：上传图 1（主图）与图 2（参考图），用 `<image1>` / `<image2>` 编写指令\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图 1；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
+        "- **输入**：上传参考图，用 `<image1>` 编写编辑指令\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图片；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
       ]
     }
   ],
@@ -598,7 +552,7 @@
       3,
       0,
       6,
-      3,
+      2,
       "VAE"
     ],
     [
@@ -638,16 +592,8 @@
       14,
       0,
       6,
-      4,
+      3,
       "INT"
-    ],
-    [
-      14,
-      15,
-      0,
-      6,
-      2,
-      "IMAGE"
     ]
   ],
   "groups": [
@@ -666,12 +612,12 @@
     },
     {
       "id": 2,
-      "title": "2. 双图与编辑指令",
+      "title": "2. 提示词、参考图与输出尺寸",
       "bounding": [
         550,
         65,
         520,
-        1460
+        1100
       ],
       "color": "#6b8f5b",
       "font_size": 24,
@@ -707,15 +653,15 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.55,
+      "scale": 0.6,
       "offset": [
         70,
         80
       ]
     },
     "qwen_workflow": {
-      "description": "Qwen-Image 2.1 Uncensored 双图编辑，默认 2K",
-      "source_notebook": "notebooks/qwen-image-2.1-uncensored/Qwen_Image_2.1_Uncensored_A100_40GB.ipynb",
+      "description": "Qwen-Image 2.1 Uncensored 单参考图编辑，默认 2K",
+      "source_notebook": "notebooks/qwen-image-2.1-uncensored/Qwen_Image_2.1_Uncensored.ipynb",
       "comfyui_revision": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
       "gguf_repo": "leejet/ComfyUI-GGUF",
       "gguf_revision": "373048b8403a7820620065210a691263d4da0a61",
@@ -746,9 +692,7 @@
         "text_encoder": "INT8 ConvRot",
         "vae": "BF16"
       },
-      "gpu": "A100 40GB or 80GB",
-      "reference_image_count": 2,
-      "output_size_reference": "image_1"
+      "gpu": "A100 40GB/80GB, H100 80GB, RTX 6000 96GB"
     }
   },
   "version": 0.4,

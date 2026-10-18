@@ -1,12 +1,12 @@
 {
-  "id": "a8f80f81-2cf1-4667-af78-6a8f4a3d75ec",
-  "revision": 5,
+  "id": "9cfa6949-1174-5e8f-94f3-e12465e750f7",
+  "revision": 0,
   "last_node_id": 14,
   "last_link_id": 12,
   "nodes": [
     {
       "id": 1,
-      "type": "UNETLoader",
+      "type": "UnetLoaderGGUF",
       "pos": [
         60,
         120
@@ -24,26 +24,25 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1
+            2
           ]
         }
       ],
-      "title": "主模型 · BF16",
+      "title": "主模型 · Uncensored BF16 GGUF",
       "properties": {
-        "Node name for S&R": "UNETLoader",
-        "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "Node name for S&R": "UnetLoaderGGUF",
+        "aux_id": "leejet/ComfyUI-GGUF",
+        "ver": "373048b8403a7820620065210a691263d4da0a61",
         "models": [
           {
-            "name": "qwen_image_2.1_bf16.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/diffusion_models/qwen_image_2.1_bf16.safetensors",
+            "name": "qwen-image-2.1-UC-BF16.gguf",
+            "url": "https://huggingface.co/abenzerps/Qwen-Image-2.1-Uncensored-GGUF/resolve/6b34e59458d3eb7ba6a6f86a116aed5253dc02c3/qwen-image-2.1-UC-BF16.gguf",
             "directory": "diffusion_models"
           }
         ]
       },
       "widgets_values": [
-        "qwen_image_2.1_bf16.safetensors",
-        "default"
+        "qwen-image-2.1-UC-BF16.gguf"
       ]
     },
     {
@@ -51,7 +50,7 @@
       "type": "CLIPLoader",
       "pos": [
         60,
-        440
+        280
       ],
       "size": [
         420,
@@ -70,21 +69,21 @@
           ]
         }
       ],
-      "title": "文本编码器 · BF16",
+      "title": "文本编码器 · INT8 ConvRot",
       "properties": {
         "Node name for S&R": "CLIPLoader",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
         "models": [
           {
-            "name": "qwen3vl_8b_bf16.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/text_encoders/qwen3vl_8b_bf16.safetensors",
-            "directory": "text_encoders"
+            "name": "qwen3vl_8b_int8_convrot.safetensors",
+            "directory": "text_encoders",
+            "url": "https://huggingface.co/abenzerps/Qwen-Image-2.1-Uncensored-GGUF/resolve/6b34e59458d3eb7ba6a6f86a116aed5253dc02c3/text_encoders/qwen3vl_8b_int8_convrot.safetensors"
           }
         ]
       },
       "widgets_values": [
-        "qwen3vl_8b_bf16.safetensors",
+        "qwen3vl_8b_int8_convrot.safetensors",
         "qwen_image",
         "default"
       ]
@@ -94,7 +93,7 @@
       "type": "VAELoader",
       "pos": [
         60,
-        650
+        485
       ],
       "size": [
         420,
@@ -117,58 +116,17 @@
       "properties": {
         "Node name for S&R": "VAELoader",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
         "models": [
           {
             "name": "qwen_image_2.1_vae_bf16.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/vae/qwen_image_2.1_vae_bf16.safetensors",
+            "url": "https://huggingface.co/abenzerps/Qwen-Image-2.1-Uncensored-GGUF/resolve/6b34e59458d3eb7ba6a6f86a116aed5253dc02c3/vae/qwen_image_2.1_vae_bf16.safetensors",
             "directory": "vae"
           }
         ]
       },
       "widgets_values": [
         "qwen_image_2.1_vae_bf16.safetensors"
-      ]
-    },
-    {
-      "id": 4,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        60,
-        280
-      ],
-      "size": [
-        420,
-        110
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            2
-          ]
-        }
-      ],
-      "title": "LoRA · Anime consistency（已启用）",
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly",
-        "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
-      },
-      "widgets_values": [
-        "Qwen2.1_Anime_consistency.safetensors",
-        1.0
       ]
     },
     {
@@ -183,7 +141,7 @@
         110
       ],
       "flags": {},
-      "order": 8,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
@@ -205,7 +163,7 @@
       "properties": {
         "Node name for S&R": "QwenImage21Cache",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         "auto",
@@ -270,10 +228,10 @@
       "properties": {
         "Node name for S&R": "TextEncodeQwenImage21",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
-        "日系动漫风格，一位银发少女站在樱花树下，柔和逆光，眼神清澈，线条细腻，色彩通透。",
+        "一只橘猫坐在窗边，柔和自然光，真实摄影",
         "",
         2048
       ]
@@ -323,7 +281,7 @@
       "properties": {
         "Node name for S&R": "EmptyLatentImage",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         2048,
@@ -343,7 +301,7 @@
         335
       ],
       "flags": {},
-      "order": 9,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -380,7 +338,7 @@
       "properties": {
         "Node name for S&R": "KSampler",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
         42,
@@ -404,7 +362,7 @@
         75
       ],
       "flags": {},
-      "order": 10,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -431,7 +389,7 @@
       "properties": {
         "Node name for S&R": "VAEDecode",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       }
     },
     {
@@ -446,7 +404,7 @@
         480
       ],
       "flags": {},
-      "order": 11,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -466,35 +424,11 @@
       "properties": {
         "Node name for S&R": "SaveImage",
         "cnr_id": "comfy-core",
-        "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+        "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
       },
       "widgets_values": [
-        "qwen-image-2.1/t2i-lora/Qwen21"
+        "qwen-image-2.1-uncensored/t2i/Qwen21_UC"
       ]
-    },
-    {
-      "id": 11,
-      "type": "MarkdownNote",
-      "pos": [
-        60,
-        1110
-      ],
-      "size": [
-        980,
-        190
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "使用说明",
-      "properties": {},
-      "widgets_values": [
-        "- **输入**：填写动漫风格提示词（默认启用 Anime consistency LoRA，强度 1.0）\n- **参数**：分辨率可选 1K / 2K（默认），画面比例可下拉切换；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
-      ],
-      "color": "#343",
-      "bgcolor": "#232"
     },
     {
       "id": 14,
@@ -561,20 +495,34 @@
         "choice": "2K",
         "aspect_ratio": "1:1 (Square)"
       }
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        635
+      ],
+      "size": [
+        420,
+        210
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "使用说明",
+      "properties": {},
+      "widgets_values": [
+        "- **输入**：填写提示词\n- **参数**：分辨率可选 1K / 2K（默认），画面比例可下拉切换；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
+      ]
     }
   ],
   "links": [
     [
-      1,
-      1,
-      0,
-      4,
-      0,
-      "MODEL"
-    ],
-    [
       2,
-      4,
+      1,
       0,
       5,
       0,
@@ -664,12 +612,12 @@
   "groups": [
     {
       "id": 1,
-      "title": "1. BF16 模型与 LoRA",
+      "title": "1. 模型",
       "bounding": [
         35,
         65,
         470,
-        710
+        525
       ],
       "color": "#3f789e",
       "font_size": 24,
@@ -713,19 +661,6 @@
       "color": "#8b668d",
       "font_size": 24,
       "flags": {}
-    },
-    {
-      "id": 5,
-      "title": "参数与用法",
-      "bounding": [
-        35,
-        1060,
-        1030,
-        270
-      ],
-      "color": "#54735a",
-      "font_size": 24,
-      "flags": {}
     }
   ],
   "config": {},
@@ -738,18 +673,21 @@
       ]
     },
     "qwen_workflow": {
-      "description": "Qwen-Image 2.1 文生图 LoRA 版，默认 2K",
-      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1_A100_80GB.ipynb",
-      "source_git_commit": "7921a1b",
-      "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
-      "model_repo": "Comfy-Org/Qwen-Image-2.1",
-      "model_revision": "cb504a4090723e43f17ad01cec0359490e2de613",
-      "original_diffusers_model": "Qwen/Qwen-Image-2.1",
-      "original_diffusers_model_revision": "d26bb61231c349cf6b7896fa83353113880e1ba3",
+      "description": "Qwen-Image 2.1 Uncensored 文字生图，默认 2K",
+      "source_notebook": "notebooks/qwen-image-2.1-uncensored/Qwen_Image_2.1_Uncensored.ipynb",
+      "comfyui_revision": "7d9e5a045c13c563a5dcd18c617a985efa6332da",
+      "gguf_repo": "leejet/ComfyUI-GGUF",
+      "gguf_revision": "373048b8403a7820620065210a691263d4da0a61",
+      "model_repo": "abenzerps/Qwen-Image-2.1-Uncensored-GGUF",
+      "model_revision": "6b34e59458d3eb7ba6a6f86a116aed5253dc02c3",
       "official_template": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_t2i.json",
       "reference_image_required": false,
-      "lora_enabled_by_default": true,
-      "lora_included": true,
+      "lora_enabled_by_default": false,
+      "lora_included": false,
+      "built_in_nodes_only": false,
+      "custom_node_packages": [
+        "leejet/ComfyUI-GGUF"
+      ],
       "size_selection": {
         "node": "CustomCombo",
         "default_resolution": "2K",
@@ -761,7 +699,12 @@
         "resolution_node": "ResolutionSelector",
         "ui": "built-in subgraph with only resolution and aspect ratio controls exposed"
       },
-      "built_in_nodes_only": true
+      "precision": {
+        "diffusion": "BF16",
+        "text_encoder": "INT8 ConvRot",
+        "vae": "BF16"
+      },
+      "gpu": "A100 40GB/80GB, H100 80GB, RTX 6000 96GB"
     }
   },
   "version": 0.4,
@@ -898,7 +841,7 @@
             "properties": {
               "Node name for S&R": "CustomCombo",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "2K",
@@ -953,7 +896,7 @@
             "properties": {
               "Node name for S&R": "ComfyMathExpression",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "4 ** a"
@@ -1012,7 +955,7 @@
             "properties": {
               "Node name for S&R": "ResolutionSelector",
               "cnr_id": "comfy-core",
-              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+              "ver": "7d9e5a045c13c563a5dcd18c617a985efa6332da"
             },
             "widgets_values": [
               "1:1 (Square)",

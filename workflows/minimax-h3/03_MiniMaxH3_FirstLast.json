@@ -2656,7 +2656,7 @@
         "minimax_h3_video_vae_int8_convrot.safetensors": "minimax_h3_video_vae_int8_convrot.safetensors"
       },
       "default_path": "基础模式；加速关闭；20 步",
-      "notebook": "notebooks/minimax-h3/MiniMaxH3_A100_80GB.ipynb",
+      "notebook": "notebooks/minimax-h3/MiniMaxH3.ipynb",
       "task": "首尾帧视频 · 基础模式 / 20 步",
       "adaptation": "Official I2V subgraph; expose its existing last_frame input with a second native LoadImage.",
       "ui_language": "zh-CN",

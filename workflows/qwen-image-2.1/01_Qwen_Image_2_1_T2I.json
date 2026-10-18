@@ -1,8 +1,8 @@
 {
-  "id": "22bda5d5-0813-51c9-8110-9379322ae6f4",
+  "id": "32977bb9-ae6a-52d9-bf68-40656242c778",
   "revision": 5,
   "last_node_id": 14,
-  "last_link_id": 13,
+  "last_link_id": 12,
   "nodes": [
     {
       "id": 1,
@@ -109,8 +109,7 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            8,
-            11
+            9
           ]
         }
       ],
@@ -143,7 +142,7 @@
         110
       ],
       "flags": {},
-      "order": 6,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
@@ -161,14 +160,14 @@
           ]
         }
       ],
-      "title": "KV 缓存 · 内存 / 保留精度",
+      "title": "KV 缓存",
       "properties": {
         "Node name for S&R": "QwenImage21Cache",
         "cnr_id": "comfy-core",
         "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
       },
       "widgets_values": [
-        "cpu",
+        "auto",
         "default"
       ]
     },
@@ -184,7 +183,7 @@
         440
       ],
       "flags": {},
-      "order": 7,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -195,22 +194,14 @@
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 7,
+          "link": null,
           "shape": 7
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 8,
+          "link": null,
           "shape": 7
-        },
-        {
-          "name": "resolution",
-          "type": "INT",
-          "widget": {
-            "name": "resolution"
-          },
-          "link": 13
         }
       ],
       "outputs": [
@@ -231,61 +222,72 @@
         {
           "name": "latent",
           "type": "LATENT",
-          "links": [
-            9
-          ]
+          "links": []
         }
       ],
-      "title": "编辑指令",
+      "title": "提示词",
       "properties": {
         "Node name for S&R": "TextEncodeQwenImage21",
         "cnr_id": "comfy-core",
         "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
       },
       "widgets_values": [
-        "将 <image1> 的背景改为日落时的海边，保留主体、构图和细节。",
+        "一只橘猫坐在窗边，柔和自然光，真实摄影",
         "",
         2048
       ]
     },
     {
       "id": 7,
-      "type": "LoadImage",
+      "type": "EmptyLatentImage",
       "pos": [
-        580,
+        1150,
         820
       ],
       "size": [
-        480,
-        310
+        310,
+        145
       ],
       "flags": {},
-      "order": 4,
+      "order": 7,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 11
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 12
+        }
+      ],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
+          "name": "LATENT",
+          "type": "LATENT",
           "links": [
             7
           ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
         }
       ],
-      "title": "上传参考图",
+      "title": "输出潜空间 · 每次 1 张",
       "properties": {
-        "Node name for S&R": "LoadImage",
+        "Node name for S&R": "EmptyLatentImage",
         "cnr_id": "comfy-core",
         "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
       },
       "widgets_values": [
-        "",
-        "image"
+        2048,
+        2048,
+        1
       ]
     },
     {
@@ -321,7 +323,7 @@
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 9
+          "link": 7
         }
       ],
       "outputs": [
@@ -329,7 +331,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            10
+            8
           ]
         }
       ],
@@ -367,12 +369,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 10
+          "link": 8
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 11
+          "link": 9
         }
       ],
       "outputs": [
@@ -380,7 +382,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            12
+            10
           ]
         }
       ],
@@ -409,7 +411,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 12
+          "link": 10
         }
       ],
       "outputs": [
@@ -426,7 +428,7 @@
         "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
       },
       "widgets_values": [
-        "qwen-image-2.1/reference/Qwen21"
+        "qwen-image-2.1/t2i/Qwen21"
       ]
     },
     {
@@ -434,35 +436,35 @@
       "type": "MarkdownNote",
       "pos": [
         60,
-        1230
+        1110
       ],
       "size": [
         980,
         190
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [],
       "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "- **输入**：上传参考图，用 `<image1>` 编写编辑指令\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图片；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
+        "- **输入**：填写提示词\n- **参数**：分辨率可选 1K / 2K（默认），画面比例可下拉切换；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
       ],
       "color": "#343",
       "bgcolor": "#232"
     },
     {
       "id": 14,
-      "type": "22fd4722-b358-59ea-8dfe-64253cdcc70f",
+      "type": "7a765bec-2be1-551c-8f5c-cde499c8e1dc",
       "pos": [
-        1150,
+        580,
         820
       ],
       "size": [
-        310,
-        120
+        480,
+        140
       ],
       "flags": {},
       "order": 1,
@@ -477,27 +479,46 @@
             "name": "choice"
           },
           "link": null
+        },
+        {
+          "name": "aspect_ratio",
+          "label": "画面比例",
+          "type": "COMBO",
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
-          "name": "resolution",
-          "label": "分辨率",
+          "name": "width",
+          "label": "宽",
           "type": "INT",
           "links": [
-            13
+            11
+          ]
+        },
+        {
+          "name": "height",
+          "label": "高",
+          "type": "INT",
+          "links": [
+            12
           ]
         }
       ],
-      "title": "分辨率 · 默认 2K",
+      "title": "尺寸 · 默认 2K / 1:1",
       "properties": {
         "previewExposures": []
       },
       "widgets_values": [
-        "2K"
+        "2K",
+        "1:1 (Square)"
       ],
       "widgets_values_named": {
-        "choice": "2K"
+        "choice": "2K",
+        "aspect_ratio": "1:1 (Square)"
       }
     }
   ],
@@ -546,56 +567,48 @@
       7,
       7,
       0,
-      6,
-      1,
-      "IMAGE"
+      8,
+      3,
+      "LATENT"
     ],
     [
       8,
+      8,
+      0,
+      9,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
       3,
       0,
-      6,
-      2,
+      9,
+      1,
       "VAE"
     ],
     [
-      9,
-      6,
-      2,
-      8,
-      3,
-      "LATENT"
-    ],
-    [
       10,
-      8,
-      0,
       9,
       0,
-      "LATENT"
+      10,
+      0,
+      "IMAGE"
     ],
     [
       11,
-      3,
+      14,
       0,
-      9,
-      1,
-      "VAE"
+      7,
+      0,
+      "INT"
     ],
     [
       12,
-      9,
-      0,
-      10,
-      0,
-      "IMAGE"
-    ],
-    [
-      13,
       14,
-      0,
-      6,
-      3,
+      1,
+      7,
+      1,
       "INT"
     ]
   ],
@@ -615,12 +628,12 @@
     },
     {
       "id": 2,
-      "title": "2. 提示词、参考图与输出尺寸",
+      "title": "2. 提示词与尺寸选择",
       "bounding": [
         550,
         65,
         520,
-        1100
+        985
       ],
       "color": "#6b8f5b",
       "font_size": 24,
@@ -628,12 +641,12 @@
     },
     {
       "id": 3,
-      "title": "3. 采样",
+      "title": "3. 潜空间与采样",
       "bounding": [
         1120,
         250,
         370,
-        735
+        750
       ],
       "color": "#a08045",
       "font_size": 24,
@@ -657,7 +670,7 @@
       "title": "参数与用法",
       "bounding": [
         35,
-        1180,
+        1060,
         1030,
         270
       ],
@@ -676,30 +689,29 @@
       ]
     },
     "qwen_workflow": {
-      "description": "Qwen-Image 2.1 单参考图基础版，默认 2K",
-      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1_A100_80GB.ipynb",
+      "description": "Qwen-Image 2.1 文生图基础版，默认 2K",
+      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb",
       "source_git_commit": "7921a1b",
       "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
       "model_repo": "Comfy-Org/Qwen-Image-2.1",
       "model_revision": "cb504a4090723e43f17ad01cec0359490e2de613",
       "original_diffusers_model": "Qwen/Qwen-Image-2.1",
       "original_diffusers_model_revision": "d26bb61231c349cf6b7896fa83353113880e1ba3",
-      "official_template": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json",
-      "reference_image_required": true,
+      "official_template": "https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_t2i.json",
+      "reference_image_required": false,
       "lora_enabled_by_default": false,
-      "lora_included": false,
       "size_selection": {
         "node": "CustomCombo",
         "default_resolution": "2K",
         "options": [
           "1K",
-          "2K",
-          "原图"
+          "2K"
         ],
         "uses_legacy_size_table": false,
-        "resolution_node": "TextEncodeQwenImage21",
+        "resolution_node": "ResolutionSelector",
         "ui": "built-in subgraph with only resolution and aspect ratio controls exposed"
       },
+      "lora_included": false,
       "built_in_nodes_only": true
     }
   },
@@ -707,17 +719,17 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "22fd4722-b358-59ea-8dfe-64253cdcc70f",
+        "id": "7a765bec-2be1-551c-8f5c-cde499c8e1dc",
         "version": 1,
         "state": {
           "lastGroupId": 0,
-          "lastNodeId": 15,
-          "lastLinkId": 16,
+          "lastNodeId": 16,
+          "lastLinkId": 18,
           "lastRerouteId": 0
         },
         "revision": 0,
         "config": {},
-        "name": "Qwen 参考图尺寸",
+        "name": "Qwen 图片尺寸",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -738,7 +750,7 @@
         },
         "inputs": [
           {
-            "id": "0b04d479-a455-557b-90be-36590e489659",
+            "id": "2286b8c8-e270-5fb1-ab06-776db8ea5b36",
             "name": "choice",
             "label": "分辨率",
             "type": "COMBO",
@@ -749,20 +761,46 @@
               40,
               100
             ]
-          }
-        ],
-        "outputs": [
+          },
           {
-            "id": "56ec6a50-94bb-535d-9c8b-636e94fa8fcf",
-            "name": "resolution",
-            "label": "分辨率",
-            "type": "INT",
+            "id": "32454ef2-4d39-5f1e-bc95-1fa47e86bd6d",
+            "name": "aspect_ratio",
+            "label": "画面比例",
+            "type": "COMBO",
             "linkIds": [
               16
             ],
             "pos": [
+              40,
+              125
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "ae1d80dd-cd46-515d-8cdd-74e03ff014a5",
+            "name": "width",
+            "label": "宽",
+            "type": "INT",
+            "linkIds": [
+              17
+            ],
+            "pos": [
               880,
               100
+            ]
+          },
+          {
+            "id": "fe05d97e-e213-504d-a16f-f322242e314b",
+            "name": "height",
+            "label": "高",
+            "type": "INT",
+            "linkIds": [
+              18
+            ],
+            "pos": [
+              880,
+              125
             ]
           }
         ],
@@ -777,7 +815,7 @@
             ],
             "size": [
               280,
-              205
+              175
             ],
             "flags": {},
             "order": 0,
@@ -803,7 +841,7 @@
                 "name": "INDEX",
                 "type": "INT",
                 "links": [
-                  14
+                  13
                 ]
               }
             ],
@@ -818,7 +856,6 @@
               1,
               "1K",
               "2K",
-              "原图",
               ""
             ]
           },
@@ -830,7 +867,7 @@
               70
             ],
             "size": [
-              310,
+              230,
               120
             ],
             "flags": {},
@@ -841,21 +878,21 @@
               {
                 "name": "values.a",
                 "type": "INT",
-                "link": 14
+                "link": 13
               }
             ],
             "outputs": [
               {
                 "name": "FLOAT",
                 "type": "FLOAT",
-                "links": []
+                "links": [
+                  14
+                ]
               },
               {
                 "name": "INT",
                 "type": "INT",
-                "links": [
-                  16
-                ]
+                "links": []
               },
               {
                 "name": "BOOL",
@@ -870,7 +907,68 @@
               "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
             },
             "widgets_values": [
-              "1024 * (a + 1) if a < 2 else 0"
+              "4 ** a"
+            ]
+          },
+          {
+            "id": 16,
+            "type": "ResolutionSelector",
+            "pos": [
+              480,
+              260
+            ],
+            "size": [
+              480,
+              165
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "showAdvanced": false,
+            "inputs": [
+              {
+                "name": "megapixels",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "megapixels"
+                },
+                "link": 14
+              },
+              {
+                "name": "aspect_ratio",
+                "type": "COMBO",
+                "widget": {
+                  "name": "aspect_ratio"
+                },
+                "link": 16
+              }
+            ],
+            "outputs": [
+              {
+                "name": "width",
+                "type": "INT",
+                "links": [
+                  17
+                ]
+              },
+              {
+                "name": "height",
+                "type": "INT",
+                "links": [
+                  18
+                ]
+              }
+            ],
+            "title": "画面比例 · 下拉选择",
+            "properties": {
+              "Node name for S&R": "ResolutionSelector",
+              "cnr_id": "comfy-core",
+              "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
+            },
+            "widgets_values": [
+              "1:1 (Square)",
+              4.0,
+              32
             ]
           }
         ],
@@ -885,7 +983,7 @@
             "type": "COMBO"
           },
           {
-            "id": 14,
+            "id": 13,
             "origin_id": 14,
             "origin_slot": 1,
             "target_id": 15,
@@ -893,11 +991,35 @@
             "type": "INT"
           },
           {
-            "id": 16,
+            "id": 14,
             "origin_id": 15,
+            "origin_slot": 0,
+            "target_id": 16,
+            "target_slot": 0,
+            "type": "FLOAT"
+          },
+          {
+            "id": 16,
+            "origin_id": -10,
             "origin_slot": 1,
+            "target_id": 16,
+            "target_slot": 1,
+            "type": "COMBO"
+          },
+          {
+            "id": 17,
+            "origin_id": 16,
+            "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 18,
+            "origin_id": 16,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 1,
             "type": "INT"
           }
         ],
