@@ -495,6 +495,28 @@
         "choice": "2K",
         "aspect_ratio": "1:1 (Square)"
       }
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        635
+      ],
+      "size": [
+        420,
+        210
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "使用说明",
+      "properties": {},
+      "widgets_values": [
+        "- **输入**：填写提示词\n- **参数**：分辨率可选 1K / 2K（默认），画面比例可下拉切换；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
+      ]
     }
   ],
   "links": [

@@ -447,10 +447,10 @@
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "参数与用法 · 默认 2K",
+      "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "修改提示词后运行。\n\n分辨率下拉：1K / 2K（默认）；画面比例也可下拉选择。\n\n40 步 · 种子 42 · 每次 1 张。PNG 见保存节点。"
+        "- **输入**：填写提示词\n- **参数**：分辨率可选 1K / 2K（默认），画面比例可下拉切换；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
       ],
       "color": "#343",
       "bgcolor": "#232"
@@ -690,7 +690,7 @@
     },
     "qwen_workflow": {
       "description": "Qwen-Image 2.1 文生图基础版，默认 2K",
-      "source_notebook": "Qwen_Image_2_1_Colab.ipynb",
+      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1_A100_80GB.ipynb",
       "source_git_commit": "7921a1b",
       "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
       "model_repo": "Comfy-Org/Qwen-Image-2.1",

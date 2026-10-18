@@ -474,6 +474,28 @@
       "widgets_values_named": {
         "choice": "2K"
       }
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        635
+      ],
+      "size": [
+        420,
+        210
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "使用说明",
+      "properties": {},
+      "widgets_values": [
+        "- **输入**：上传参考图，用 `<image1>` 编写编辑指令\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图片；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
+      ]
     }
   ],
   "links": [

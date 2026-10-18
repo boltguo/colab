@@ -8,11 +8,11 @@
       "id": 92,
       "type": "SaveVideo",
       "pos": [
-        750,
-        4870
+        1080,
+        80
       ],
       "size": [
-        700,
+        660,
         560
       ],
       "flags": {},
@@ -41,12 +41,12 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        "video/MiniMax_H3",
+        "minimax-h3/r2v/MiniMax_H3",
         "auto",
         "auto"
       ],
       "widgets_values_named": {
-        "filename_prefix": "video/MiniMax_H3",
+        "filename_prefix": "minimax-h3/r2v/MiniMax_H3",
         "format": "auto",
         "format.codec": "auto"
       },
@@ -56,11 +56,11 @@
       "id": 115,
       "type": "c8b3f64e-ed94-595b-9126-db1dd172b4fe",
       "pos": [
-        -1490,
-        6060
+        60,
+        1150
       ],
       "size": [
-        310,
+        440,
         125
       ],
       "flags": {},
@@ -119,25 +119,25 @@
       "id": 116,
       "type": "MarkdownNote",
       "pos": [
-        -320,
-        5960
+        60,
+        80
       ],
       "size": [
-        900,
-        270
+        440,
+        210
       ],
       "flags": {},
       "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "怎么使用",
+      "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "上传两张参考图片，用 <Picture 1> / <Picture 2> 对应图片，修改提示词后运行。\n\n比例跟随参考图 1。默认 5 秒、20 步。当前尚未提供音频、视频上传入口。"
+        "- **输入**：上传参考图 1、2，提示词用 `<Picture 1>` / `<Picture 2>` 引用\n- **参数**：比例自动跟随参考图 1；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       ],
       "widgets_values_named": {
-        "text": "上传两张参考图片，用 <Picture 1> / <Picture 2> 对应图片，修改提示词后运行。\n\n比例跟随参考图 1。默认 5 秒、20 步。当前尚未提供音频、视频上传入口。"
+        "text": "- **输入**：上传参考图 1、2，提示词用 `<Picture 1>` / `<Picture 2>` 引用\n- **参数**：比例自动跟随参考图 1；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -146,11 +146,11 @@
       "id": 119,
       "type": "VAELoader",
       "pos": [
-        -1490,
-        5490
+        1800,
+        500
       ],
       "size": [
-        640,
+        560,
         70
       ],
       "flags": {},
@@ -193,11 +193,11 @@
       "id": 120,
       "type": "VAELoader",
       "pos": [
-        -1490,
-        5630
+        1800,
+        610
       ],
       "size": [
-        650,
+        560,
         70
       ],
       "flags": {},
@@ -240,11 +240,11 @@
       "id": 121,
       "type": "VAEDecodeAudio",
       "pos": [
-        20,
-        5750
+        1430,
+        980
       ],
       "size": [
-        230,
+        310,
         60
       ],
       "flags": {
@@ -290,11 +290,11 @@
       "id": 122,
       "type": "VAEDecode",
       "pos": [
-        20,
-        5650
+        1430,
+        880
       ],
       "size": [
-        230,
+        310,
         60
       ],
       "flags": {
@@ -340,11 +340,11 @@
       "id": 123,
       "type": "KSamplerSelect",
       "pos": [
-        0,
-        5200
+        1080,
+        930
       ],
       "size": [
-        370,
+        310,
         70
       ],
       "flags": {},
@@ -379,11 +379,11 @@
       "id": 124,
       "type": "BasicScheduler",
       "pos": [
-        0,
-        5320
+        1080,
+        1040
       ],
       "size": [
-        370,
+        310,
         130
       ],
       "flags": {},
@@ -440,11 +440,11 @@
       "id": 125,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        410,
-        5120
+        1430,
+        700
       ],
       "size": [
-        230,
+        310,
         140
       ],
       "flags": {},
@@ -517,11 +517,11 @@
       "id": 126,
       "type": "BasicGuider",
       "pos": [
-        0,
-        5090
+        1080,
+        830
       ],
       "size": [
-        360,
+        310,
         60
       ],
       "flags": {},
@@ -565,11 +565,11 @@
       "id": 127,
       "type": "UNETLoader",
       "pos": [
-        -1490,
-        4980
+        1800,
+        80
       ],
       "size": [
-        640,
+        560,
         90
       ],
       "flags": {},
@@ -615,11 +615,11 @@
       "id": 128,
       "type": "CLIPLoader",
       "pos": [
-        -1490,
-        5300
+        1800,
+        340
       ],
       "size": [
-        640,
+        560,
         120
       ],
       "flags": {},
@@ -665,11 +665,11 @@
       "id": 129,
       "type": "RandomNoise",
       "pos": [
-        0,
-        4950
+        1080,
+        700
       ],
       "size": [
-        360,
+        310,
         90
       ],
       "flags": {},
@@ -693,12 +693,12 @@
         "Node name for S&R": "RandomNoise"
       },
       "widgets_values": [
-        261662374822964,
-        "randomize"
+        757358688076805,
+        "fixed"
       ],
       "widgets_values_named": {
-        "noise_seed": 261662374822964,
-        "control_after_generate": "randomize"
+        "noise_seed": 757358688076805,
+        "control_after_generate": "fixed"
       },
       "title": "随机种子"
     },
@@ -706,11 +706,11 @@
       "id": 130,
       "type": "CreateVideo",
       "pos": [
-        330,
-        5650
+        1430,
+        1080
       ],
       "size": [
-        270,
+        310,
         110
       ],
       "flags": {},
@@ -767,12 +767,12 @@
       "id": 131,
       "type": "ComfyMathExpression",
       "pos": [
-        -1490,
-        6440
+        800,
+        500
       ],
       "size": [
-        225,
-        0
+        220,
+        80
       ],
       "flags": {
         "collapsed": true
@@ -838,12 +838,12 @@
       "id": 132,
       "type": "PrimitiveFloat",
       "pos": [
-        -1490,
-        6300
+        560,
+        500
       ],
       "size": [
-        270,
-        70
+        220,
+        80
       ],
       "flags": {},
       "order": 7,
@@ -879,11 +879,11 @@
       "id": 136,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        -620,
-        5420
+        560,
+        780
       ],
       "size": [
-        400,
+        460,
         380
       ],
       "flags": {},
@@ -1045,12 +1045,12 @@
       "id": 137,
       "type": "LoadImage",
       "pos": [
-        -1050,
-        5960
+        60,
+        350
       ],
       "size": [
-        290,
-        330
+        440,
+        340
       ],
       "flags": {},
       "order": 8,
@@ -1081,11 +1081,11 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "red_superboy_on_city_roof.png",
+        "",
         "image"
       ],
       "widgets_values_named": {
-        "image": "red_superboy_on_city_roof.png",
+        "image": "",
         "upload": "image"
       },
       "title": "参考图片 1 · 对应提示词标签"
@@ -1094,12 +1094,12 @@
       "id": 138,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        -1490,
-        6520
+        560,
+        80
       ],
       "size": [
-        370,
-        390
+        460,
+        360
       ],
       "flags": {},
       "order": 9,
@@ -1135,12 +1135,12 @@
       "id": 139,
       "type": "LoadImage",
       "pos": [
-        -700,
-        5960
+        60,
+        750
       ],
       "size": [
-        290,
-        330
+        440,
+        340
       ],
       "flags": {},
       "order": 10,
@@ -1170,11 +1170,11 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "mecha_dragon_lightning.png",
+        "",
         "image"
       ],
       "widgets_values_named": {
-        "image": "mecha_dragon_lightning.png",
+        "image": "",
         "upload": "image"
       },
       "title": "参考图片 2 · 对应提示词标签"
@@ -1183,8 +1183,8 @@
       "id": 141,
       "type": "ComfySwitchNode",
       "pos": [
-        -730,
-        4940
+        1800,
+        730
       ],
       "size": [
         270,
@@ -1247,8 +1247,8 @@
       "id": 142,
       "type": "ComfySwitchNode",
       "pos": [
-        -390,
-        5110
+        2090,
+        730
       ],
       "size": [
         270,
@@ -1311,8 +1311,8 @@
       "id": 143,
       "type": "PrimitiveInt",
       "pos": [
-        -730,
-        5090
+        1800,
+        880
       ],
       "size": [
         270,
@@ -1352,8 +1352,8 @@
       "id": 144,
       "type": "PrimitiveInt",
       "pos": [
-        -730,
-        5220
+        2090,
+        880
       ],
       "size": [
         270,
@@ -1393,11 +1393,11 @@
       "id": 145,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        -1490,
-        5140
+        1800,
+        210
       ],
       "size": [
-        640,
+        560,
         90
       ],
       "flags": {},
@@ -1449,12 +1449,12 @@
       "id": 146,
       "type": "PrimitiveBoolean",
       "pos": [
-        -1490,
-        5940
+        560,
+        640
       ],
       "size": [
-        270,
-        70
+        220,
+        80
       ],
       "flags": {},
       "order": 13,
@@ -1765,72 +1765,48 @@
   "groups": [
     {
       "id": 1,
-      "title": "模型加载",
+      "title": "1. 输入与参考图",
       "bounding": [
-        -1520,
-        4840,
-        700,
-        990
+        40,
+        10,
+        480,
+        1290
       ],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 2,
-      "title": "采样生成",
+      "title": "2. 提示词与生成条件",
       "bounding": [
-        -30,
-        4840,
-        690,
-        700
+        540,
+        10,
+        500,
+        1180
       ],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 3,
-      "title": "基础与加速模式",
+      "title": "3. 输出与采样合成",
       "bounding": [
-        -790,
-        4840,
-        730,
-        490
+        1060,
+        10,
+        700,
+        1200
       ],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 4,
-      "title": "解码与视频合成",
+      "title": "4. 模型与加速配置",
       "bounding": [
-        -30,
-        5570,
-        690,
-        260
-      ],
-      "color": "#3f789e",
-      "flags": {}
-    },
-    {
-      "id": 5,
-      "title": "输入与提示词",
-      "bounding": [
-        -1520,
-        5860,
-        2190,
-        1090
-      ],
-      "color": "#3f789e",
-      "flags": {}
-    },
-    {
-      "id": 6,
-      "title": "生成条件",
-      "bounding": [
-        -790,
-        5350,
-        730,
-        480
+        1780,
+        10,
+        600,
+        990
       ],
       "color": "#3f789e",
       "flags": {}
@@ -1839,10 +1815,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.2755772017967752,
+      "scale": 0.65,
       "offset": [
-        3701.5850496349885,
-        -3450.8097799322713
+        40,
+        40
       ]
     },
     "frontendVersion": "1.49.6",

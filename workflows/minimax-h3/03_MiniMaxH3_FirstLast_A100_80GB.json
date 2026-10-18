@@ -41,12 +41,12 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        "video/MiniMax_H3",
+        "minimax-h3/fl2v/MiniMax_H3",
         "auto",
         "auto"
       ],
       "widgets_values_named": {
-        "filename_prefix": "video/MiniMax_H3",
+        "filename_prefix": "minimax-h3/fl2v/MiniMax_H3",
         "format": "auto",
         "format.codec": "auto"
       },
@@ -330,13 +330,13 @@
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "怎么使用",
+      "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "分别上传首帧和尾帧，填写中间的动作后点击运行。\n\n视频比例跟随首帧；两张图建议使用相同比例。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
+        "- **输入**：上传首帧与尾帧（建议同比例），填写过渡动作提示词\n- **参数**：比例自动跟随首帧；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       ],
       "widgets_values_named": {
-        "text": "分别上传首帧和尾帧，填写中间的动作后点击运行。\n\n视频比例跟随首帧；两张图建议使用相同比例。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
+        "text": "- **输入**：上传首帧与尾帧（建议同比例），填写过渡动作提示词\n- **参数**：比例自动跟随首帧；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -1307,11 +1307,11 @@
               "Node name for S&R": "RandomNoise"
             },
             "widgets_values": [
-              1,
+              757358688076805,
               "fixed"
             ],
             "widgets_values_named": {
-              "noise_seed": 1,
+              "noise_seed": 757358688076805,
               "control_after_generate": "fixed"
             },
             "title": "随机种子"
@@ -1492,13 +1492,13 @@
               "以输入首帧为起点，平滑过渡到输入尾帧。保持主体身份、外观、材质和场景一致，动作连续自然，不突然变形或跳切。\n\n镜头缓慢推进，主体完成从首帧姿态到尾帧姿态的动作；中间过程符合真实运动和光影变化，最后稳定停留在尾帧画面。\n\n保持参考图的视觉风格。声音使用自然环境声和轻柔配乐，不添加对白、字幕、标志或水印。",
               1344,
               768,
-              73
+              124
             ],
             "widgets_values_named": {
               "prompt": "以输入首帧为起点，平滑过渡到输入尾帧。保持主体身份、外观、材质和场景一致，动作连续自然，不突然变形或跳切。\n\n镜头缓慢推进，主体完成从首帧姿态到尾帧姿态的动作；中间过程符合真实运动和光影变化，最后稳定停留在尾帧画面。\n\n保持参考图的视觉风格。声音使用自然环境声和轻柔配乐，不添加对白、字幕、标志或水印。",
               "width": 1344,
               "height": 768,
-              "length": 73
+              "length": 124
             },
             "title": "首尾帧条件与提示词"
           },
@@ -1617,10 +1617,10 @@
               "Node name for S&R": "PrimitiveFloat"
             },
             "widgets_values": [
-              2
+              5
             ],
             "widgets_values_named": {
-              "value": 2
+              "value": 5
             }
           },
           {
@@ -1912,11 +1912,11 @@
               "Node name for S&R": "PrimitiveInt"
             },
             "widgets_values": [
-              6,
+              8,
               "fixed"
             ],
             "widgets_values_named": {
-              "value": 6,
+              "value": 8,
               "fixed": "fixed"
             },
             "title": "加速采样步数"

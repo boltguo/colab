@@ -41,12 +41,12 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        "video/MiniMax_H3",
+        "minimax-h3/i2v/MiniMax_H3",
         "auto",
         "auto"
       ],
       "widgets_values_named": {
-        "filename_prefix": "video/MiniMax_H3",
+        "filename_prefix": "minimax-h3/i2v/MiniMax_H3",
         "format": "auto",
         "format.codec": "auto"
       },
@@ -92,11 +92,11 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "transparent_rgb_gaming_mouse.png",
+        "",
         "image"
       ],
       "widgets_values_named": {
-        "image": "transparent_rgb_gaming_mouse.png",
+        "image": "",
         "upload": "image"
       },
       "title": "首帧图片 · 上传后选择"
@@ -330,13 +330,13 @@
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "怎么使用",
+      "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "上传首帧图片，修改提示词后点击运行。\n\n视频比例自动跟随首帧，无需设置宽高。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
+        "- **输入**：上传首帧图片，填写动作与声音提示词\n- **参数**：比例自动跟随首帧；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       ],
       "widgets_values_named": {
-        "text": "上传首帧图片，修改提示词后点击运行。\n\n视频比例自动跟随首帧，无需设置宽高。时长按需调整。\n\n默认 5 秒、20 步。结果在“保存视频与声音”节点查看。"
+        "text": "- **输入**：上传首帧图片，填写动作与声音提示词\n- **参数**：比例自动跟随首帧；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -1251,11 +1251,11 @@
               "Node name for S&R": "RandomNoise"
             },
             "widgets_values": [
-              1,
+              757358688076805,
               "fixed"
             ],
             "widgets_values_named": {
-              "noise_seed": 1,
+              "noise_seed": 757358688076805,
               "control_after_generate": "fixed"
             },
             "title": "随机种子"
@@ -1436,13 +1436,13 @@
               "写实科技产品广告。以参考图片中的透明游戏鼠标为主体，保持外观、材质和环境一致。深黑色摄影棚、微弱反光的桌面，蓝色与暖橙色轮廓光照亮透明外壳和内部金属元件。\n\n镜头一：从输入图片的画面开始，镜头缓慢推进；蓝橙灯光逐渐增强，透过透明外壳展示内部电路。\n镜头二：切到滚轮和内部零件的微距侧面，镜头缓慢横移，暖橙色光束掠过金属纹理。\n镜头三：低机位展示鼠标缓缓悬浮并转动，透明边缘泛起光芒，最后逐渐暗下。\n\n声音包括低沉电子氛围、清脆机械点击和轻微转场风声，结尾渐弱。不要字幕、标志或水印。",
               1344,
               768,
-              73
+              124
             ],
             "widgets_values_named": {
               "prompt": "写实科技产品广告。以参考图片中的透明游戏鼠标为主体，保持外观、材质和环境一致。深黑色摄影棚、微弱反光的桌面，蓝色与暖橙色轮廓光照亮透明外壳和内部金属元件。\n\n镜头一：从输入图片的画面开始，镜头缓慢推进；蓝橙灯光逐渐增强，透过透明外壳展示内部电路。\n镜头二：切到滚轮和内部零件的微距侧面，镜头缓慢横移，暖橙色光束掠过金属纹理。\n镜头三：低机位展示鼠标缓缓悬浮并转动，透明边缘泛起光芒，最后逐渐暗下。\n\n声音包括低沉电子氛围、清脆机械点击和轻微转场风声，结尾渐弱。不要字幕、标志或水印。",
               "width": 1344,
               "height": 768,
-              "length": 73
+              "length": 124
             },
             "title": "首尾帧条件与提示词"
           },
@@ -1561,10 +1561,10 @@
               "Node name for S&R": "PrimitiveFloat"
             },
             "widgets_values": [
-              2
+              5
             ],
             "widgets_values_named": {
-              "value": 2
+              "value": 5
             }
           },
           {
@@ -1856,11 +1856,11 @@
               "Node name for S&R": "PrimitiveInt"
             },
             "widgets_values": [
-              6,
+              8,
               "fixed"
             ],
             "widgets_values_named": {
-              "value": 6,
+              "value": 8,
               "fixed": "fixed"
             },
             "title": "加速采样步数"

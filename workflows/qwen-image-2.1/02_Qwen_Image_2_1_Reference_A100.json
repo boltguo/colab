@@ -161,14 +161,14 @@
           ]
         }
       ],
-      "title": "KV 缓存",
+      "title": "KV 缓存 · 内存 / 保留精度",
       "properties": {
         "Node name for S&R": "QwenImage21Cache",
         "cnr_id": "comfy-core",
         "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
       },
       "widgets_values": [
-        "auto",
+        "cpu",
         "default"
       ]
     },
@@ -243,7 +243,7 @@
         "ver": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9"
       },
       "widgets_values": [
-        "一只橘猫坐在窗边，柔和自然光，真实摄影",
+        "将 <image1> 的背景改为日落时的海边，保留主体、构图和细节。",
         "",
         2048
       ]
@@ -445,10 +445,10 @@
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "参数与用法 · 默认 2K",
+      "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "上传参考图，填写编辑指令后运行。\n\n分辨率下拉：1K / 2K（默认）/ 原图；比例跟随图片。\n\n40 步 · 种子 42 · 每次 1 张。PNG 见保存节点。"
+        "- **输入**：上传参考图，用 `<image1>` 编写编辑指令\n- **参数**：分辨率可选 1K / 2K（默认）/ 原图；比例跟随图片；40 步、种子 42\n- **输出**：在「保存 PNG」节点查看或右键保存"
       ],
       "color": "#343",
       "bgcolor": "#232"
@@ -677,7 +677,7 @@
     },
     "qwen_workflow": {
       "description": "Qwen-Image 2.1 单参考图基础版，默认 2K",
-      "source_notebook": "Qwen_Image_2_1_Colab.ipynb",
+      "source_notebook": "notebooks/qwen-image-2.1/Qwen_Image_2.1_A100_80GB.ipynb",
       "source_git_commit": "7921a1b",
       "comfyui_revision": "c9d8a6e69c4b5ab7fa0f789e7b988c172cd31fc9",
       "model_repo": "Comfy-Org/Qwen-Image-2.1",
