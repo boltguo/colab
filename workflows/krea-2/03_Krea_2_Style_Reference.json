@@ -1130,7 +1130,7 @@
                 ]
               }
             ],
-            "title": "Text String (System Prompt)",
+            "title": "系统提示词",
             "properties": {
               "Node name for S&R": "PrimitiveStringMultiline",
               "cnr_id": "comfy-core",
@@ -1177,7 +1177,7 @@
                 ]
               }
             ],
-            "title": "Text String (User Prompt)",
+            "title": "用户提示词",
             "properties": {
               "Node name for S&R": "PrimitiveStringMultiline",
               "cnr_id": "comfy-core",
@@ -1321,7 +1321,7 @@
                 ]
               }
             ],
-            "title": "Boolean (Refine Prompt?)",
+            "title": "优化提示词",
             "properties": {
               "Node name for S&R": "PrimitiveBoolean",
               "cnr_id": "comfy-core",
@@ -1807,7 +1807,7 @@
             },
             "widgets_values": [
               42,
-              "fixed"
+              "randomize"
             ]
           },
           {

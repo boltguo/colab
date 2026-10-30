@@ -1515,7 +1515,7 @@
                 ]
               }
             ],
-            "title": "Boolean (Split Latent)",
+            "title": "分块处理潜空间",
             "properties": {
               "Node name for S&R": "PrimitiveBoolean"
             },

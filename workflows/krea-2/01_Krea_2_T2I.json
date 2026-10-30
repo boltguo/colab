@@ -695,7 +695,7 @@
             },
             "widgets_values": [
               42,
-              "fixed",
+              "randomize",
               8,
               1,
               "euler",
@@ -1200,7 +1200,7 @@
                 ]
               }
             ],
-            "title": "Text String (System Prompt)",
+            "title": "系统提示词",
             "properties": {
               "Node name for S&R": "PrimitiveStringMultiline",
               "cnr_id": "comfy-core",
@@ -1246,7 +1246,7 @@
                 ]
               }
             ],
-            "title": "Text String (User Prompt)",
+            "title": "用户提示词",
             "properties": {
               "Node name for S&R": "PrimitiveStringMultiline",
               "cnr_id": "comfy-core",
@@ -1403,7 +1403,7 @@
                 ]
               }
             ],
-            "title": "Switch (Model)",
+            "title": "切换模型",
             "properties": {
               "Node name for S&R": "ComfySwitchNode",
               "cnr_id": "comfy-core",
@@ -1449,7 +1449,7 @@
                 ]
               }
             ],
-            "title": "Boolean (Enable LoRA?)",
+            "title": "启用 LoRA",
             "properties": {
               "Node name for S&R": "PrimitiveBoolean",
               "cnr_id": "comfy-core",
@@ -1494,7 +1494,7 @@
                 ]
               }
             ],
-            "title": "Boolean (Refine Prompt?)",
+            "title": "优化提示词",
             "properties": {
               "Node name for S&R": "PrimitiveBoolean",
               "cnr_id": "comfy-core",
@@ -1550,7 +1550,7 @@
                 ]
               }
             ],
-            "title": "Concatenate Text (LoRA Trigger Word)",
+            "title": "拼接 LoRA 触发词",
             "properties": {
               "Node name for S&R": "StringConcatenate",
               "cnr_id": "comfy-core",

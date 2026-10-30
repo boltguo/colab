@@ -1,8 +1,8 @@
 {
   "id": "7a024042-9ba9-4746-ae68-0aec5029bdaa",
   "revision": 4,
-  "last_node_id": 146,
-  "last_link_id": 292,
+  "last_node_id": 151,
+  "last_link_id": 299,
   "nodes": [
     {
       "id": 92,
@@ -57,7 +57,7 @@
       "type": "c8b3f64e-ed94-595b-9126-db1dd172b4fe",
       "pos": [
         60,
-        1150
+        750
       ],
       "size": [
         440,
@@ -124,7 +124,7 @@
       ],
       "size": [
         440,
-        210
+        250
       ],
       "flags": {},
       "order": 0,
@@ -134,10 +134,10 @@
       "title": "使用说明",
       "properties": {},
       "widgets_values": [
-        "- **输入**：上传参考图 1、2，提示词用 `<Picture 1>` / `<Picture 2>` 引用\n- **参数**：比例自动跟随参考图 1；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
+        "- **输入**：上传参考图 1，提示词用 `<Picture 1>` 引用\n- **更多参考**：点击下方「可选」分组标题后按 `Ctrl+B` 启用；参考图按 2 → 3 → 4 顺序启用，依次为 `<Picture 2>`…，视频为 `<Video 1>`，音频按视频原声 → 独立音频编号为 `<Audio N>`\n- **参数**：比例自动跟随参考图 1；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       ],
       "widgets_values_named": {
-        "text": "- **输入**：上传参考图 1、2，提示词用 `<Picture 1>` / `<Picture 2>` 引用\n- **参数**：比例自动跟随参考图 1；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
+        "text": "- **输入**：上传参考图 1，提示词用 `<Picture 1>` 引用\n- **更多参考**：点击下方「可选」分组标题后按 `Ctrl+B` 启用；参考图按 2 → 3 → 4 顺序启用，依次为 `<Picture 2>`…，视频为 `<Video 1>`，音频按视频原声 → 独立音频编号为 `<Audio N>`\n- **参数**：比例自动跟随参考图 1；默认 0.98 MP、5 秒、20 步、加速关闭\n- **输出**：在「保存视频与声音」节点预览或下载 MP4"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -694,11 +694,11 @@
       },
       "widgets_values": [
         757358688076805,
-        "fixed"
+        "randomize"
       ],
       "widgets_values_named": {
         "noise_seed": 757358688076805,
-        "control_after_generate": "fixed"
+        "control_after_generate": "randomize"
       },
       "title": "随机种子"
     },
@@ -924,7 +924,7 @@
           "name": "ref_images.ref_image_1",
           "shape": 7,
           "type": "IMAGE",
-          "link": 282,
+          "link": 294,
           "localized_name": "参考图片 2"
         },
         {
@@ -932,32 +932,72 @@
           "name": "ref_images.ref_image_2",
           "shape": 7,
           "type": "IMAGE",
-          "link": null,
+          "link": 295,
           "localized_name": "参考图片 3"
+        },
+        {
+          "label": "参考图片 4",
+          "name": "ref_images.ref_image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 296,
+          "localized_name": "参考图片 4"
+        },
+        {
+          "label": "参考图片 5",
+          "name": "ref_images.ref_image_4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null,
+          "localized_name": "参考图片 5"
         },
         {
           "label": "参考视频 1",
           "name": "ref_videos.ref_video_0",
           "shape": 7,
           "type": "IMAGE",
-          "link": null,
+          "link": 297,
           "localized_name": "参考视频 1"
+        },
+        {
+          "label": "参考视频 2",
+          "name": "ref_videos.ref_video_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null,
+          "localized_name": "参考视频 2"
         },
         {
           "label": "参考视频声音 1",
           "name": "ref_video_audios.ref_video_audio_0",
           "shape": 7,
           "type": "AUDIO",
-          "link": null,
+          "link": 298,
           "localized_name": "参考视频声音 1"
+        },
+        {
+          "label": "参考视频声音 2",
+          "name": "ref_video_audios.ref_video_audio_1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null,
+          "localized_name": "参考视频声音 2"
         },
         {
           "label": "参考音频 1",
           "name": "ref_audios.ref_audio_0",
           "shape": 7,
           "type": "AUDIO",
-          "link": null,
+          "link": 299,
           "localized_name": "参考音频 1"
+        },
+        {
+          "label": "参考音频 2",
+          "name": "ref_audios.ref_audio_1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null,
+          "localized_name": "参考音频 2"
         },
         {
           "name": "prompt",
@@ -1123,10 +1163,10 @@
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "鲜明的漫画墨线风格，粗线条，红色与蓝黑色调，夜晚城市。以 <Picture 1> 的少年英雄和 <Picture 2> 的机械巨兽为参考，保持人物与巨兽的外观一致。\n\n镜头一：俯拍楼顶的少年英雄。红色披风随风摆动，双手叉腰，带着自信的笑容抬头看向镜头。镜头缓慢下降，他大声说：“准备好迎接你的对手！”对白配合夸张的漫画文字，白色字、粗黑描边和红色投影。\n\n转场：快速甩镜离开屋顶，漫画文字随运动拖影扫出画面。\n\n镜头二：低机位拍摄高耸于城市天际线的黑色机械巨兽。巨兽仰头咆哮，露出獠牙，红色双眼和胸口核心骤然发亮，蓝色闪电沿头部跳动。咆哮震起灰尘，震动周围玻璃，伴随漫画速度线和墨点飞溅。巨兽朝镜头俯身，以咆哮收尾。\n\n声音包括风声、清晰的中文对白、城市回响和巨兽咆哮。"
+        "鲜明的漫画墨线风格，粗线条，红色与蓝黑色调，夜晚城市。以 <Picture 1> 的少年英雄为参考，保持人物外观一致。\n\n镜头一：俯拍楼顶的少年英雄。红色披风随风摆动，双手叉腰，带着自信的笑容抬头看向镜头。镜头缓慢下降，他大声说：“准备好迎接你的对手！”对白配合夸张的漫画文字，白色字、粗黑描边和红色投影。\n\n转场：快速甩镜离开屋顶，漫画文字随运动拖影扫出画面。\n\n镜头二：低机位拍摄高耸于城市天际线的黑色机械巨兽。巨兽仰头咆哮，露出獠牙，红色双眼和胸口核心骤然发亮，蓝色闪电沿头部跳动。咆哮震起灰尘，震动周围玻璃，伴随漫画速度线和墨点飞溅。巨兽朝镜头俯身，以咆哮收尾。\n\n声音包括风声、清晰的中文对白、城市回响和巨兽咆哮。"
       ],
       "widgets_values_named": {
-        "value": "鲜明的漫画墨线风格，粗线条，红色与蓝黑色调，夜晚城市。以 <Picture 1> 的少年英雄和 <Picture 2> 的机械巨兽为参考，保持人物与巨兽的外观一致。\n\n镜头一：俯拍楼顶的少年英雄。红色披风随风摆动，双手叉腰，带着自信的笑容抬头看向镜头。镜头缓慢下降，他大声说：“准备好迎接你的对手！”对白配合夸张的漫画文字，白色字、粗黑描边和红色投影。\n\n转场：快速甩镜离开屋顶，漫画文字随运动拖影扫出画面。\n\n镜头二：低机位拍摄高耸于城市天际线的黑色机械巨兽。巨兽仰头咆哮，露出獠牙，红色双眼和胸口核心骤然发亮，蓝色闪电沿头部跳动。咆哮震起灰尘，震动周围玻璃，伴随漫画速度线和墨点飞溅。巨兽朝镜头俯身，以咆哮收尾。\n\n声音包括风声、清晰的中文对白、城市回响和巨兽咆哮。"
+        "value": "鲜明的漫画墨线风格，粗线条，红色与蓝黑色调，夜晚城市。以 <Picture 1> 的少年英雄为参考，保持人物外观一致。\n\n镜头一：俯拍楼顶的少年英雄。红色披风随风摆动，双手叉腰，带着自信的笑容抬头看向镜头。镜头缓慢下降，他大声说：“准备好迎接你的对手！”对白配合夸张的漫画文字，白色字、粗黑描边和红色投影。\n\n转场：快速甩镜离开屋顶，漫画文字随运动拖影扫出画面。\n\n镜头二：低机位拍摄高耸于城市天际线的黑色机械巨兽。巨兽仰头咆哮，露出獠牙，红色双眼和胸口核心骤然发亮，蓝色闪电沿头部跳动。咆哮震起灰尘，震动周围玻璃，伴随漫画速度线和墨点飞溅。巨兽朝镜头俯身，以咆哮收尾。\n\n声音包括风声、清晰的中文对白、城市回响和巨兽咆哮。"
       },
       "color": "#322",
       "bgcolor": "#533"
@@ -1136,7 +1176,7 @@
       "type": "LoadImage",
       "pos": [
         60,
-        750
+        1400
       ],
       "size": [
         440,
@@ -1144,14 +1184,14 @@
       ],
       "flags": {},
       "order": 10,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            282
+            294
           ],
           "label": "图片",
           "localized_name": "图片"
@@ -1486,6 +1526,249 @@
       },
       "color": "#322",
       "bgcolor": "#533"
+    },
+    {
+      "id": 147,
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "type": "LoadImage",
+      "pos": [
+        560,
+        1400
+      ],
+      "size": [
+        440,
+        340
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            295
+          ],
+          "label": "图片",
+          "localized_name": "图片"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩",
+          "localized_name": "遮罩"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "",
+        "upload": "image"
+      },
+      "title": "参考图片 3 · 对应提示词标签"
+    },
+    {
+      "id": 148,
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "type": "LoadImage",
+      "pos": [
+        1060,
+        1400
+      ],
+      "size": [
+        440,
+        340
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            296
+          ],
+          "label": "图片",
+          "localized_name": "图片"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩",
+          "localized_name": "遮罩"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "",
+        "upload": "image"
+      },
+      "title": "参考图片 4 · 对应提示词标签"
+    },
+    {
+      "id": 149,
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "type": "LoadVideo",
+      "pos": [
+        1560,
+        1400
+      ],
+      "size": [
+        440,
+        340
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            293
+          ],
+          "label": "视频",
+          "localized_name": "视频"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ],
+      "title": "参考视频 1 · 24fps 2–15 秒"
+    },
+    {
+      "id": 150,
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 293,
+          "label": "视频",
+          "localized_name": "视频"
+        }
+      ],
+      "type": "GetVideoComponents",
+      "pos": [
+        2020,
+        1400
+      ],
+      "size": [
+        240,
+        170
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            297
+          ],
+          "label": "图像",
+          "localized_name": "图像"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            298
+          ],
+          "label": "音频",
+          "localized_name": "音频"
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": null,
+          "label": "帧率",
+          "localized_name": "帧率"
+        },
+        {
+          "name": "bit_depth",
+          "type": "COMBO",
+          "links": null,
+          "label": "位深",
+          "localized_name": "位深"
+        },
+        {
+          "name": "color_space",
+          "type": "COMBO",
+          "links": null,
+          "label": "色彩空间",
+          "localized_name": "色彩空间"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "widgets_values": [],
+      "title": "拆分视频帧与原声"
+    },
+    {
+      "id": 151,
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "type": "LoadAudio",
+      "pos": [
+        2320,
+        1400
+      ],
+      "size": [
+        440,
+        140
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            299
+          ],
+          "label": "音频",
+          "localized_name": "音频"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "",
+        null,
+        ""
+      ],
+      "title": "参考音频 1"
     }
   ],
   "links": [
@@ -1622,7 +1905,7 @@
       131,
       1,
       136,
-      12,
+      17,
       "INT"
     ],
     [
@@ -1630,7 +1913,7 @@
       115,
       0,
       136,
-      10,
+      15,
       "INT"
     ],
     [
@@ -1638,7 +1921,7 @@
       115,
       1,
       136,
-      11,
+      16,
       "INT"
     ],
     [
@@ -1654,7 +1937,7 @@
       138,
       0,
       136,
-      9,
+      14,
       "STRING"
     ],
     [
@@ -1672,14 +1955,6 @@
       121,
       0,
       "LATENT"
-    ],
-    [
-      282,
-      139,
-      0,
-      136,
-      4,
-      "IMAGE"
     ],
     [
       283,
@@ -1760,6 +2035,62 @@
       115,
       0,
       "IMAGE"
+    ],
+    [
+      293,
+      149,
+      0,
+      150,
+      0,
+      "VIDEO"
+    ],
+    [
+      294,
+      139,
+      0,
+      136,
+      4,
+      "IMAGE"
+    ],
+    [
+      295,
+      147,
+      0,
+      136,
+      5,
+      "IMAGE"
+    ],
+    [
+      296,
+      148,
+      0,
+      136,
+      6,
+      "IMAGE"
+    ],
+    [
+      297,
+      150,
+      0,
+      136,
+      8,
+      "IMAGE"
+    ],
+    [
+      298,
+      150,
+      1,
+      136,
+      10,
+      "AUDIO"
+    ],
+    [
+      299,
+      151,
+      0,
+      136,
+      12,
+      "AUDIO"
     ]
   ],
   "groups": [
@@ -1770,7 +2101,7 @@
         40,
         10,
         480,
-        1290
+        900
       ],
       "color": "#3f789e",
       "flags": {}
@@ -1809,6 +2140,66 @@
         990
       ],
       "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "可选 · 参考图片 2",
+      "bounding": [
+        40,
+        1330,
+        480,
+        440
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "可选 · 参考图片 3",
+      "bounding": [
+        540,
+        1330,
+        480,
+        440
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "可选 · 参考图片 4",
+      "bounding": [
+        1040,
+        1330,
+        480,
+        440
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "可选 · 参考视频 1（含原声）",
+      "bounding": [
+        1540,
+        1330,
+        740,
+        440
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "可选 · 参考音频 1",
+      "bounding": [
+        2300,
+        1330,
+        480,
+        440
+      ],
+      "color": "#a1309b",
       "flags": {}
     }
   ],

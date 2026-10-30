@@ -1308,11 +1308,11 @@
             },
             "widgets_values": [
               757358688076805,
-              "fixed"
+              "randomize"
             ],
             "widgets_values_named": {
               "noise_seed": 757358688076805,
-              "control_after_generate": "fixed"
+              "control_after_generate": "randomize"
             },
             "title": "随机种子"
           },
