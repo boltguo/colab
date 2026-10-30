@@ -15,4 +15,4 @@
 
 1. 按笔记本 `1 → 2 → 3 → 4` 顺序运行，通过 Cloudflare Tunnel 自有域名打开 ComfyUI。
 2. 在 ComfyUI 工作流列表打开 `01–04`，上传所需素材、填写提示词后运行。
-3. `04` 的可选参考：点击「可选」分组标题后按 `Ctrl+B` 启用，提示词用 `<Picture N>` / `<Video N>` / `<Audio N>` 引用。
+3. `04` 的可选参考：点击「可选」分组标题后按 `Ctrl+B`（Mac 为 `Cmd+B`）启用，提示词用 `<Picture N>` / `<Video N>` / `<Audio N>` 引用。
