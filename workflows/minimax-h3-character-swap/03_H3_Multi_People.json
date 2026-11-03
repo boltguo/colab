@@ -2695,14 +2695,14 @@
         "Node name for S&R": "MiniMaxH3ReferenceToVideo"
       },
       "widgets_values": [
-        "Replace only the selected person in <Video 1> with the character shown in <Picture 1>, from head to toe. Match the reference character's face, hair, visual style and complete outfit, including garment lengths, skirt hemline, exposed legs and footwear. Completely remove the selected person's original clothing. Do not retain the original long skirt or trousers beneath the new outfit, and do not layer the reference outfit over the source clothing. Reconstruct the legs and visible skin as shown in the reference, and restore the surrounding background where the original clothing extended beyond the reference outfit's silhouette. Follow the source person's position, scale, pose, gaze, expression, movement and timing. Preserve the background outside the replaced person, camera movement, lighting, other people and source audio timing.",
+        "Replace the selected person in <Video 1> with the character in <Picture 1>. Match the reference face, hairstyle and complete outfit consistently from the first frame. Match the reference garment shapes, layers, colors, hemline, exposed skin, legwear and shoes. Follow the source person's pose, gaze, expressions, motion, position, scale and timing. Preserve the scene, camera movement, lighting and other people.",
         1344,
         768,
         124,
         "match"
       ],
       "widgets_values_named": {
-        "prompt": "Replace only the selected person in <Video 1> with the character shown in <Picture 1>, from head to toe. Match the reference character's face, hair, visual style and complete outfit, including garment lengths, skirt hemline, exposed legs and footwear. Completely remove the selected person's original clothing. Do not retain the original long skirt or trousers beneath the new outfit, and do not layer the reference outfit over the source clothing. Reconstruct the legs and visible skin as shown in the reference, and restore the surrounding background where the original clothing extended beyond the reference outfit's silhouette. Follow the source person's position, scale, pose, gaze, expression, movement and timing. Preserve the background outside the replaced person, camera movement, lighting, other people and source audio timing.",
+        "prompt": "Replace the selected person in <Video 1> with the character in <Picture 1>. Match the reference face, hairstyle and complete outfit consistently from the first frame. Match the reference garment shapes, layers, colors, hemline, exposed skin, legwear and shoes. Follow the source person's pose, gaze, expressions, motion, position, scale and timing. Preserve the scene, camera movement, lighting and other people.",
         "width": 1344,
         "height": 768,
         "length": 124,
@@ -5483,14 +5483,14 @@
         "Node name for S&R": "MiniMaxH3ReferenceToVideo"
       },
       "widgets_values": [
-        "Replace only the selected person in <Video 1> with the character shown in <Picture 1>, from head to toe. Match the reference character's face, hair, visual style and complete outfit, including garment lengths, skirt hemline, exposed legs and footwear. Completely remove the selected person's original clothing. Do not retain the original long skirt or trousers beneath the new outfit, and do not layer the reference outfit over the source clothing. Reconstruct the legs and visible skin as shown in the reference, and restore the surrounding background where the original clothing extended beyond the reference outfit's silhouette. Follow the source person's position, scale, pose, gaze, expression, movement and timing. Preserve the background outside the replaced person, camera movement, lighting, other people and source audio timing.",
+        "Replace the selected person in <Video 1> with the character in <Picture 1>. Match the reference face, hairstyle and complete outfit consistently from the first frame. Match the reference garment shapes, layers, colors, hemline, exposed skin, legwear and shoes. Follow the source person's pose, gaze, expressions, motion, position, scale and timing. Preserve the scene, camera movement, lighting and other people.",
         1344,
         768,
         124,
         "match"
       ],
       "widgets_values_named": {
-        "prompt": "Replace only the selected person in <Video 1> with the character shown in <Picture 1>, from head to toe. Match the reference character's face, hair, visual style and complete outfit, including garment lengths, skirt hemline, exposed legs and footwear. Completely remove the selected person's original clothing. Do not retain the original long skirt or trousers beneath the new outfit, and do not layer the reference outfit over the source clothing. Reconstruct the legs and visible skin as shown in the reference, and restore the surrounding background where the original clothing extended beyond the reference outfit's silhouette. Follow the source person's position, scale, pose, gaze, expression, movement and timing. Preserve the background outside the replaced person, camera movement, lighting, other people and source audio timing.",
+        "prompt": "Replace the selected person in <Video 1> with the character in <Picture 1>. Match the reference face, hairstyle and complete outfit consistently from the first frame. Match the reference garment shapes, layers, colors, hemline, exposed skin, legwear and shoes. Follow the source person's pose, gaze, expressions, motion, position, scale and timing. Preserve the scene, camera movement, lighting and other people.",
         "width": 1344,
         "height": 768,
         "length": 124,
@@ -10111,7 +10111,7 @@
       "version": 1,
       "count": 2
     },
-    "h3_people_profiles": "h3_colab_people_profiles_631b63f6244a.json"
+    "h3_people_profiles": "h3_colab_people_profiles_074eaab84d97.json"
   },
   "version": 0.4
 }

@@ -21,12 +21,18 @@
 | 工作流 | 功能 |
 | --- | --- |
 | [01 单人全换](workflows/minimax-h3-character-swap/01_H3_Single_Full_Body.json) | 替换人物、发型与完整服装 |
-| [02 只换脸](workflows/minimax-h3-character-swap/02_H3_Face_Only.json) | 用人脸遮罩生成并合成，保留脸外区域 |
+| [02 只换脸](workflows/minimax-h3-character-swap/02_H3_Face_Only.json) | 专用 ReActor / inswapper 换脸，保留原片发型、服装和背景 |
 | [03 多人替换](workflows/minimax-h3-character-swap/03_H3_Multi_People.json) | 下拉选择 1–5 人，每人一张参考图，逐人生成并保护其他区域 |
 
-默认时长 **0＝整段原视频**，当前工作流最多约 149 秒。三种模式共用模型。先检查遮罩；多人编号按首帧检测顺序排列，不保证从左到右，SAM 描述保持 `person:5`。只换脸与多人效果尚未做 96GB GPU 端到端实测。
+默认时长 **0＝整段原视频**，当前预处理最多约 149 秒。01 / 03 共用 H3 基座与 VAEs；02 使用[专用 ReActor 节点](https://github.com/Gourieff/ComfyUI-ReActor/tree/0763f707e3f791323f2e7450d100a25860df546c)，额外约 1.43GiB 模型文件。02 直接逐帧换脸，再通过原片 `face` 遮罩限制回贴范围，默认关闭额外人脸修复，只保存最终 `face-only` 视频。帧数或尺寸变化时停止，避免缺帧输出。先用 3 秒片段检查相似度、表情和遮挡，再处理整段。
 
-已有部署：运行 notebook 第 1 步，再运行末尾的 **“更新现有部署”** 单元格，刷新整个 ComfyUI 页面即可。单独导入 JSON 无法安装多人选择控件。单人 SAM 补检、Cloudflare 打开与服务重启修复均已内嵌，具体说明见 notebook。
+02 已在 96GB RTX PRO 6000 上完成 3 秒 / 72 帧短测（736×1344、24fps、保留原声），并检查首、中、末静态帧；整段视频和复杂遮挡的效果仍需验证。
+
+先检查遮罩；多人编号按首帧检测顺序排列，不保证从左到右，SAM 描述保持 `person:5`。多人效果尚未做 96GB GPU 端到端实测。
+
+已有部署：使用本版 notebook，运行第 1 步，再运行末尾的 **“更新现有部署”** 单元格。它安装 02 专用节点和新增权重，锁住已有包版本，复用 H3 基座。首次载入新节点时会重启空闲的 ComfyUI；队列忙时提示完成后重跑，不取消任务。刷新整个 ComfyUI 页面，再从左侧重新打开 02，确认出现 **专用换脸 · ReActor** 和 **帧数检查** 节点；已有画布不会自动更新。工作流备份放在列表之外。单独导入 JSON 不会安装节点、下载权重或安装多人选择控件。
+
+02 使用的 inswapper / buffalo_l 预训练权重限非商业研究，具体使用范围见 [ReActor 上游说明](https://github.com/Gourieff/ComfyUI-ReActor#disclaimer)。
 
 ## 其他模型的统一运行流程
 
