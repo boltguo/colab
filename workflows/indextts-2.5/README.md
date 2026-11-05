@@ -16,7 +16,7 @@
 
 ## 使用方法
 
-1. 按顺序运行 [IndexTTS_2.5.ipynb](../../notebooks/indextts-2.5/IndexTTS_2.5.ipynb) 的 4 个步骤，通过 Cloudflare Tunnel 绑定的域名打开 ComfyUI。
+1. 按顺序运行 [IndexTTS_2.5.ipynb](../../notebooks/indextts-2.5/IndexTTS_2.5.ipynb) 的 4 个步骤，通过 Cloudflare Tunnel（默认临时公网域名，或勾选 `USE_CF_TUNNEL_TOKEN` 使用自有域名）打开 ComfyUI。
 2. 在左侧工作流列表中打开 `01`～`03` 任一工作流。
 3. 在「上传音色参考音频」节点使用预置的 `ref_audio.mp3` 或上传 `3~15` 秒清晰人声。
 4. 在中间节点输入目标文本（支持中文多音字拼音标注，如 `他在银<行|XING2>里<行|HANG2>走`），调节 `duration_factor`（语速 `0.5~2.0`），点击运行即可在右侧节点试听并保存 MP3。

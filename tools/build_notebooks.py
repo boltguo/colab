@@ -55,13 +55,13 @@ MD3_COMFY = """### 3. 下载模型与工作流
 MD3_VLLM = """### 3. 下载 Qwen3.8-27B 模型
 - **功能**：按显存下载模型至 `/content/models`：80GB 及以上为 `Qwen/Qwen3.8-27B` BF16（约 55 GB），40GB 为 `Qwen/Qwen3.8-27B-FP8`（约 28 GB）。
 - **使用**：直接运行，输出 `[OK]` 后继续。"""
-SECRET = "- **要求**：在 Colab 左侧 **🔑 Secrets** 中添加 `CF_TUNNEL_TOKEN` 并开启访问权限。"
+SECRET = "- **隧道模式**：默认不勾选 `USE_CF_TUNNEL_TOKEN`，直接启动 Cloudflare Quick Tunnel 临时公网域名（用完即关）；勾选后从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载自有域名。"
 MD4_COMFY = f"""### 4. 启动并打开 ComfyUI
-- **功能**：后台启动 ComfyUI（`127.0.0.1:8188`），读取 `CF_TUNNEL_TOKEN` 启动 Cloudflare Tunnel 并检查公网访问。
+- **功能**：后台启动 ComfyUI（`127.0.0.1:8188`），启动 Cloudflare Tunnel 并检查公网访问。
 {SECRET}
-- **使用**：直接运行，通过 Cloudflare 绑定的域名访问。"""
+- **使用**：直接运行，点击输出的公网链接访问。"""
 MD4_VLLM = f"""### 4. 启动并挂载 API 服务
-- **功能**：后台启动 `vllm serve`（`127.0.0.1:8188`，`262144` 上下文，MTP 投机采样），读取 `CF_TUNNEL_TOKEN` 启动 Cloudflare Tunnel 并检查公网访问，提供 OpenAI（`/v1/chat/completions`）与 Anthropic（`/v1/messages`）接口。
+- **功能**：后台启动 `vllm serve`（`127.0.0.1:8188`，`262144` 上下文，MTP 投机采样），启动 Cloudflare Tunnel 并检查公网访问，提供 OpenAI（`/v1/chat/completions`）与 Anthropic（`/v1/messages`）接口。
 {SECRET}
 - **使用**：直接运行，输出 Claude Code 与 OpenAI 调用配置。"""
 
@@ -169,10 +169,14 @@ def save(path, nb):
     nb["nbformat"], nb["nbformat_minor"] = 4, 5
     Path(path).write_text(json.dumps(nb, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
+ACCESS_LINE = "- **访问方式**：默认使用 Cloudflare Quick Tunnel 临时公网域名（用完即关）；勾选 `USE_CF_TUNNEL_TOKEN` 则从 Colab Secrets 读取 `CF_TUNNEL_TOKEN` 挂载自有域名"
+
 for key, c in COMFY.items():
     nb = json.loads(Path(c["path"]).read_text(encoding="utf-8"))
     cells = nb["cells"]
     node = c.get("node")
+    md0 = re.sub(r"^- \*\*访问方式\*\*：.*$", ACCESS_LINE, "".join(cells[0]["source"]), flags=re.M)
+    set_source(cells[0], md0, False)
     set_source(cells[1], MD1.format(req=f"支持 `A100`、`H100`、`RTX 6000`，显存 {c['md_vram']}。"), False)
     set_source(cells[2], step1(c["vram"], c["req"]), True)
     set_source(cells[3], MD2_COMFY.format(node="、`ComfyUI-IndexTTS-2.5` 节点" if node else ""), False)
@@ -198,11 +202,11 @@ nb = json.loads(Path(path).read_text(encoding="utf-8"))
 cells = nb["cells"]
 set_source(cells[1], MD1.format(req="支持 `A100`、`H100`、`RTX 6000`，显存 40GB 及以上。"), False)
 set_source(cells[2], step1(35, REQ40, 'if vram_gib < 70:\n    print("[提示] 40GB 级显卡，第 3 步使用 FP8 模型。")\n'), True)
-set_source(cells[0], """# Qwen3.8-27B（原生全精度多模态 API 服务）
+set_source(cells[0], f"""# Qwen3.8-27B（原生全精度多模态 API 服务）
 
 - **支持显卡**：A100 (40GB / 80GB)、H100 (80GB)、RTX 6000 (96GB)
 - **默认配置**：[`Qwen/Qwen3.8-27B`](https://huggingface.co/Qwen/Qwen3.8-27B) BF16（40GB 显卡使用 FP8）、256K（`262144`）上下文、图像 / 视频理解、`reasoning_effort` 与工具调用
-- **访问方式**：通过 Colab Secrets 自动读取 `CF_TUNNEL_TOKEN`，挂载 Cloudflare Tunnel 直连自有域名与 API
+{ACCESS_LINE}
 - **执行顺序**：`1. 环境检测` → `2. 安装 vLLM 推理引擎` → `3. 下载 Qwen3.8-27B 模型` → `4. 启动并挂载 API 服务`
 
 | 接口路径 | 协议 | 客户端 |

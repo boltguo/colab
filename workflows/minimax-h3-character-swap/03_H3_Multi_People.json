@@ -1367,12 +1367,12 @@
         "Node name for S&R": "SAM3_Detect"
       },
       "widgets_values": [
-        0.2,
+        0.3,
         2,
         true
       ],
       "widgets_values_named": {
-        "threshold": 0.2,
+        "threshold": 0.3,
         "refine_iterations": 2,
         "individual_masks": true
       },
@@ -1478,12 +1478,12 @@
         "Node name for S&R": "SAM3_VideoTrack"
       },
       "widgets_values": [
-        0.2,
+        0.3,
         5,
         1
       ],
       "widgets_values_named": {
-        "detection_threshold": 0.2,
+        "detection_threshold": 0.3,
         "max_objects": 5,
         "detect_interval": 1
       },
@@ -1537,7 +1537,8 @@
           "slot_index": null,
           "links": [
             19,
-            150
+            150,
+            171
           ]
         }
       ],
@@ -1657,11 +1658,11 @@
       },
       "widgets_values": [
         120,
-        96
+        64
       ],
       "widgets_values_named": {
         "source_frames": 120,
-        "expansion_px": 96
+        "expansion_px": 64
       },
       "color": "#28465c",
       "bgcolor": "#1e252d"
@@ -7067,11 +7068,11 @@
       },
       "widgets_values": [
         120,
-        96
+        64
       ],
       "widgets_values_named": {
         "source_frames": 120,
-        "expansion_px": 96
+        "expansion_px": 64
       },
       "color": "#28465c",
       "bgcolor": "#1e252d"
@@ -7204,10 +7205,10 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [
-        "b if a == 2 else 人数未同步_请在notebook更新现有部署并刷新页面"
+        "b if a == 2 else 人数未同步_请重跑notebook第3和4步并刷新页面"
       ],
       "widgets_values_named": {
-        "expression": "b if a == 2 else 人数未同步_请在notebook更新现有部署并刷新页面"
+        "expression": "b if a == 2 else 人数未同步_请重跑notebook第3和4步并刷新页面"
       },
       "title": "人数未同步时请在 notebook 更新现有部署并刷新页面"
     },
@@ -7475,8 +7476,7 @@
           "slot_index": 0,
           "links": [
             29,
-            155,
-            171
+            155
           ]
         }
       ],
@@ -7689,12 +7689,12 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [
-        3,
-        1.0
+        9,
+        3.0
       ],
       "widgets_values_named": {
-        "blur_radius": 3,
-        "sigma": 1.0
+        "blur_radius": 9,
+        "sigma": 3.0
       },
       "title": "遮罩边缘羽化"
     },
@@ -8253,12 +8253,12 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [
-        3,
-        1.0
+        9,
+        3.0
       ],
       "widgets_values_named": {
-        "blur_radius": 3,
-        "sigma": 1.0
+        "blur_radius": 9,
+        "sigma": 3.0
       },
       "title": "遮罩边缘羽化"
     },
@@ -9834,7 +9834,7 @@
     ],
     [
       171,
-      "a_protected_mask",
+      "mask",
       0,
       "b_exclude_1",
       1,
@@ -10111,7 +10111,7 @@
       "version": 1,
       "count": 2
     },
-    "h3_people_profiles": "h3_colab_people_profiles_074eaab84d97.json"
+    "h3_people_profiles": "h3_colab_people_profiles_8dcf860576d9.json"
   },
   "version": 0.4
 }

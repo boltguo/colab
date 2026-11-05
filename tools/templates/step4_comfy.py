@@ -1,4 +1,5 @@
 # @title 4. 启动并打开 ComfyUI {display-mode: "form"}
+USE_CF_TUNNEL_TOKEN = False  # @param {type:"boolean"}
 import json, os, re, socket, subprocess, sys, time, urllib.request
 from pathlib import Path
 

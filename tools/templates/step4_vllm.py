@@ -1,4 +1,5 @@
 # @title 4. 启动并挂载 API 服务 {display-mode: "form"}
+USE_CF_TUNNEL_TOKEN = False  # @param {type:"boolean"}
 import json, os, re, subprocess, time, urllib.request
 from pathlib import Path
 

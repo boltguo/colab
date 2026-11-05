@@ -1343,12 +1343,12 @@
         "Node name for S&R": "SAM3_Detect"
       },
       "widgets_values": [
-        0.2,
+        0.3,
         2,
         true
       ],
       "widgets_values_named": {
-        "threshold": 0.2,
+        "threshold": 0.3,
         "refine_iterations": 2,
         "individual_masks": true
       },
@@ -1422,7 +1422,7 @@
           ]
         }
       ],
-      "title": "H3RelaySelectMask",
+      "title": "选择目标人物 · largest / leftmost / rightmost / index",
       "properties": {
         "Node name for S&R": "H3RelaySelectMask"
       },
@@ -1534,12 +1534,12 @@
         "Node name for S&R": "SAM3_VideoTrack"
       },
       "widgets_values": [
-        0.2,
+        0.3,
         1,
         1
       ],
       "widgets_values_named": {
-        "detection_threshold": 0.2,
+        "detection_threshold": 0.3,
         "max_objects": 1,
         "detect_interval": 1
       },
@@ -1864,11 +1864,11 @@
       },
       "widgets_values": [
         120,
-        96
+        64
       ],
       "widgets_values_named": {
         "source_frames": 120,
-        "expansion_px": 96
+        "expansion_px": 64
       },
       "color": "#28465c",
       "bgcolor": "#1e252d"
@@ -4626,7 +4626,7 @@
       "title": "Note: Size Settings Reference",
       "properties": {},
       "widgets_values": [
-        "# MiniMax H3 · Size Settings Reference\n\n**24 fps · width and height divisible by 32.** Match the source aspect ratio. More pixels, longer windows and larger reference images require more memory.\n\n| Approx. MP | Landscape reference |\n|---|---|\n| 0.21 | 608 × 352 |\n| 0.31 | 736 × 416 |\n| 0.41 | 864 × 480 |\n| 0.52 | 960 × 544 |\n| 0.64 | 1056 × 608 |\n| 0.74 | 1152 × 640 |\n| 0.82 | 1216 × 672 |\n| 0.94 | 1280 × 736 |\n| 1.03 | 1344 × 768 |\n\nThese are manually chosen reference sizes. **1344 × 768 exceeds a strict 1 MP cap.**\n\n**Prepare Source uses strict pixel caps**, not a fixed output height. For an ideal 16:9 input, 480 (≤0.5 MP) gives **928 × 512**; 768 (≤1 MP) gives **1344 × 736**. Portrait inputs swap those dimensions; square inputs give 704 × 704 or 992 × 992. Already aligned sources within the cap keep their size. The node outputs the actual width and height."
+        "### 03 · 遮罩、连衣裙/裤装差异与多人物遮挡\n\n- 默认跟踪描述是 `person`，并通过 `选择目标人物` 节点支持 `largest`（最大人物）、`leftmost`（最左）、`rightmost`（最右）或 `index`（按检测序号）。\n- `H3RelayExpandMask.expansion_px` 已设为官方推荐的 **64**（配合内部 32×32 网格池化，既留出完整服装形变空间，又避免过度吞入背景或旁人）。\n- 若原视频与参考图服装廓形差异极大（如紧身裤换宽大长裙），可将 `expansion_px` 调高至 `96–128`；若多人擦肩靠得很近，可调低至 `32–48`。"
       ],
       "color": "#443b27",
       "bgcolor": "#29251d"

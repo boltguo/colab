@@ -2,7 +2,7 @@
   "id": "0d94d3f6-cd4c-45a5-9029-18b2ffe9973b",
   "revision": 0,
   "last_node_id": 25,
-  "last_link_id": 42,
+  "last_link_id": 43,
   "nodes": [
     {
       "id": "source",
@@ -671,12 +671,12 @@
         "Node name for S&R": "SAM3_Detect"
       },
       "widgets_values": [
-        0.2,
+        0.25,
         2,
         true
       ],
       "widgets_values_named": {
-        "threshold": 0.2,
+        "threshold": 0.25,
         "refine_iterations": 2,
         "individual_masks": true
       },
@@ -750,7 +750,7 @@
           ]
         }
       ],
-      "title": "H3RelaySelectMask",
+      "title": "选择目标人脸 · largest / leftmost / rightmost / index",
       "properties": {
         "Node name for S&R": "H3RelaySelectMask"
       },
@@ -862,12 +862,12 @@
         "Node name for S&R": "SAM3_VideoTrack"
       },
       "widgets_values": [
-        0.2,
+        0.25,
         1,
         1
       ],
       "widgets_values_named": {
-        "detection_threshold": 0.2,
+        "detection_threshold": 0.25,
         "max_objects": 1,
         "detect_interval": 1
       },
@@ -1525,12 +1525,12 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [
-        3,
-        1.0
+        9,
+        3.0
       ],
       "widgets_values_named": {
-        "blur_radius": 3,
-        "sigma": 1.0
+        "blur_radius": 9,
+        "sigma": 3.0
       },
       "title": "遮罩边缘羽化"
     },
@@ -1776,7 +1776,9 @@
           "type": "IMAGE",
           "pos": null,
           "slot_index": null,
-          "links": []
+          "links": [
+            43
+          ]
         }
       ],
       "title": "最终回贴范围 · 原始脸部遮罩 · 0 扩张",
@@ -1851,7 +1853,7 @@
           "slot_index": 2
         }
       ],
-      "title": "专用换脸 · ReActor · 修复关闭",
+      "title": "专用换脸 · ReActor + GFPGANv1.4",
       "properties": {
         "Node name for S&R": "ReActorFaceSwap"
       },
@@ -1859,12 +1861,12 @@
         true,
         "inswapper_128.onnx",
         "retinaface_resnet50",
-        "none",
-        1.0,
+        "GFPGANv1.4.pth",
+        0.75,
         0.5,
         "no",
         "no",
-        "0",
+        "0,1,2,3,4",
         "0",
         1
       ],
@@ -1872,12 +1874,12 @@
         "enabled": true,
         "swap_model": "inswapper_128.onnx",
         "facedetection": "retinaface_resnet50",
-        "face_restore_model": "none",
-        "face_restore_visibility": 1.0,
+        "face_restore_model": "GFPGANv1.4.pth",
+        "face_restore_visibility": 0.75,
         "codeformer_weight": 0.5,
         "detect_gender_input": "no",
         "detect_gender_source": "no",
-        "input_faces_index": "0",
+        "input_faces_index": "0,1,2,3,4",
         "source_faces_index": "0",
         "console_log_level": 1
       },
@@ -1945,10 +1947,38 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# 02 · 专用只换脸\n\n上传原视频和一张清晰的人脸参考图，运行后只输出最终 face-only 视频。\n\n保留原片发型、衣服和背景；仅将脸部区域贴回。默认关闭额外人脸修复，减少五官被再次改写。\n\n时长 0＝整段，沿用 24fps 与当前约 149 秒的预处理上限。建议先测试 3 秒再处理整段。\n\n适用于单人连续镜头。遮挡、侧脸和模糊会影响检测及相似度；请检查实际结果。\n"
+        "## 02 · 只换脸（ReActor + GFPGANv1.4 + SAM3 脸部遮罩回贴）\n\n- 本工作流采用 **ReActor (inswapper_128 + GFPGANv1.4 0.75 修复)** 结合 **SAM3 脸部精确跟踪遮罩**。\n- ReActor 默认开启 `input_faces_index = 0,1,2,3,4` 替换画面中检测到的所有人脸，再由 **SAM3 脸部跟踪遮罩**（可通过 `largest / leftmost / rightmost / index` 指定目标人脸）配合 **9px 高斯内羽化**仅将目标人物脸部回贴到原视频，彻底避免多人同框时检测器序号跳变导致的闪回原脸问题。\n- 原视频的发型、头饰、脖子、衣服、肤色光影、背景和原声 100% 保持不变。"
       ],
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": "mask_preview",
+      "type": "PreviewImage",
+      "pos": [
+        2820,
+        820
+      ],
+      "size": [
+        450,
+        320
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 43
+        }
+      ],
+      "outputs": [],
+      "title": "脸部遮罩预览",
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
     }
   ],
   "links": [
@@ -2286,6 +2316,14 @@
       0,
       "face_guard",
       1,
+      "IMAGE"
+    ],
+    [
+      43,
+      "face_overlay",
+      1,
+      "mask_preview",
+      0,
       "IMAGE"
     ]
   ],
