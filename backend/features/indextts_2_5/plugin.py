@@ -71,6 +71,8 @@ def _build_router(
     )
     async def release_loaded_models(_: None = Depends(auth_dep)) -> Dict[str, Any]:
         info = ENGINE_MANAGER.release()
+        if info.get("busy"):
+            raise HTTPException(status_code=409, detail="模型正在加载或合成语音，请在任务完成后释放显存。")
         return {"status": "ok", **info}
 
     return router
@@ -79,7 +81,7 @@ def _build_router(
 INDEXTTS_2_5_PLUGIN = FeaturePlugin(
     name="indextts-2.5",
     title="IndexTTS 2.5 语音合成工作台",
-    subtitle="零样本多语种音色克隆 · 8 维情绪向量 · 音色情绪分离 · QwenEmotion 情感控制",
+    subtitle="多语种音色克隆 · 情绪控制 · 音频与字幕导出",
     engine="Native IndexTTS-2.5 (PyTorch)",
     version="0.1.0",
     validate_params=_validate_indextts_params,

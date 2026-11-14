@@ -82,5 +82,6 @@ export interface IndexTTSResult {
   srt: string;
   vtt?: string;
   timeline?: SubtitleTimelineItem[];
+  subtitle_timing?: "estimated";
   mock?: boolean;
 }

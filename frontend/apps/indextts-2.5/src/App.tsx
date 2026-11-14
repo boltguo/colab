@@ -22,8 +22,6 @@ import {
   Popover,
   Progress,
   QuestionCircleOutlined,
-  RadioButton,
-  RadioGroup,
   ReloadOutlined,
   RocketOutlined,
   ScissorOutlined,
@@ -37,7 +35,6 @@ import {
   StudioShell,
   SwapOutlined,
   Switch,
-  Tabs,
   Tag,
   Text,
   TextArea,
@@ -104,12 +101,12 @@ const QUICK_TEXT_SAMPLES: Array<{ label: string; lang: LanguageCode; text: strin
   {
     label: "中文通用克隆",
     lang: "zh",
-    text: "你好，欢迎使用 IndexTTS 2.5 现代语音工作台。无需繁琐节点连线，在明亮清晰的工作台中即可精确调节每一项声学与情感参数。",
+    text: "你好，欢迎使用 IndexTTS 2.5。这里可以调整语速、停顿与情绪，试听不同的表达方式。",
   },
   {
     label: "中文多音字精准控音",
     lang: "zh",
-    text: "他在银<行|XING2>旁边的步行街散步，看着门前整齐的一<行|HANG2>白杨树，觉<得|DE5>心情格外舒畅。",
+    text: "他在银<行|HANG2>旁边的步行街散步，看着门前整齐的一<行|HANG2>白杨树，觉<得|DE5>心情格外舒畅。",
   },
   {
     label: "English Cross-Lingual",
@@ -134,7 +131,7 @@ const QUICK_TEXT_SAMPLES: Array<{ label: string; lang: LanguageCode; text: strin
 ];
 
 const POLYPHONE_QUICK_CHIPS: Array<{ word: string; pron: string; note: string }> = [
-  { word: "行", pron: "XING2", note: "行走 / 银行(误读纠正)" },
+  { word: "行", pron: "XING2", note: "行走 / 行动" },
   { word: "行", pron: "HANG2", note: "行业 / 一行" },
   { word: "重", pron: "CHONG2", note: "重新 / 重复" },
   { word: "重", pron: "ZHONG4", note: "重要 / 重量" },
@@ -164,7 +161,7 @@ const SCENE_RECIPES: SceneRecipe[] = [
   {
     id: "natural_clone",
     label: "原声自然复刻",
-    desc: "1:1 忠实还原参考音频的音色、节奏与原生情绪，适合通用配音",
+    desc: "沿用参考音频的音色和语气，适合通用配音",
     apply: () => ({
       emotion_mode: "clone",
       duration_factor: 1.0,
@@ -302,9 +299,11 @@ export function IndexTTSStudioApp() {
   const emoTextInputId = useId();
   const polyWordId = useId();
   const polyPronId = useId();
+  const settingsSectionId = useId();
 
   const textAreaWrapRef = useRef<HTMLDivElement | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
   const { message } = useStudioFeedback();
 
   // Built-in backend audio presets & active stateless scene recipe
@@ -366,7 +365,6 @@ export function IndexTTSStudioApp() {
   const [polyOpen, setPolyOpen] = useState<boolean>(false);
   const [polyWord, setPolyWord] = useState<string>("");
   const [polyPron, setPolyPron] = useState<string>("");
-  const [inspectorTab, setInspectorTab] = useState<string>("emotion");
   const [auditionSource, setAuditionSource] = useState<"synth" | "ref">("synth");
   const [subtitleViewMode, setSubtitleViewMode] = useState<"timeline" | "srt" | "vtt">("timeline");
   const [historyFilter, setHistoryFilter] = useState<string>("");
@@ -528,11 +526,11 @@ export function IndexTTSStudioApp() {
     if (patch.emotion_vector) setEmotionVector(patch.emotion_vector);
     if (patch.normalize_emo_vector !== undefined) setNormalizeEmoVector(patch.normalize_emo_vector);
     if (patch.apply_emo_bias !== undefined) setApplyEmoBias(patch.apply_emo_bias);
-    if (patch.emotion_audio !== undefined && patch.emotion_audio !== null) {
-      setEmotionAudio(patch.emotion_audio);
+    if (patch.emotion_audio !== undefined) {
+      setEmotionAudio(patch.emotion_audio || "");
     }
-    if (patch.emotion_text !== undefined && patch.emotion_text !== null) {
-      setEmotionText(patch.emotion_text);
+    if (patch.emotion_text !== undefined) {
+      setEmotionText(patch.emotion_text || "");
     }
     if (patch.auto_emotion_from_text !== undefined) {
       setAutoEmotionFromText(patch.auto_emotion_from_text);
@@ -564,11 +562,28 @@ export function IndexTTSStudioApp() {
     if (patch.auto_free_memory !== undefined) setAutoFreeMemory(patch.auto_free_memory);
   };
 
-  const applyParamsFromHistory = (p: IndexTTSRequestPayload) => {
-    setText(p.text);
-    applyPartialSettings(p);
+  const applyParamsFromHistory = (entry: HistoryEntry<IndexTTSResult, IndexTTSRequestPayload>) => {
+    setText(entry.params.text);
+    applyPartialSettings({ ...entry.params, seed: entry.result.seed });
     setActiveRecipeId("");
-    message.info("已完整回填该条记录的所有模型参数");
+    message.info("已回填参数并锁定该次生成的实际种子");
+  };
+
+  const scrollToSettings = (section: string) => {
+    document.getElementById(`${settingsSectionId}-${section}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+
+  const seekSynthAudio = (seconds: number) => {
+    pendingSeekRef.current = seconds;
+    if (auditionSource !== "synth") {
+      setAuditionSource("synth");
+      return;
+    }
+    const player = audioPlayerRef.current;
+    if (!player || player.readyState < 1) return;
+    pendingSeekRef.current = null;
+    player.currentTime = seconds;
+    void player.play().catch(() => {});
   };
 
   const resetSamplingDefaults = () => {
@@ -626,12 +641,12 @@ export function IndexTTSStudioApp() {
       return;
     }
     if (emotionMode === "reference" && !emotionAudio) {
-      setInspectorTab("emotion");
+      scrollToSettings("emotion");
       message.warning("当前为「情感参考音频」模式，请上传或选择第二段情绪参考音频");
       return;
     }
     if (emotionMode === "text" && !autoEmotionFromText && !emotionText.trim()) {
-      setInspectorTab("emotion");
+      scrollToSettings("emotion");
       message.warning("请填写自然语言情绪描述，或开启「自动根据台词分析情绪」");
       return;
     }
@@ -705,7 +720,7 @@ export function IndexTTSStudioApp() {
                 applyPartialSettings(recipe.apply());
                 setActiveRecipeId(recipe.id);
                 if (recipe.id === "auto_drama" || recipe.id !== "natural_clone") {
-                  setInspectorTab("emotion");
+                  scrollToSettings("emotion");
                 }
                 message.success(`已应用「${recipe.label}」推荐参数组合`);
               }}
@@ -753,8 +768,8 @@ export function IndexTTSStudioApp() {
               spellCheck={false}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault();
                   if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                  e.preventDefault();
                   insertAnnotationAtCursor(polyWord, polyPron);
                 }
               }}
@@ -801,7 +816,7 @@ export function IndexTTSStudioApp() {
         title={
           <Space size={8}>
             <SoundOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>1. 说话人参考音色（零样本克隆声源）</span>
+            <span>1. 参考音色</span>
           </Space>
         }
         extra={
@@ -839,7 +854,7 @@ export function IndexTTSStudioApp() {
         title={
           <Space size={8}>
             <FontColorsOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>2. 合成台词工作台与核心韵律</span>
+            <span>2. 台词与语速</span>
           </Space>
         }
         extra={
@@ -916,6 +931,7 @@ export function IndexTTSStudioApp() {
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                   e.preventDefault();
                   void handleGenerate();
                 }
@@ -928,14 +944,14 @@ export function IndexTTSStudioApp() {
             <div className="studio-segment-list">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Text strong style={{ fontSize: 12 }}>
-                  实时自动分句预览（按当前每段上限 {maxTextTokensPerSegment} Tokens 切分，段间插入 {intervalSilenceMs}ms 停顿）
+                  分句估算（每段上限 {maxTextTokensPerSegment} Tokens；实际切分以模型分词器为准）
                 </Text>
                 <Button
                   htmlType="button"
                   type="link"
                   size="small"
                   style={{ padding: 0, blockSize: "auto", fontSize: 12 }}
-                  onClick={() => setInspectorTab("segment")}
+                  onClick={() => scrollToSettings("segment")}
                 >
                   调整分句阈值
                 </Button>
@@ -1023,7 +1039,7 @@ export function IndexTTSStudioApp() {
               </div>
               <Slider
                 min={0}
-                max={1500}
+                max={2000}
                 step={25}
                 value={intervalSilenceMs}
                 onChange={setIntervalSilenceMs}
@@ -1033,25 +1049,17 @@ export function IndexTTSStudioApp() {
         </Space>
       </Card>
 
-      {/* Zone C: 4-Tab Deep Model Parameter Inspector */}
+      {/* Primary controls stay visible; only engine settings are collapsed. */}
       <Card
         className="studio-card"
         title={
           <Space size={8}>
             <SlidersOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>3. 模型全参数自定义精调中心</span>
+            <span>3. 情绪与生成参数</span>
           </Space>
         }
-        extra={
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            完整开放 IndexTTS-2.5 情感矩阵、分句、GPT2 解码、CFM 声学流匹配与母带参数
-          </Text>
-        }
       >
-        <Tabs
-          activeKey={inspectorTab}
-          onChange={setInspectorTab}
-          items={[
+        {[
             {
               key: "emotion",
               label: (
@@ -1064,10 +1072,10 @@ export function IndexTTSStudioApp() {
                   <Segmented
                     block
                     options={[
-                      { label: "继承音色原情绪", value: "clone" },
-                      { label: "8 维情绪向量精调", value: "vector" },
-                      { label: "第二段情感参考音频", value: "reference" },
-                      { label: "Qwen 自然语言情绪", value: "text" },
+                      { label: "沿用参考", value: "clone" },
+                      { label: "情绪向量", value: "vector" },
+                      { label: "参考情绪", value: "reference" },
+                      { label: "文字描述", value: "text" },
                     ]}
                     value={emotionMode}
                     onChange={(val) => setEmotionMode(val as EmotionMode)}
@@ -1077,7 +1085,7 @@ export function IndexTTSStudioApp() {
                     <Alert
                       type="info"
                       showIcon
-                      message="自然继承模式：100% 保持第 1 步说话人参考音频的原始语气、情感起伏与说话习惯。"
+                      message="沿用说话人参考音频的语气；如需改变情绪，可切换到向量、参考音频或文字描述。"
                     />
                   )}
 
@@ -1330,31 +1338,6 @@ export function IndexTTSStudioApp() {
                       />
                     </div>
 
-                    <div className="studio-field-group">
-                      <div className="studio-field-label">
-                        <LabelWithTip
-                          label="分段间静音停顿时长"
-                          tip="多段分句拼接时自动插入的呼吸静音毫秒数，有声书建议 300~450ms，短视频口播建议 100~150ms"
-                        />
-                        <InputNumber
-                          size="small"
-                          min={0}
-                          max={2000}
-                          step={25}
-                          value={intervalSilenceMs}
-                          addonAfter="ms"
-                          style={{ inlineSize: 105 }}
-                          onChange={(v) => setIntervalSilenceMs(typeof v === "number" ? v : 200)}
-                        />
-                      </div>
-                      <Slider
-                        min={0}
-                        max={2000}
-                        step={25}
-                        value={intervalSilenceMs}
-                        onChange={setIntervalSilenceMs}
-                      />
-                    </div>
                   </div>
 
                   <Divider style={{ marginBlock: 2 }} />
@@ -1402,7 +1385,7 @@ export function IndexTTSStudioApp() {
                         />
                         <Text code>{temperature.toFixed(2)}</Text>
                       </div>
-                      <Slider min={0.1} max={2.0} step={0.05} value={temperature} onChange={setTemperature} />
+                      <Slider min={0.1} max={2.0} step={0.05} value={temperature} onChange={setTemperature} disabled={!doSample} />
                     </div>
 
                     <div className="studio-field-group">
@@ -1413,7 +1396,7 @@ export function IndexTTSStudioApp() {
                         />
                         <Text code>{topP.toFixed(2)}</Text>
                       </div>
-                      <Slider min={0.05} max={1.0} step={0.01} value={topP} onChange={setTopP} />
+                      <Slider min={0.05} max={1.0} step={0.01} value={topP} onChange={setTopP} disabled={!doSample} />
                     </div>
 
                     <div className="studio-field-group">
@@ -1446,6 +1429,7 @@ export function IndexTTSStudioApp() {
                         max={100}
                         step={1}
                         value={topK}
+                        disabled={!doSample}
                         onChange={(v) => setTopK(typeof v === "number" ? v : 30)}
                       />
                     </div>
@@ -1505,29 +1489,12 @@ export function IndexTTSStudioApp() {
               key: "mastering",
               label: (
                 <span>
-                  <SoundOutlined /> 母带后处理与加速
+                  <SoundOutlined /> 音频后处理
                 </span>
               ),
               children: (
                 <Space direction="vertical" size={14} style={{ inlineSize: "100%" }}>
                   <div className="studio-param-grid studio-tabular">
-                    <div className="studio-field-group">
-                      <LabelWithTip
-                        label="输出音频编码格式"
-                        tip="MP3 采用 LAME V0 高码率可变比特率；WAV 为 16-bit 无损原片；FLAC 为无损压缩格式"
-                      />
-                      <RadioGroup
-                        value={outputFormat}
-                        onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
-                        optionType="button"
-                        buttonStyle="solid"
-                      >
-                        <RadioButton value="mp3">MP3 (高音质)</RadioButton>
-                        <RadioButton value="wav">WAV (无损)</RadioButton>
-                        <RadioButton value="flac">FLAC</RadioButton>
-                      </RadioGroup>
-                    </div>
-
                     <div className="studio-field-group">
                       <div className="studio-field-label">
                         <LabelWithTip
@@ -1557,8 +1524,9 @@ export function IndexTTSStudioApp() {
                     </Space>
                   </Space>
 
-                  <Divider style={{ marginBlock: 2 }} />
-
+                  <details className="studio-native-details">
+                    <summary>引擎与显存设置</summary>
+                    <div className="studio-details-body">
                   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                     <Space wrap size={[20, 8]}>
                       <Space size={6}>
@@ -1586,6 +1554,7 @@ export function IndexTTSStudioApp() {
                       htmlType="button"
                       size="small"
                       loading={releasingVram}
+                      disabled={isBusy}
                       onClick={async () => {
                         setReleasingVram(true);
                         try {
@@ -1601,18 +1570,40 @@ export function IndexTTSStudioApp() {
                       立即手动清空显存
                     </Button>
                   </div>
+                      <Button
+                        htmlType="button"
+                        size="small"
+                        onClick={() => {
+                          setUseBf16(true);
+                          setUseTorchCompile(false);
+                          setUseCudaKernel(false);
+                          setAutoFreeMemory(false);
+                        }}
+                      >
+                        恢复推荐引擎设置
+                      </Button>
+                    </div>
+                  </details>
                 </Space>
               ),
             },
-          ]}
-        />
+          ].map((section, index) => (
+            <section
+              key={section.key}
+              id={`${settingsSectionId}-${section.key}`}
+              style={{ scrollMarginTop: 100, paddingBlockStart: index ? 20 : 0, marginBlockStart: index ? 20 : 0, borderBlockStart: index ? "1px solid var(--studio-border)" : undefined }}
+            >
+              <h3 style={{ fontSize: 14, marginBlock: "0 14px" }}>{section.label}</h3>
+              {section.children}
+            </section>
+          ))}
       </Card>
 
       {/* Zone D: Sticky Primary Generate Dock (Always Visible in Viewport!) */}
       <div className="studio-action-dock">
         <Space wrap size={[10, 6]} className="studio-tabular">
           <Space size={6}>
-            <Tooltip title={seed > 0 ? "当前已锁定固定种子，相同参数可稳定复现语气" : "0 表示每次随机生成新种子"}>
+            <Tooltip title={seed > 0 ? "已锁定种子，便于使用相同参数再次生成" : "0 表示每次随机生成新种子"}>
               {seed > 0 ? (
                 <LockOutlined style={{ color: "var(--studio-accent)" }} />
               ) : (
@@ -1722,7 +1713,7 @@ export function IndexTTSStudioApp() {
                 htmlType="button"
                 size="small"
                 icon={<ReloadOutlined />}
-                onClick={() => applyParamsFromHistory(displayedEntry.params)}
+                onClick={() => applyParamsFromHistory(displayedEntry)}
               >
                 回填参数
               </Button>
@@ -1776,6 +1767,9 @@ export function IndexTTSStudioApp() {
                   ? resolveApiUrl(displayedEntry.result.audio_url, true)
                   : referenceCompareUrl
               }
+              onLoadedMetadata={() => {
+                if (auditionSource === "synth" && pendingSeekRef.current !== null) seekSynthAudio(pendingSeekRef.current);
+              }}
             />
 
             {/* Telemetry Metadata Badges */}
@@ -1786,7 +1780,7 @@ export function IndexTTSStudioApp() {
               <Tag>{EMO_MODE_LABELS[displayedEntry.result.emotion_mode]}</Tag>
               <Tag>{displayedEntry.result.language.toUpperCase()}</Tag>
               {displayedEntry.result.segments_count != null && (
-                <Tag>{displayedEntry.result.segments_count} 段拼接</Tag>
+                <Tag>约 {displayedEntry.result.segments_count} 段</Tag>
               )}
               {displayedEntry.result.rtf != null && (
                 <Tooltip title="Real-Time Factor 实时率（越小表示生成速度越快）">
@@ -1814,7 +1808,7 @@ export function IndexTTSStudioApp() {
                 <Segmented
                   size="small"
                   options={[
-                    { label: "分句时间轴 (点击跳转试听)", value: "timeline" },
+                    { label: "估算时间轴", value: "timeline" },
                     { label: "SRT 字幕", value: "srt" },
                     { label: "WebVTT", value: "vtt" },
                   ]}
@@ -1827,13 +1821,17 @@ export function IndexTTSStudioApp() {
                     size="small"
                     type="text"
                     icon={<CopyOutlined />}
-                    onClick={() => {
+                    onClick={async () => {
                       const raw =
                         subtitleViewMode === "vtt" && displayedEntry.result.vtt
                           ? displayedEntry.result.vtt
                           : displayedEntry.result.srt;
-                      void navigator.clipboard.writeText(raw);
-                      message.success(`已复制 ${subtitleViewMode === "vtt" ? "WebVTT" : "SRT"} 字幕`);
+                      try {
+                        await navigator.clipboard.writeText(raw);
+                        message.success(`已复制 ${subtitleViewMode === "vtt" ? "WebVTT" : "SRT"} 字幕`);
+                      } catch {
+                        message.error("复制失败，请使用字幕下载按钮");
+                      }
                     }}
                   >
                     复制
@@ -1873,6 +1871,9 @@ export function IndexTTSStudioApp() {
                 </Space>
               </div>
 
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                字幕时间按文本长度估算，未做语音对齐；精确剪辑前请试听校准。
+              </Text>
               {subtitleViewMode === "timeline" && displayedEntry.result.timeline?.length ? (
                 <div className="studio-timeline-list studio-tabular">
                   {displayedEntry.result.timeline.map((row) => (
@@ -1881,22 +1882,11 @@ export function IndexTTSStudioApp() {
                       className="studio-timeline-row"
                       role="button"
                       tabIndex={0}
-                      onClick={() => {
-                        if (auditionSource !== "synth") setAuditionSource("synth");
-                        requestAnimationFrame(() => {
-                          if (audioPlayerRef.current) {
-                            audioPlayerRef.current.currentTime = row.start_sec;
-                            void audioPlayerRef.current.play().catch(() => {});
-                          }
-                        });
-                      }}
+                      onClick={() => seekSynthAudio(row.start_sec)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          if (audioPlayerRef.current) {
-                            audioPlayerRef.current.currentTime = row.start_sec;
-                            void audioPlayerRef.current.play().catch(() => {});
-                          }
+                          seekSynthAudio(row.start_sec);
                         }
                       }}
                     >
@@ -2008,7 +1998,7 @@ export function IndexTTSStudioApp() {
                               size="small"
                               type="text"
                               icon={<ReloadOutlined />}
-                              onClick={() => applyParamsFromHistory(item.params)}
+                              onClick={() => applyParamsFromHistory(item)}
                             />
                           </Tooltip>
                           <Tooltip title="删除记录">
@@ -2044,7 +2034,7 @@ export function IndexTTSStudioApp() {
     <StudioShell
       brandBadge="TTS"
       defaultTitle="IndexTTS 2.5 语音合成工作台"
-      defaultSubtitle="零样本多语种克隆 · 8 维情绪矩阵 · 双音频情绪解耦 · CFM 流匹配声学精调 · 广播级响度后处理"
+      defaultSubtitle="多语种音色克隆 · 情绪控制 · 音频与字幕导出"
       apiEndpointPath="/api/v1/generate"
       sampleRequestBody={currentPayload as unknown as Record<string, unknown>}
       topBanner={topBanner}
