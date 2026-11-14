@@ -40,6 +40,8 @@ export interface ChatTurn {
   streaming?: boolean;
   thinkingActive?: boolean;
   error?: string;
+  finishReason?: string;
+  stopped?: boolean;
 }
 
 export interface QwenSamplingConfig {

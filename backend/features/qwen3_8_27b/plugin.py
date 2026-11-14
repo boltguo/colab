@@ -113,6 +113,8 @@ def _build_router(
             body_dict = json.loads(raw_bytes.decode("utf-8")) if raw_bytes else {}
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"无效的 JSON 请求体：{exc}") from exc
+        if not isinstance(body_dict, dict):
+            raise HTTPException(status_code=400, detail="请求体必须是 JSON 对象。")
 
         try:
             sanitized = rewrite_openai_payload_uploads(body_dict, storage)
