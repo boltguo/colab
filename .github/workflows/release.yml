@@ -67,6 +67,6 @@ jobs:
           else
             gh release create "${TAG_NAME}" release_artifacts/*.tar.gz release_artifacts/SHA256SUMS \
               --target main \
-              --title "Feature Apps ${TAG_NAME}" \
+              --title "${TAG_NAME}" \
               --generate-notes
           fi
