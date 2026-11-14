@@ -43,6 +43,7 @@ def ready(timeout=5):
         return False
 
 env_overrides = {
+    "HF_HUB_DISABLE_IMPLICIT_TOKEN": "1",
     "COLAB_FEATURE": FEATURE_NAME,
     "COLAB_HOST": "127.0.0.1",
     "COLAB_PORT": str(PORT),

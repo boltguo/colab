@@ -3,6 +3,7 @@ import os, shutil, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
 os.environ.setdefault("HF_XET_HIGH_PERFORMANCE", "1")
 os.environ.setdefault("HF_XET_CHUNK_CACHE_SIZE_BYTES", "0")
 from huggingface_hub import hf_hub_download
@@ -37,6 +38,7 @@ def download_model(repo, revision, folder, file, size):
             revision=revision,
             local_dir=str(base),
             force_download=target.exists(),
+            token=False,
         )
     )
     if result.resolve() != target.resolve() or not model_ready(target, size):

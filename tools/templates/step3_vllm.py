@@ -2,6 +2,7 @@
 import os, shutil, time, torch
 from pathlib import Path
 
+os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
 os.environ.setdefault("HF_XET_HIGH_PERFORMANCE", "1")
 os.environ.setdefault("HF_XET_CHUNK_CACHE_SIZE_BYTES", "0")
 from huggingface_hub import snapshot_download
@@ -45,6 +46,7 @@ snapshot_download(
     repo_id=spec["repo_id"],
     revision=spec["revision"],
     local_dir=str(target_dir),
+    token=False,
 )
 if target_dir.is_symlink() or (target_dir / "config.json").is_symlink():
     raise RuntimeError("模型目录校验异常（检测到软链接）。")
