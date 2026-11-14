@@ -222,8 +222,33 @@ export function SeedVR2StudioApp() {
     };
   }, [activeSourceDims, params]);
 
+  const validationMessage = useMemo(() => {
+    if (params.sizing_mode === "dimensions" && !params.target_width && !params.target_height) {
+      return "目标宽度与高度不能同时为 0，请至少设置一个尺寸。";
+    }
+    if (activeSourceDims && Math.max(previewTarget.width, previewTarget.height) > 16384) {
+      return "目标尺寸超出单边 16384 像素上限，请降低放大倍数或目标尺寸。";
+    }
+    if (params.mode === "video") {
+      if (params.trim_video && videoSourceMeta?.dur && params.start_time >= videoSourceMeta.dur) {
+        return `截取起点必须早于视频结束时间（${videoSourceMeta.dur.toFixed(2)} 秒）。`;
+      }
+      if (params.fps_override > 0 && params.fps_override < 1) {
+        return "播放帧率请设为 0（原速）或 1~120 FPS。";
+      }
+      if (params.fps_override > 0 && params.keep_audio) {
+        return "修改播放帧率会改变视频速度；请关闭保留原声，或将播放帧率设为 0。";
+      }
+    }
+    return "";
+  }, [params, activeSourceDims, previewTarget, videoSourceMeta]);
+
   const handleGenerate = useCallback(async () => {
     if (isBusy) return;
+    if (validationMessage) {
+      message.warning(validationMessage);
+      return;
+    }
     if (!activeInputRef.trim()) {
       message.warning(
         params.mode === "video"
@@ -238,12 +263,12 @@ export function SeedVR2StudioApp() {
       frames_per_chunk: alignChunkFrames(params.frames_per_chunk),
     };
     await runTask(payload);
-  }, [isBusy, activeInputRef, params, message, runTask]);
+  }, [isBusy, activeInputRef, params, message, runTask, validationMessage]);
 
   // Global Cmd/Ctrl + Enter shortcut
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         void handleGenerate();
       }
@@ -1156,7 +1181,7 @@ export function SeedVR2StudioApp() {
                       </div>
 
                       <div className="studio-field-group">
-                        <FieldLabel label="视频编码器与 CRF (0=严格继承)" />
+                    <FieldLabel label="视频编码器与 CRF（数值越低画质越高）" />
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                           <Select
                             size="small"
@@ -1186,7 +1211,10 @@ export function SeedVR2StudioApp() {
                       </div>
 
                       <div className="studio-field-group">
-                        <FieldLabel label="色彩空间 / 位深 / 帧率覆盖" />
+                        <FieldLabel
+                          label="色彩空间 / 位深 / 播放帧率"
+                          tooltip="帧率设为 0 保持原速；非零值改变现有帧的播放速度和时长，不补帧。变速时请关闭保留原声。"
+                        />
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                           <Select
                             size="small"
@@ -1218,6 +1246,7 @@ export function SeedVR2StudioApp() {
                             max={120}
                             step={1}
                             placeholder="0=原FPS"
+                            aria-label="播放帧率，0 保持原速"
                             value={params.fps_override}
                             onChange={(v) => updateParam("fps_override", Math.max(0, Number(v || 0)))}
                           />
@@ -1274,6 +1303,7 @@ export function SeedVR2StudioApp() {
                       size="small"
                       danger
                       loading={releasingVram}
+                      disabled={isBusy}
                       onClick={() => void handleManualReleaseVram()}
                     >
                       立即释放 GPU 显存
@@ -1285,6 +1315,8 @@ export function SeedVR2StudioApp() {
           </details>
         </div>
       </Card>
+
+      {validationMessage && <Alert type="warning" showIcon message={validationMessage} />}
 
       {/* Sticky Primary Action Dock */}
       <div className="studio-action-dock">
@@ -1376,6 +1408,7 @@ export function SeedVR2StudioApp() {
             size="large"
             icon={<RocketOutlined />}
             loading={isBusy}
+            disabled={Boolean(validationMessage) || !activeInputRef.trim()}
             onClick={() => void handleGenerate()}
           >
             {isBusy
@@ -1483,6 +1516,9 @@ export function SeedVR2StudioApp() {
                 outputUrl={stageOutputUrl}
                 downloadUrl={stageDownloadUrl}
                 inputUrl={stageInputUrl || undefined}
+                referenceFit={displayedEntry.params.sizing_mode === "dimensions"
+                  ? displayedEntry.params.crop_mode === "center" ? "cover" : "fill"
+                  : "contain"}
                 onUseAsInput={() => {
                   const outRef = `output:${displayedEntry.result.filename}`;
                   setVideoFileRef(outRef);
@@ -1715,10 +1751,13 @@ export function SeedVR2StudioApp() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setParams(item.params);
+                            setSeedLocked(item.params.seed > 0);
                             if (item.params.mode === "video") {
                               setVideoFileRef(item.params.input_file);
+                              setVideoSourceMeta({ w: item.result.input_width, h: item.result.input_height, dur: 0 });
                             } else {
                               setImageFileRef(item.params.input_file);
+                              setImageSourceDims({ w: item.result.input_width, h: item.result.input_height });
                             }
                             message.info("已回填该条记录的全部超分参数");
                           }}

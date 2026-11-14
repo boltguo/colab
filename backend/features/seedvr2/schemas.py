@@ -21,9 +21,9 @@ ColorSpaceChoice = Literal["match_input", "sRGB", "HDR", "HDR PQ"]
 BitDepthChoice = Literal["match_input", "auto", "8", "10"]
 
 
-def align_even(value: int, minimum: int = 16, maximum: int = 16384) -> int:
+def align_even(value: int, minimum: int = 16) -> int:
     """Align pixel dimensions to even integers (matching SeedVR2PostProcessing output alignment)."""
-    clamped = max(minimum, min(maximum, int(value)))
+    clamped = max(minimum, int(value))
     even = clamped - (clamped % 2)
     return max(minimum, even)
 
@@ -32,7 +32,7 @@ def align_chunk_frames(frames: int) -> int:
     """Snap manual temporal chunk pixel-frame count to 4n + 1 (1, 5, 9, 13, 17, 21, ...)."""
     if frames <= 1:
         return 1
-    k = max(1, round((frames - 1) / 4.0))
+    k = max(1, (frames + 1) // 4)
     return min(16381, 4 * k + 1)
 
 
@@ -204,7 +204,7 @@ class SeedVR2GenerateRequest(BaseModel):
         default=0.0,
         ge=0.0,
         le=120.0,
-        description="输出帧率覆盖（0 表示严格继承原视频帧率，>0 则强制指定输出 FPS）",
+        description="播放帧率（0 继承原速；1~120 改变现有帧的播放速度与时长，不进行补帧。变速时需关闭 keep_audio）",
     )
 
     # Diffusion Sampling Hyperparameters
@@ -325,6 +325,11 @@ class SeedVR2GenerateRequest(BaseModel):
         if self.sizing_mode == "dimensions" and self.target_width <= 0 and self.target_height <= 0:
             raise ValueError("自定义尺寸模式下，目标宽度与高度不能同时为 0。")
 
+        if self.fps_override != 0 and self.fps_override < 1:
+            raise ValueError("播放帧率请设为 0（原速）或 1~120 FPS。")
+        if self.mode == "video" and self.fps_override > 0 and self.keep_audio:
+            raise ValueError("修改播放帧率会改变视频速度；请关闭保留原声，或将播放帧率设为 0。")
+
         self.frames_per_chunk = align_chunk_frames(self.frames_per_chunk)
         self.vae_tile_size = max(256, (self.vae_tile_size // 64) * 64)
         self.vae_tile_overlap = max(32, min(self.vae_tile_size // 2, (self.vae_tile_overlap // 32) * 32))
@@ -351,6 +356,8 @@ class SeedVR2Result(BaseModel):
     input_url: str
     input_width: int
     input_height: int
+    input_fps: Optional[float] = None
+    input_start_time: float = 0.0
     width: int
     height: int
     effective_scale: float

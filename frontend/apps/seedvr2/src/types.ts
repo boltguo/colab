@@ -80,6 +80,8 @@ export interface SeedVR2Result {
   input_url: string;
   input_width: number;
   input_height: number;
+  input_fps?: number | null;
+  input_start_time?: number;
   width: number;
   height: number;
   effective_scale: number;
@@ -147,8 +149,8 @@ export const DEFAULT_SEEDVR2_PARAMS: SeedVR2Params = {
   release_vram_after: false,
 };
 
-export function alignEven(value: number, minimum = 16, maximum = 16384): number {
-  const clamped = Math.max(minimum, Math.min(maximum, Math.round(value)));
+export function alignEven(value: number, minimum = 16): number {
+  const clamped = Math.max(minimum, Math.round(value));
   const even = clamped - (clamped % 2);
   return Math.max(minimum, even);
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   Button,
   ColumnWidthOutlined,
@@ -18,6 +18,7 @@ export interface VideoCompareStageProps {
   outputUrl: string;
   downloadUrl: string;
   inputUrl?: string;
+  referenceFit?: "contain" | "cover" | "fill";
   onUseAsInput?: () => void;
 }
 
@@ -26,6 +27,7 @@ export function VideoCompareStage({
   outputUrl,
   downloadUrl,
   inputUrl,
+  referenceFit = "contain",
   onUseAsInput,
 }: VideoCompareStageProps) {
   const splitSliderId = useId();
@@ -44,6 +46,23 @@ export function VideoCompareStage({
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(result.duration_sec || 0);
+  const referenceStart = Math.max(0, result.input_start_time || 0);
+  const referenceRate = result.input_fps && result.fps ? result.fps / result.input_fps : 1;
+
+  const syncReference = useCallback((outputTime: number, force = false) => {
+    const before = beforeVideoRef.current;
+    if (!before || before.readyState < 1) return;
+    const target = Math.min(
+      referenceStart + outputTime * referenceRate,
+      Number.isFinite(before.duration) ? Math.max(0, before.duration - 0.001) : Infinity
+    );
+    if (force || Math.abs(before.currentTime - target) > 0.14) before.currentTime = target;
+    try {
+      before.playbackRate = referenceRate;
+    } catch {
+      // Extreme rates are not supported by every browser; timestamp sync still aligns frames.
+    }
+  }, [referenceStart, referenceRate]);
 
   useEffect(() => {
     setViewMode(inputUrl ? "split" : "result");
@@ -82,9 +101,7 @@ export function VideoCompareStage({
       return;
     }
 
-    if (beforeV && Math.abs(beforeV.currentTime - afterV.currentTime) > 0.06) {
-      beforeV.currentTime = afterV.currentTime;
-    }
+    syncReference(afterV.currentTime, true);
     try {
       await Promise.all([
         afterV.play(),
@@ -101,9 +118,7 @@ export function VideoCompareStage({
     if (afterVideoRef.current) {
       afterVideoRef.current.currentTime = nextSec;
     }
-    if (beforeVideoRef.current) {
-      beforeVideoRef.current.currentTime = nextSec;
-    }
+    syncReference(nextSec, true);
   };
 
   return (
@@ -164,7 +179,9 @@ export function VideoCompareStage({
         className="studio-video-stage"
         style={{
           aspectRatio: `${result.width} / ${result.height}`,
-          maxBlockSize: 540,
+          inlineSize: "100%",
+          maxInlineSize: 540 * result.width / result.height,
+          marginInline: "auto",
         }}
       >
         {viewMode === "ref" && inputUrl ? (
@@ -178,6 +195,8 @@ export function VideoCompareStage({
               width={result.input_width || result.width}
               height={result.input_height || result.height}
               src={inputUrl}
+              onLoadedMetadata={(e) => { e.currentTarget.currentTime = referenceStart; }}
+              style={{ position: "absolute", inset: 0, blockSize: "100%" }}
             />
             <span className="studio-compare-badge" style={{ insetInlineStart: "0.75rem" }}>
               超分前原片（{result.input_width}×{result.input_height}）
@@ -204,10 +223,7 @@ export function VideoCompareStage({
               onTimeUpdate={(e) => {
                 const t = e.currentTarget.currentTime;
                 setCurrentTime(t);
-                const beforeV = beforeVideoRef.current;
-                if (beforeV && Math.abs(beforeV.currentTime - t) > 0.14) {
-                  beforeV.currentTime = t;
-                }
+                syncReference(t);
               }}
               onPlay={() => {
                 setPlaying(true);
@@ -221,7 +237,7 @@ export function VideoCompareStage({
                 setPlaying(false);
                 beforeVideoRef.current?.pause();
               }}
-              style={{ cursor: "pointer" }}
+              style={{ position: "absolute", inset: 0, blockSize: "100%", cursor: "pointer" }}
             />
             <div
               className="studio-compare-before-layer"
@@ -238,6 +254,8 @@ export function VideoCompareStage({
                 width={result.width}
                 height={result.height}
                 src={inputUrl}
+                onLoadedMetadata={() => syncReference(afterVideoRef.current?.currentTime || 0, true)}
+                style={{ position: "absolute", inset: 0, blockSize: "100%", objectFit: referenceFit }}
               />
             </div>
             <div
@@ -261,6 +279,7 @@ export function VideoCompareStage({
             width={result.width}
             height={result.height}
             src={outputUrl}
+            style={{ position: "absolute", inset: 0, blockSize: "100%" }}
           />
         )}
       </div>
@@ -278,7 +297,7 @@ export function VideoCompareStage({
             border: "1px solid var(--studio-border)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
             <Button
               htmlType="button"
               size="small"
@@ -360,6 +379,12 @@ export function VideoCompareStage({
             </Text>
           </div>
         </div>
+      )}
+      {hasInput && (referenceStart > 0 || Math.abs(referenceRate - 1) > 0.001) && (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          原片从 {referenceStart.toFixed(2)} 秒起对齐
+          {Math.abs(referenceRate - 1) > 0.001 ? ` · 按 ${referenceRate.toFixed(2)} 倍速同步` : ""}
+        </Text>
       )}
     </div>
   );
