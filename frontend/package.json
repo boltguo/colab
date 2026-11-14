@@ -7,7 +7,8 @@
     "dev:indextts": "pnpm --filter @colab/app-indextts-2.5 dev",
     "build:indextts": "pnpm --filter @colab/app-indextts-2.5 build",
     "build:all": "pnpm -r --filter './apps/*' build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "node --experimental-strip-types --test ../tests/*.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
