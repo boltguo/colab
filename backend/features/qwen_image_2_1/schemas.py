@@ -266,11 +266,24 @@ class QwenImageGenerateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_mode_and_references(self) -> "QwenImageGenerateRequest":
+        self.prompt = self.prompt.strip()
+        if not self.prompt:
+            raise ValueError("请输入画面描述或图像编辑指令。")
+        raw_refs = self.reference_images or [self.image_1, self.image_2, self.image_3, self.image_4]
+        if self.mode != "t2i":
+            empty_seen = False
+            for ref in raw_refs:
+                if not ref or not ref.strip():
+                    empty_seen = True
+                elif empty_seen:
+                    raise ValueError("参考图片之间不能留空，请按 <image1>、<image2> 的顺序上传或移除空槽位。")
         refs = self.effective_references()
         if self.mode != "t2i" and len(refs) < 1:
             raise ValueError("图生图模式请至少上传 1 张参考图片 (<image1>)。")
         if self.mode == "edit_dual" and len(refs) < 2:
             raise ValueError("双图融合模式需要至少上传 2 张参考图 (<image1> 与 <image2>)。")
+        if self.resolution_tier == "original" and (self.mode == "t2i" or self.aspect_ratio != "match_input"):
+            raise ValueError("原图分辨率仅用于图生图，请同时选择跟随主参考图比例。")
         if self.mode == "t2i" and self.aspect_ratio == "match_input":
             self.aspect_ratio = "1:1"
         self.width = snap32(self.width)

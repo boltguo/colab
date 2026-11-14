@@ -48,6 +48,7 @@ import {
   SYMMETRIC_RATIO_SWAP,
   calcPresetDimensions,
   calcRefMatchedDimensions,
+  editImageGeometry,
   snap32,
 } from "./types";
 import type {
@@ -186,6 +187,10 @@ export function QwenImageStudioApp() {
   // Independent Resolution Tier change -> updates W x H when on standard or match_input aspect ratio
   const handleResolutionChange = (nextTier: ResolutionTier) => {
     setParams((prev) => {
+      if (nextTier === "original") {
+        const matched = calcRefMatchedDimensions(nextTier, primaryRefDims);
+        return { ...prev, resolution_tier: nextTier, aspect_ratio: "match_input", ...matched };
+      }
       if (prev.aspect_ratio === "custom") {
         return { ...prev, resolution_tier: nextTier };
       }
@@ -212,7 +217,7 @@ export function QwenImageStudioApp() {
   const handleAspectChange = (nextAspect: AspectRatioChoice) => {
     setParams((prev) => {
       if (nextAspect === "custom") {
-        return { ...prev, aspect_ratio: "custom" };
+        return editImageGeometry(prev, prev.width, prev.height);
       }
       if (nextAspect === "match_input") {
         const matched = calcRefMatchedDimensions(prev.resolution_tier, primaryRefDims);
@@ -248,12 +253,7 @@ export function QwenImageStudioApp() {
       } else if (prev.aspect_ratio === "match_input") {
         nextAspect = "custom";
       }
-      return {
-        ...prev,
-        aspect_ratio: nextAspect,
-        width: nextW,
-        height: nextH,
-      };
+      return editImageGeometry(prev, nextW, nextH, nextAspect);
     });
   };
 
@@ -279,6 +279,7 @@ export function QwenImageStudioApp() {
     setRefSlots([createRefSlot("")]);
     setPrimaryRefDims(null);
     setParams(DEFAULT_QWEN_IMAGE_PARAMS);
+    setShowNegPrompt(false);
     message.success("已恢复默认参数");
   };
 
@@ -329,8 +330,15 @@ export function QwenImageStudioApp() {
       message.warning("图生图模式请先上传至少 1 张参考图片 (<image1>)。");
       return;
     }
+    if (isImg2Img) {
+      const firstEmpty = refSlots.findIndex((slot) => !slot.fileRef.trim());
+      if (firstEmpty >= 0 && refSlots.slice(firstEmpty + 1).some((slot) => slot.fileRef.trim())) {
+        message.warning(`参考图 ${firstEmpty + 1} 尚未上传，请补充图片或删除这张空卡片，让图片与 <imageN> 编号保持一致。`);
+        return;
+      }
+    }
     await runTask(buildCleanedPayload());
-  }, [buildCleanedPayload, cleanUploadedRefs.length, isBusy, isImg2Img, message, params.prompt, runTask]);
+  }, [buildCleanedPayload, cleanUploadedRefs.length, isBusy, isImg2Img, message, params.prompt, refSlots, runTask]);
 
   const displayedEntry = useMemo(() => {
     if (selectedTakeId) {
@@ -467,7 +475,7 @@ export function QwenImageStudioApp() {
                     allowClear={Boolean(slot.fileRef)}
                     onDimensionsChange={idx === 0 ? handlePrimaryDimsDetected : undefined}
                     onRemoveSlot={
-                      idx > 0
+                      refSlots.length > 1
                         ? () => {
                             setRefSlots((prev) => {
                               const next = prev.filter((item) => item.id !== slot.id);
@@ -731,11 +739,7 @@ export function QwenImageStudioApp() {
                   value={params.width}
                   onChange={(v) => {
                     const nextW = Number(v || 1024);
-                    setParams((prev) => ({
-                      ...prev,
-                      aspect_ratio: "custom",
-                      width: nextW,
-                    }));
+                    setParams((prev) => editImageGeometry(prev, nextW, prev.height));
                   }}
                   onBlur={() => updateParam("width", snap32(params.width))}
                 />
@@ -763,11 +767,7 @@ export function QwenImageStudioApp() {
                   value={params.height}
                   onChange={(v) => {
                     const nextH = Number(v || 1024);
-                    setParams((prev) => ({
-                      ...prev,
-                      aspect_ratio: "custom",
-                      height: nextH,
-                    }));
+                    setParams((prev) => editImageGeometry(prev, prev.width, nextH));
                   }}
                   onBlur={() => updateParam("height", snap32(params.height))}
                 />
@@ -1044,9 +1044,14 @@ export function QwenImageStudioApp() {
               size="small"
               style={{ inlineSize: 136 }}
               min={0}
+              max={Number.MAX_SAFE_INTEGER}
               step={1}
               value={params.seed}
-              onChange={(v) => updateParam("seed", Math.max(0, Math.floor(Number(v || 0))))}
+              onChange={(v) => {
+                const nextSeed = Math.max(0, Math.floor(Number(v || 0)));
+                updateParam("seed", nextSeed);
+                setSeedLocked(nextSeed > 0);
+              }}
               placeholder="0 = 随机"
             />
             <Tooltip title={seedLocked ? "已锁定种子" : "锁定当前种子"}>
@@ -1056,7 +1061,12 @@ export function QwenImageStudioApp() {
                 type={seedLocked ? "primary" : "default"}
                 ghost={seedLocked}
                 icon={seedLocked ? <LockOutlined /> : <UnlockOutlined />}
-                onClick={() => setSeedLocked((v) => !v)}
+                aria-label={seedLocked ? "取消锁定种子" : "锁定当前种子"}
+                onClick={() => {
+                  if (seedLocked) updateParam("seed", 0);
+                  else if (!params.seed && displayedEntry) updateParam("seed", displayedEntry.result.used_seed);
+                  setSeedLocked((v) => !v);
+                }}
               />
             </Tooltip>
             <Tooltip title="重置为随机种子 (0)">
@@ -1064,6 +1074,7 @@ export function QwenImageStudioApp() {
                 htmlType="button"
                 size="small"
                 icon={<ReloadOutlined />}
+                aria-label="重置为随机种子"
                 onClick={() => {
                   setSeedLocked(false);
                   updateParam("seed", 0);
@@ -1331,12 +1342,13 @@ export function QwenImageStudioApp() {
                           style={{ padding: 0, blockSize: "auto", fontSize: 11.5 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setParams(item.params);
-                            if (item.params.reference_images?.length) {
-                              setRefSlots(
-                                item.params.reference_images.map((ref) => createRefSlot(ref))
-                              );
-                            }
+                            setParams({ ...item.params, seed: item.result.used_seed });
+                            setSeedLocked(true);
+                            setShowNegPrompt(Boolean(item.params.negative_prompt));
+                            setPrimaryRefDims(null);
+                            setRefSlots(item.params.reference_images?.length
+                              ? item.params.reference_images.map((ref) => createRefSlot(ref))
+                              : [createRefSlot("")]);
                             message.info("已回填该作品的生成参数");
                           }}
                         >

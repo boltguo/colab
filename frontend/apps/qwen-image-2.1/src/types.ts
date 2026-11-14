@@ -128,6 +128,21 @@ export function snap32(val: number): number {
   return Math.max(256, Math.min(4096, s));
 }
 
+export function editImageGeometry(
+  params: QwenImageParams,
+  width: number,
+  height: number,
+  aspect: AspectRatioChoice = "custom",
+): QwenImageParams {
+  return {
+    ...params,
+    resolution_tier: params.resolution_tier === "original" && aspect !== "match_input" ? "2K" : params.resolution_tier,
+    aspect_ratio: aspect,
+    width,
+    height,
+  };
+}
+
 export function calcPresetDimensions(
   tier: ResolutionTier,
   aspect: StandardAspectRatio
