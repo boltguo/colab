@@ -1,0 +1,20 @@
+{
+  "name": "colab-studio-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:indextts": "pnpm --filter @colab/app-indextts-2.5 dev",
+    "build:indextts": "pnpm --filter @colab/app-indextts-2.5 build",
+    "build:all": "pnpm -r --filter './apps/*' build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}
