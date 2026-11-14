@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import {
   AudioOutlined,
   Button,
@@ -299,7 +299,9 @@ export function AudioSlotCard({
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<BlobPart[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
+  const requestingMicRef = useRef(false);
   const { message } = useStudioFeedback();
 
   const [uploading, setUploading] = useState(false);
@@ -310,6 +312,21 @@ export function AudioSlotCard({
     name: string;
     url: string;
   } | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.onstop = null;
+        recorder.ondataavailable = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    };
+  }, []);
 
   const handleFileUpload = async (file: File) => {
     setUploading(true);
@@ -337,21 +354,32 @@ export function AudioSlotCard({
       setRecording(false);
       return;
     }
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (requestingMicRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       message.error("当前浏览器不支持麦克风录制，请直接上传音频文件。");
       return;
     }
+    requestingMicRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
       const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      chunksRef.current = [];
+      const chunks: BlobPart[] = [];
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) chunks.push(e.data);
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        streamRef.current = null;
+        recorderRef.current = null;
+        if (!mountedRef.current) return;
+        setRecording(false);
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
         const ext = (recorder.mimeType || "").includes("mp4") ? "m4a" : "webm";
         const file = new File([blob], `h3_mic_${Date.now()}.${ext}`, {
           type: blob.type || "audio/webm",
@@ -362,7 +390,11 @@ export function AudioSlotCard({
       recorder.start();
       setRecording(true);
     } catch {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       message.error("无法访问麦克风，请检查浏览器麦克风权限。");
+    } finally {
+      requestingMicRef.current = false;
     }
   };
 
@@ -370,6 +402,9 @@ export function AudioSlotCard({
     if (!value) return "";
     if (uploadedMeta && uploadedMeta.fileId === value) {
       return resolveApiUrl(uploadedMeta.url, true);
+    }
+    if (value.startsWith("output:")) {
+      return resolveApiUrl(`/api/v1/outputs/${encodeURIComponent(value.slice("output:".length))}`, true);
     }
     return resolveApiUrl(`/api/v1/files/${encodeURIComponent(value)}`, true);
   })();

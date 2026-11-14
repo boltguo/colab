@@ -294,7 +294,7 @@ class MiniMaxH3GenerateRequest(BaseModel):
         default=24.0,
         ge=12.0,
         le=60.0,
-        description="封装导出视频帧率（MiniMax-H3 原生训练帧率为 24 fps）。",
+        description="封装导出视频帧率：音画同生必须使用原生 24 fps；无声视频可调整播放速度，时长随 fps 改变，不会插帧。",
     )
 
     # 5. Official Turbo Acceleration + Dynamic Custom LoRA Stack
@@ -426,12 +426,33 @@ class MiniMaxH3GenerateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_inputs_by_mode(self) -> "MiniMaxH3GenerateRequest":
+        self.prompt = self.prompt.strip()
+        if not self.prompt:
+            raise ValueError("请输入视频画面与声音描述。")
         first = (self.first_frame or "").strip() or None
         last = (self.last_frame or "").strip() or None
         self.first_frame = first
         self.last_frame = last
         self.guide_audio = (self.guide_audio or "").strip() or None
         self.guide_image = (self.guide_image or "").strip() or None
+
+        # Keep inputs for other modes from silently conditioning a reused API payload.
+        if self.mode not in ("fl2v", "i2v"):
+            self.first_frame = self.last_frame = None
+        if self.mode == "r2v":
+            self.guide_audio = self.guide_image = None
+        else:
+            self.ref_images = []
+            self.ref_videos = []
+            self.ref_audios = []
+
+        if self.soundtrack_enabled and self.fps != NATIVE_FPS:
+            raise ValueError("音画同生须使用 24 fps，以保持口型、画面与音轨同步；调整播放速度请先关闭音轨合成。")
+
+        if self.guide_image or self.guide_audio:
+            frame_count = self.resolved_frame_count()
+            if not -frame_count <= self.guide_frame_idx < frame_count:
+                raise ValueError(f"锚定帧超出视频范围，请使用 {-frame_count} 到 {frame_count - 1} 之间的索引。")
 
         if self.mode in ("fl2v", "i2v"):
             if not first and not last:

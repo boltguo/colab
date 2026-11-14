@@ -13,7 +13,7 @@ import uuid
 
 from ...core.comfy_client import ComfyClient
 from ...core.lora_manager import CuratedLoraSpec, LoraDownloadRequest, LoraManager
-from ...core.security import ensure_safe_dir
+from ...core.security import ensure_safe_dir, ensure_safe_path
 from ...core.storage import MediaStorage
 from .schemas import (
     MiniMaxH3GenerateRequest,
@@ -26,6 +26,36 @@ from .schemas import (
 )
 
 ProgressFn = Callable[[float, str], None]
+
+
+def _prepare_reference_video(src: Path, dest: Path, *, duration_sec: float, include_audio: bool) -> None:
+    """Keep reference motion and soundtrack on the H3 node's native 24 fps timeline."""
+    ensure_safe_path(src)
+    ensure_safe_dir(dest.parent)
+    ensure_safe_path(dest, stop_at=dest.parent)
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("参考视频预处理需要 FFmpeg，请先在运行环境安装 ffmpeg。")
+    command = [
+        ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+        "-i", str(src), "-t", f"{duration_sec:.8f}", "-map", "0:v:0",
+        "-vf", "fps=24,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p",
+    ]
+    if include_audio:
+        command.extend(["-map", "0:a:0", "-c:a", "aac", "-b:a", "192k"])
+    else:
+        command.append("-an")
+    command.append(str(dest))
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("参考视频预处理超时，请换用较短的视频片段。") from exc
+    if result.returncode:
+        if include_audio and "matches no streams" in result.stderr:
+            raise ValueError("参考视频没有音轨，请关闭该视频的「提取视频原声」后重试。")
+        raise RuntimeError("参考视频无法读取或转换，请换用可播放的 MP4 / MOV / WebM 文件。")
+
 
 FL2VA_UNET_FILENAME = "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
 REF2VA_UNET_FILENAME = "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
@@ -703,7 +733,7 @@ class MiniMaxH3Runner:
 
         canvas_w, canvas_h = self._resolve_target_canvas(req, anchor_img)
         aligned_frames = req.resolved_frame_count()
-        actual_duration_sec = round(aligned_frames / float(NATIVE_FPS), 2)
+        actual_duration_sec = round(aligned_frames / float(req.fps), 2)
         actual_seed = req.seed if req.seed > 0 else (secrets.randbelow(2**53 - 2) + 1)
 
         # Ensure official Turbo LoRA + custom LoRA stack are available
@@ -829,10 +859,18 @@ class MiniMaxH3Runner:
             s_g_aud = _stage(guide_aud_path, "h3_guide_aud")
 
             s_ref_imgs = [_stage(p, f"h3_pic{i + 1}") or "" for i, p in enumerate(ref_img_paths)]
-            s_ref_vids = [
-                (_stage(p, f"h3_vid{i + 1}") or "", use_aud)
-                for i, (p, use_aud) in enumerate(ref_vid_paths)
-            ]
+            s_ref_vids = []
+            for i, (path, use_audio) in enumerate(ref_vid_paths):
+                staged_name = f"h3_vid{i + 1}_{uuid.uuid4().hex[:12]}.mp4"
+                staged_path = self.comfy.input_dir / staged_name
+                staged_paths.append(staged_path)
+                on_progress(0.19, f"正在将参考视频 {i + 1} 对齐至 24 fps...")
+                _prepare_reference_video(
+                    path, staged_path,
+                    duration_sec=aligned_frames / NATIVE_FPS,
+                    include_audio=use_audio,
+                )
+                s_ref_vids.append((staged_name, use_audio))
             s_ref_auds = [_stage(p, f"h3_aud{i + 1}") or "" for i, p in enumerate(ref_aud_paths)]
 
             prompt_graph, node_labels, save_node_id = self._build_comfy_graph(

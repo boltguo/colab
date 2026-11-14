@@ -387,6 +387,7 @@ export function MiniMaxH3StudioApp() {
     setFl2vPrimaryDims(null);
     setR2vPrimaryDims(null);
     setParams(DEFAULT_MINIMAX_H3_PARAMS);
+    setShowNegPrompt(false);
     message.success("已恢复默认参数");
   };
 
@@ -1063,7 +1064,13 @@ export function MiniMaxH3StudioApp() {
               <Segmented
                 block
                 value={params.soundtrack_enabled ? "on" : "off"}
-                onChange={(val) => updateParam("soundtrack_enabled", val === "on")}
+                onChange={(val) => {
+                  const enabled = val === "on";
+                  if (enabled && params.fps !== NATIVE_FPS) {
+                    message.info("已恢复 24 fps，保持画面与生成音轨同步。");
+                  }
+                  setParams((prev) => ({ ...prev, soundtrack_enabled: enabled, fps: enabled ? NATIVE_FPS : prev.fps }));
+                }}
                 options={[
                   {
                     label: (
@@ -1229,6 +1236,7 @@ export function MiniMaxH3StudioApp() {
                   max={60}
                   step={1}
                   value={params.fps}
+                  disabled={params.soundtrack_enabled}
                   onChange={(v) => updateParam("fps", Math.max(12, Math.min(60, Number(v || 24))))}
                 />
               </div>
@@ -1240,6 +1248,9 @@ export function MiniMaxH3StudioApp() {
               style={{ fontSize: 12, paddingBlockEnd: 6 }}
             >
               {snap32(params.width)} × {snap32(params.height)} px（{megapixels} MP · 32px 对齐）
+              {params.soundtrack_enabled
+                ? " · 音画同生固定 24 fps"
+                : " · 调整帧率会改变播放速度与成片时长，不进行插帧"}
             </Text>
           </div>
 
@@ -1530,8 +1541,8 @@ export function MiniMaxH3StudioApp() {
                         <InputNumber
                           size="small"
                           style={{ inlineSize: 90 }}
-                          min={-999}
-                          max={999}
+                          min={-alignedFrames}
+                          max={alignedFrames - 1}
                           step={1}
                           value={params.guide_frame_idx}
                           onChange={(v) => updateParam("guide_frame_idx", Math.round(Number(v || 0)))}
@@ -1781,9 +1792,14 @@ export function MiniMaxH3StudioApp() {
               size="small"
               style={{ inlineSize: 132 }}
               min={0}
+              max={Number.MAX_SAFE_INTEGER}
               step={1}
               value={params.seed}
-              onChange={(v) => updateParam("seed", Math.max(0, Math.floor(Number(v || 0))))}
+              onChange={(v) => {
+                const nextSeed = Math.max(0, Math.floor(Number(v || 0)));
+                updateParam("seed", nextSeed);
+                setSeedLocked(nextSeed > 0);
+              }}
               placeholder="0 = 随机"
             />
             <Tooltip title={seedLocked ? "已锁定种子" : "锁定当前种子"}>
@@ -1794,7 +1810,11 @@ export function MiniMaxH3StudioApp() {
                 ghost={seedLocked}
                 icon={seedLocked ? <LockOutlined /> : <UnlockOutlined />}
                 aria-label={seedLocked ? "取消锁定种子" : "锁定当前种子"}
-                onClick={() => setSeedLocked((v) => !v)}
+                onClick={() => {
+                  if (seedLocked) updateParam("seed", 0);
+                  else if (!params.seed && displayedEntry) updateParam("seed", displayedEntry.result.used_seed);
+                  setSeedLocked((v) => !v);
+                }}
               />
             </Tooltip>
             <Tooltip title="重置为随机种子 (0)">
@@ -2201,30 +2221,36 @@ export function MiniMaxH3StudioApp() {
                           style={{ padding: 0, blockSize: "auto", fontSize: 12 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setParams(item.params);
-                            if (item.params.mode === "r2v") {
-                              setRefImageSlots(
-                                item.params.ref_images?.length
-                                  ? item.params.ref_images.map((ref) => ({
-                                      id: nextId("img"),
-                                      fileRef: ref,
-                                    }))
-                                  : [{ id: nextId("img"), fileRef: "" }]
-                              );
-                              setRefVideoSlots(
-                                (item.params.ref_videos || []).map((v) => ({
-                                  id: nextId("vid"),
-                                  fileRef: v.file_id,
-                                  useVideoAudio: v.use_video_audio,
-                                }))
-                              );
-                              setRefAudioSlots(
-                                (item.params.ref_audios || []).map((a) => ({
-                                  id: nextId("aud"),
-                                  fileRef: a,
-                                }))
-                              );
-                            }
+                            setParams({
+                              ...item.params,
+                              seed: item.result.used_seed,
+                              fps: item.params.soundtrack_enabled ? NATIVE_FPS : item.params.fps,
+                            });
+                            setSeedLocked(true);
+                            setShowNegPrompt(Boolean(item.params.negative_prompt));
+                            setFl2vPrimaryDims(null);
+                            setR2vPrimaryDims(null);
+                            setRefImageSlots(
+                              item.params.ref_images?.length
+                                ? item.params.ref_images.map((ref) => ({
+                                    id: nextId("img"),
+                                    fileRef: ref,
+                                  }))
+                                : [{ id: nextId("img"), fileRef: "" }]
+                            );
+                            setRefVideoSlots(
+                              (item.params.ref_videos || []).map((v) => ({
+                                id: nextId("vid"),
+                                fileRef: v.file_id,
+                                useVideoAudio: v.use_video_audio,
+                              }))
+                            );
+                            setRefAudioSlots(
+                              (item.params.ref_audios || []).map((a) => ({
+                                id: nextId("aud"),
+                                fileRef: a,
+                              }))
+                            );
                             message.info("已回填该成片的全部生成参数");
                           }}
                         >
