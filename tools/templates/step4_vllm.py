@@ -2,7 +2,7 @@
 TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
 REQUIRE_API_KEY = False  # @param {type:"boolean"}
 USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
-import json, os, re, subprocess, sys, time, urllib.request
+import hashlib, json, os, re, subprocess, sys, time, urllib.request
 from pathlib import Path
 
 FEATURE_NAME = "qwen3.8-27b"
@@ -147,7 +147,12 @@ app_cmd = [
     str(APP_DIR / "dist" / FEATURE_NAME),
 ]
 
-app_fingerprint = json.dumps({"cmd": app_cmd, "auth": bool(app_api_key)}, sort_keys=True)
+app_fingerprint = json.dumps({
+    "cmd": app_cmd,
+    "release": read_text(APP_DIR / ".release_sha256").strip(),
+    "auth_sha256": hashlib.sha256(app_api_key.encode("utf-8")).hexdigest(),
+    "env": {key: value for key, value in env_overrides.items() if key != "COLAB_API_KEY"},
+}, sort_keys=True)
 app_is_up = app_ready() or (process_running(APP_PROCESS_PATTERN) and app_ready(timeout=15))
 if app_is_up and read_text(APP_LAUNCH_CONFIG) != app_fingerprint:
     print("Web/API 网关配置已变更，正在重启...")

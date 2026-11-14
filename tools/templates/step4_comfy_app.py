@@ -2,7 +2,7 @@
 TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
 REQUIRE_API_KEY = False  # @param {type:"boolean"}
 USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
-import json, os, re, subprocess, sys, time, urllib.request
+import hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 
 FEATURE_NAME = "{{FEATURE_NAME}}"
@@ -33,6 +33,11 @@ if not (COMFY_DIR / "main.py").is_file():
     raise RuntimeError("未找到内部推理引擎 /content/ComfyUI，请先运行第 2 步。")
 if APP_DIR.is_symlink() or not (APP_DIR / "backend/run_server.py").is_file():
     raise RuntimeError("未找到应用服务目录 /content/app，请先运行第 2 步。")
+
+if FEATURE_NAME in ("minimax-h3", "seedvr2"):
+    missing_media_tools = [name for name in ("ffmpeg", "ffprobe") if not shutil.which(name)]
+    if missing_media_tools:
+        raise RuntimeError(f"缺少媒体处理工具：{', '.join(missing_media_tools)}。请先执行 !apt-get -qq update && apt-get -qq install -y ffmpeg，再运行第 4 步。")
 
 def resolve_app_api_key():
     key = ""
@@ -140,7 +145,12 @@ app_cmd = [
     str(APP_DIR / "dist" / FEATURE_NAME),
 ]
 
-app_fingerprint = json.dumps({"cmd": app_cmd, "auth": bool(app_api_key)}, sort_keys=True)
+app_fingerprint = json.dumps({
+    "cmd": app_cmd,
+    "release": read_text(APP_DIR / ".release_sha256").strip(),
+    "auth_sha256": hashlib.sha256(app_api_key.encode("utf-8")).hexdigest(),
+    "env": {key: value for key, value in env_overrides.items() if key != "COLAB_API_KEY"},
+}, sort_keys=True)
 app_is_up = app_ready() or (process_running(APP_PROCESS_PATTERN) and app_ready(timeout=15))
 if app_is_up and read_text(APP_LAUNCH_CONFIG) != app_fingerprint:
     print("Web/API 服务配置变更，正在重启...")
