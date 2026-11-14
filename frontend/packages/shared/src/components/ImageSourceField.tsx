@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from "react";
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { resolveApiUrl, uploadMediaFile } from "../api/client";
 import {
   Button,
@@ -39,6 +39,8 @@ export function ImageSourceField({
 }: ImageSourceFieldProps) {
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadingRef = useRef(false);
+  const mountedRef = useRef(true);
   const { message } = useStudioFeedback();
 
   const [uploading, setUploading] = useState(false);
@@ -50,11 +52,33 @@ export function ImageSourceField({
     sizeBytes: number;
   } | null>(null);
   const [naturalDims, setNaturalDims] = useState<{ w: number; h: number } | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
+
+  useLayoutEffect(() => {
+    setNaturalDims(null);
+    setPreviewFailed(false);
+  }, [value]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const handleFileUpload = async (file: File) => {
+    if (uploadingRef.current) return;
+    if (!/\.(png|jpe?g|webp)$/i.test(file.name)) {
+      message.warning("请选择 PNG、JPG 或 WebP 图片。");
+      return;
+    }
+    if (!file.size || file.size > 512 * 1024 * 1024) {
+      message.warning("图片不能为空，大小需在 512 MB 以内。");
+      return;
+    }
+    uploadingRef.current = true;
     setUploading(true);
     try {
       const res = await uploadMediaFile(file);
+      if (!mountedRef.current) return;
       setUploadedMeta({
         fileId: res.file_id,
         name: res.filename,
@@ -66,9 +90,10 @@ export function ImageSourceField({
       onChange(res.file_id);
       message.success(`已上传：${res.filename}`);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "上传图像失败");
+      if (mountedRef.current) message.error(err instanceof Error ? err.message : "上传图像失败");
     } finally {
-      setUploading(false);
+      uploadingRef.current = false;
+      if (mountedRef.current) setUploading(false);
     }
   };
 
@@ -180,6 +205,7 @@ export function ImageSourceField({
             danger
             icon={<DeleteOutlined />}
             aria-label={`清空 ${label}`}
+            disabled={uploading}
             style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
             onClick={() => {
               setNaturalDims(null);
@@ -196,9 +222,15 @@ export function ImageSourceField({
       {previewUrl ? (
         <div className="studio-image-preview-box">
           <img
+            key={previewUrl}
             src={previewUrl}
             alt={displayFilename || label}
             className="studio-image-thumb"
+            onError={() => {
+              setPreviewFailed(true);
+              setNaturalDims(null);
+              onDimensionsChange?.(null);
+            }}
             onLoad={(e) => {
               const img = e.currentTarget;
               if (img.naturalWidth && img.naturalHeight) {
@@ -217,7 +249,7 @@ export function ImageSourceField({
               </span>
             </Text>
             <Text type="secondary" className="studio-tabular" style={{ fontSize: 11.5 }}>
-              {naturalDims ? `${naturalDims.w} × ${naturalDims.h} px` : "读取尺寸中..."}
+              {previewFailed ? "图片已失效，请重新上传" : naturalDims ? `${naturalDims.w} × ${naturalDims.h} px` : "读取尺寸中..."}
               {uploadedMeta && uploadedMeta.fileId === value
                 ? ` · ${(uploadedMeta.sizeBytes / 1024).toFixed(0)} KB`
                 : ""}
@@ -237,6 +269,7 @@ export function ImageSourceField({
         <button
           type="button"
           className="studio-ref-dropzone"
+          disabled={uploading}
           aria-label={`点击上传图片 ${label}`}
           onClick={() => fileInputRef.current?.click()}
         >

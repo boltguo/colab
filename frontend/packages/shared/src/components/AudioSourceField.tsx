@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { resolveApiUrl, uploadMediaFile } from "../api/client";
 import type { PresetItem } from "../api/types";
 import {
@@ -39,7 +39,10 @@ export function AudioSourceField({
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<BlobPart[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
+  const uploadingRef = useRef(false);
+  const startingRef = useRef(false);
   const { message } = useStudioFeedback();
 
   const hasPresets = allowPreset && presets.length > 0;
@@ -50,6 +53,7 @@ export function AudioSourceField({
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [uploadedMeta, setUploadedMeta] = useState<{
     fileId: string;
     name: string;
@@ -58,10 +62,43 @@ export function AudioSourceField({
 
   const activePreset = presets.find((p) => p.id === value) || presets[0];
 
+  useEffect(() => {
+    if (recording || starting) return;
+    if (hasPresets && value.startsWith("preset:")) setTab("preset");
+    else if (!hasPresets || (value && !value.startsWith("preset:"))) {
+      setTab((current) => current === "preset" ? "upload" : current);
+    }
+  }, [hasPresets, value, recording, starting]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
   const handleFileUpload = async (file: File) => {
+    if (uploadingRef.current) return;
+    if (!/\.(wav|mp3|flac|ogg|m4a|aac|webm)$/i.test(file.name)) {
+      message.warning("请选择 WAV、MP3、FLAC、OGG、M4A、AAC 或 WebM 音频。");
+      return;
+    }
+    if (!file.size || file.size > 512 * 1024 * 1024) {
+      message.warning("音频不能为空，大小需在 512 MB 以内。");
+      return;
+    }
+    uploadingRef.current = true;
     setUploading(true);
     try {
       const res = await uploadMediaFile(file);
+      if (!mountedRef.current) return;
       setUploadedMeta({
         fileId: res.file_id,
         name: res.filename,
@@ -70,34 +107,47 @@ export function AudioSourceField({
       onChange(res.file_id);
       message.success(`已载入参考音频：${res.filename}`);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "上传音频失败");
+      if (mountedRef.current) message.error(err instanceof Error ? err.message : "上传音频失败");
     } finally {
-      setUploading(false);
+      uploadingRef.current = false;
+      if (mountedRef.current) setUploading(false);
     }
   };
 
   const startRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (startingRef.current || recording || uploadingRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       message.error("当前浏览器不支持麦克风采集，请切换至文件上传。");
       return;
     }
+    startingRef.current = true;
+    setStarting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
       const mimeType = MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
         : "";
       const recorder = mimeType
         ? new MediaRecorder(stream, { mimeType })
         : new MediaRecorder(stream);
-      chunksRef.current = [];
+      const chunks: BlobPart[] = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
+          chunks.push(e.data);
         }
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, {
+        streamRef.current = null;
+        recorderRef.current = null;
+        if (!mountedRef.current) return;
+        setRecording(false);
+        const blob = new Blob(chunks, {
           type: recorder.mimeType || "audio/webm",
         });
         const ext = (recorder.mimeType || "").includes("mp4") ? "m4a" : "webm";
@@ -110,7 +160,12 @@ export function AudioSourceField({
       recorder.start();
       setRecording(true);
     } catch {
-      message.error("无法访问麦克风，请检查浏览器权限。");
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      if (mountedRef.current) message.error("无法访问麦克风，请检查浏览器权限。");
+    } finally {
+      startingRef.current = false;
+      if (mountedRef.current) setStarting(false);
     }
   };
 
@@ -118,7 +173,6 @@ export function AudioSourceField({
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       recorderRef.current.stop();
     }
-    setRecording(false);
   };
 
   const previewUrl = (() => {
@@ -165,6 +219,7 @@ export function AudioSourceField({
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <Segmented
           size="small"
+          disabled={recording || starting || uploading}
           options={modeOptions}
           value={tab}
           onChange={(val) => {
@@ -265,7 +320,7 @@ export function AudioSourceField({
                 type="primary"
                 ghost
                 icon={<AudioOutlined />}
-                loading={uploading}
+                loading={uploading || starting}
                 onClick={() => void startRecording()}
               >
                 开始麦克风录音

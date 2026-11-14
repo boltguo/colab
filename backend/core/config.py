@@ -21,6 +21,7 @@ def _resolve_dist_dir(feature: str, repo_root: Path) -> Optional[Path]:
     candidates = [
         repo_root / "dist" / feature,
         repo_root / "dist",
+        repo_root / "frontend" / "dist" / feature,
         repo_root / "frontend" / "apps" / feature / "dist",
     ]
     for candidate in candidates:

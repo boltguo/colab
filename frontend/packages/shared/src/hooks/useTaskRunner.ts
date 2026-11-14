@@ -16,6 +16,9 @@ export function useTaskRunner<
   const [activeTask, setActiveTask] = useState<TaskRecord<TResult, TParams> | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
+  const busyRef = useRef(false);
+  const mountedRef = useRef(true);
+  const generationRef = useRef(0);
   const onSuccessRef = useRef(options.onSuccess);
   const onErrorRef = useRef(options.onError);
 
@@ -23,7 +26,10 @@ export function useTaskRunner<
   onErrorRef.current = options.onError;
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      generationRef.current += 1;
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = null;
@@ -33,6 +39,11 @@ export function useTaskRunner<
 
   const runTask = useCallback(
     async (payload: TParams) => {
+      // React state updates are asynchronous; a hotkey and click can arrive
+      // before the button reflects the first request.
+      if (busyRef.current) return null;
+      busyRef.current = true;
+      const generation = ++generationRef.current;
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = null;
@@ -40,13 +51,20 @@ export function useTaskRunner<
       setSubmitting(true);
       try {
         const initial = await submitFeatureTask<TResult, TParams>(endpointPath, payload);
+        if (!mountedRef.current || generation !== generationRef.current) return null;
         setActiveTask(initial);
 
         let notified = false;
+        let connectionErrorShown = false;
         unsubRef.current = subscribeTaskProgress<TResult, TParams>(
           initial.task_id,
           (updated) => {
+            if (!mountedRef.current || generation !== generationRef.current) return;
+            connectionErrorShown = false;
             setActiveTask(updated);
+            if (["succeeded", "failed", "cancelled"].includes(updated.status)) {
+              busyRef.current = false;
+            }
             if (!notified && updated.status === "succeeded") {
               notified = true;
               onSuccessRef.current?.(updated);
@@ -56,18 +74,20 @@ export function useTaskRunner<
             }
           },
           (err) => {
-            if (!notified) {
+            if (!notified && !connectionErrorShown && mountedRef.current && generation === generationRef.current) {
+              connectionErrorShown = true;
               onErrorRef.current?.(err.message);
             }
           }
         );
         return initial;
       } catch (err) {
+        busyRef.current = false;
         const msg = err instanceof Error ? err.message : String(err);
-        onErrorRef.current?.(msg);
-        throw err;
+        if (mountedRef.current && generation === generationRef.current) onErrorRef.current?.(msg);
+        return null;
       } finally {
-        setSubmitting(false);
+        if (mountedRef.current && generation === generationRef.current) setSubmitting(false);
       }
     },
     [endpointPath]
@@ -75,8 +95,19 @@ export function useTaskRunner<
 
   const cancelActive = useCallback(async () => {
     if (!activeTask) return;
-    const cancelled = await cancelTaskById(activeTask.task_id);
-    setActiveTask(cancelled as TaskRecord<TResult, TParams>);
+    const generation = generationRef.current;
+    try {
+      const cancelled = await cancelTaskById(activeTask.task_id);
+      if (!mountedRef.current || generation !== generationRef.current) return;
+      setActiveTask(cancelled as TaskRecord<TResult, TParams>);
+      if (["succeeded", "failed", "cancelled"].includes(cancelled.status)) {
+        busyRef.current = false;
+      }
+    } catch (err) {
+      if (mountedRef.current && generation === generationRef.current) {
+        onErrorRef.current?.(err instanceof Error ? err.message : String(err));
+      }
+    }
   }, [activeTask]);
 
   const isBusy =
