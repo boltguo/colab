@@ -276,16 +276,19 @@ class TaskManager:
                 if task_id in self._pending_ids:
                     self._pending_ids.remove(task_id)
                 params = dict(rec["params"])
+                # Claim the task while holding the same lock used by cancel().
+                # Otherwise a successful cancellation can still start inference.
+                rec.update(
+                    status="running",
+                    progress=0.02,
+                    stage="准备加载模型与推理环境...",
+                    started_at=_utc_now(),
+                )
+                self._persist_locked()
+                snapshot = self._build_response_locked(task_id)
 
             t0 = time.monotonic()
-            self._update_task(
-                task_id,
-                status="running",
-                progress=0.02,
-                stage="准备加载模型与推理环境...",
-                started_at=_utc_now(),
-                persist=True,
-            )
+            self._notify_subscribers(task_id, snapshot)
 
             def on_progress(val: float, desc: str = "") -> None:
                 clamped = max(0.02, min(0.99, float(val)))

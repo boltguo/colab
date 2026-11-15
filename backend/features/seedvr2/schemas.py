@@ -21,9 +21,9 @@ ColorSpaceChoice = Literal["match_input", "sRGB", "HDR", "HDR PQ"]
 BitDepthChoice = Literal["match_input", "auto", "8", "10"]
 
 
-def align_even(value: int, minimum: int = 16, maximum: int = 16384) -> int:
+def align_even(value: int, minimum: int = 16) -> int:
     """Align pixel dimensions to even integers (matching SeedVR2PostProcessing output alignment)."""
-    clamped = max(minimum, min(maximum, int(value)))
+    clamped = max(minimum, int(value))
     even = clamped - (clamped % 2)
     return max(minimum, even)
 
@@ -32,7 +32,7 @@ def align_chunk_frames(frames: int) -> int:
     """Snap manual temporal chunk pixel-frame count to 4n + 1 (1, 5, 9, 13, 17, 21, ...)."""
     if frames <= 1:
         return 1
-    k = max(1, round((frames - 1) / 4.0))
+    k = max(1, (frames + 1) // 4)
     return min(16381, 4 * k + 1)
 
 
@@ -118,7 +118,7 @@ class SeedVR2GenerateRequest(BaseModel):
         default=2.0,
         ge=1.0,
         le=8.0,
-        description="放大倍数（sizing_mode='multiplier' 时生效，视频推荐 2.0x，图片推荐 4.0x 真 4K）",
+        description="放大倍数（sizing_mode='multiplier' 时生效；实际尺寸由源尺寸乘倍数决定，4x 不等于固定 4K）",
     )
     target_shorter_edge: int = Field(
         default=1440,
@@ -168,9 +168,9 @@ class SeedVR2GenerateRequest(BaseModel):
     )
     frames_per_chunk: int = Field(
         default=21,
-        ge=5,
+        ge=1,
         le=257,
-        description="手动每块像素帧数（自动对齐至 4n + 1，如 9、13、17、21、25、33、49）",
+        description="手动每块像素帧数（自动对齐至 4n + 1，支持 1、5、9、13…257）",
     )
     temporal_overlap: int = Field(
         default=2,
@@ -198,13 +198,13 @@ class SeedVR2GenerateRequest(BaseModel):
     )
     keep_audio: bool = Field(
         default=True,
-        description="视频超分后是否无损保留原视频音轨（仅视频模式生效）",
+        description="视频超分后是否保留原声（仅视频模式生效；解码后随成片重新编码，不保证音频位流无损）",
     )
     fps_override: float = Field(
         default=0.0,
         ge=0.0,
         le=120.0,
-        description="输出帧率覆盖（0 表示严格继承原视频帧率，>0 则强制指定输出 FPS）",
+        description="播放帧率（0 继承原速；1~120 改变现有帧的播放速度与时长，不进行补帧。变速时需关闭 keep_audio）",
     )
 
     # Diffusion Sampling Hyperparameters
@@ -212,7 +212,7 @@ class SeedVR2GenerateRequest(BaseModel):
         default=1,
         ge=1,
         le=20,
-        description="扩散修复步数（SeedVR2 原生为 1 步对抗蒸馏极速修复，默认 1 步即可达到最佳锐度）",
+        description="扩散修复步数（SeedVR2 原生为 1 步对抗蒸馏；多步属于实验设置，不保证改善质量）",
     )
     cfg: float = Field(
         default=1.0,
@@ -278,7 +278,7 @@ class SeedVR2GenerateRequest(BaseModel):
     )
     image_output_format: ImageOutputFormat = Field(
         default="png",
-        description="图片超分导出格式：png（无损真 4K）| webp | jpeg",
+        description="图片超分导出格式：png（无损编码）| webp | jpeg；实际尺寸由放大策略决定",
     )
     image_quality: int = Field(
         default=94,
@@ -325,6 +325,11 @@ class SeedVR2GenerateRequest(BaseModel):
         if self.sizing_mode == "dimensions" and self.target_width <= 0 and self.target_height <= 0:
             raise ValueError("自定义尺寸模式下，目标宽度与高度不能同时为 0。")
 
+        if self.fps_override != 0 and self.fps_override < 1:
+            raise ValueError("播放帧率请设为 0（原速）或 1~120 FPS。")
+        if self.mode == "video" and self.fps_override > 0 and self.keep_audio:
+            raise ValueError("修改播放帧率会改变视频速度；请关闭保留原声，或将播放帧率设为 0。")
+
         self.frames_per_chunk = align_chunk_frames(self.frames_per_chunk)
         self.vae_tile_size = max(256, (self.vae_tile_size // 64) * 64)
         self.vae_tile_overlap = max(32, min(self.vae_tile_size // 2, (self.vae_tile_overlap // 32) * 32))
@@ -351,6 +356,8 @@ class SeedVR2Result(BaseModel):
     input_url: str
     input_width: int
     input_height: int
+    input_fps: Optional[float] = None
+    input_start_time: float = 0.0
     width: int
     height: int
     effective_scale: float

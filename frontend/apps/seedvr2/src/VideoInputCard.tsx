@@ -52,8 +52,20 @@ export function VideoInputCard({
     sizeBytes: number;
   } | null>(null);
   const [videoMeta, setVideoMeta] = useState<VideoSourceMeta | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+  const uploadInFlight = useRef(false);
 
   const handleFileUpload = async (file: File) => {
+    if (uploadInFlight.current) return;
+    if (!/\.(mp4|webm|mov|mkv)$/i.test(file.name)) {
+      message.warning("请选择 MP4、WebM、MOV 或 MKV 视频文件。");
+      return;
+    }
+    if (!file.size || file.size > 512 * 1024 * 1024) {
+      message.warning(file.size ? "视频超过 512 MB 上传限制，请先截取片段。" : "所选视频为空，请重新选择。");
+      return;
+    }
+    uploadInFlight.current = true;
     setUploading(true);
     try {
       const res = await uploadMediaFile(file);
@@ -64,12 +76,14 @@ export function VideoInputCard({
         sizeBytes: res.size_bytes,
       });
       setVideoMeta(null);
+      setPreviewError(false);
       onMetadataChange?.(null);
       onChange(res.file_id);
       message.success(`已上传待超分视频：${res.filename}`);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "上传视频失败");
     } finally {
+      uploadInFlight.current = false;
       setUploading(false);
     }
   };
@@ -148,11 +162,13 @@ export function VideoInputCard({
             size="small"
             type="text"
             danger
+            disabled={uploading}
             icon={<DeleteOutlined />}
             aria-label={`清空 ${label}`}
             style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
             onClick={() => {
               setVideoMeta(null);
+              setPreviewError(false);
               onMetadataChange?.(null);
               onChange("");
             }}
@@ -180,6 +196,7 @@ export function VideoInputCard({
               flex: "0 0 auto",
             }}
             onLoadedMetadata={(e) => {
+              setPreviewError(false);
               const v = e.currentTarget;
               const nextMeta: VideoSourceMeta = {
                 w: v.videoWidth || 0,
@@ -190,6 +207,11 @@ export function VideoInputCard({
               if (nextMeta.w > 0 && nextMeta.h > 0) {
                 onMetadataChange?.(nextMeta);
               }
+            }}
+            onError={() => {
+              setPreviewError(true);
+              setVideoMeta(null);
+              onMetadataChange?.(null);
             }}
           />
           <div
@@ -218,7 +240,7 @@ export function VideoInputCard({
               </span>
             </div>
             <Text type="secondary" className="studio-tabular" style={{ fontSize: 11.5 }}>
-              {videoMeta && videoMeta.w > 0
+              {previewError ? "当前浏览器无法预览，请确认视频可正常播放。" : videoMeta && videoMeta.w > 0
                 ? `${videoMeta.w} × ${videoMeta.h} px${videoMeta.dur > 0 ? ` · ${videoMeta.dur.toFixed(1)}s` : ""}`
                 : "读取原片信息中..."}
               {uploadedMeta && uploadedMeta.fileId === value
@@ -239,6 +261,7 @@ export function VideoInputCard({
       ) : (
         <button
           type="button"
+          disabled={uploading}
           className="studio-ref-dropzone"
           aria-label={`点击上传待超分视频 ${label}`}
           onClick={() => fileInputRef.current?.click()}

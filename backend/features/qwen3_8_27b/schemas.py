@@ -2,7 +2,7 @@
 from typing import Any, Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
-ReasoningEffort = Literal["low", "medium", "high"]
+ReasoningEffort = Literal["low", "medium", "xhigh"]
 ResponseFormatMode = Literal["text", "json_object"]
 
 
@@ -39,7 +39,7 @@ class QwenChatMessage(BaseModel):
     )
     reasoning_content: Optional[str] = Field(
         default=None,
-        description="助手历史思考链内容（多轮对话时自动剥离，不重复塞入上下文）",
+        description="助手历史思考内容；preserve_thinking=True 时保留，False 时由官方模板裁剪旧思考。",
     )
     tool_calls: Optional[List[Dict[str, Any]]] = Field(
         default=None,
@@ -89,8 +89,12 @@ class QwenChatRequest(BaseModel):
         description="是否开启 Qwen3.8 深度思考链（chat_template_kwargs.enable_thinking）",
     )
     reasoning_effort: ReasoningEffort = Field(
-        default="high",
-        description="思考深度档位：low / medium / high（开启深度思考时生效）",
+        default="xhigh",
+        description="官方思考深度档位：low / medium / xhigh（默认 xhigh；开启深度思考时生效）",
+    )
+    preserve_thinking: bool = Field(
+        default=True,
+        description="保留历史助手思考内容，沿用 Qwen3.8 官方默认；关闭后由模板只保留最近用户问题后的思考。",
     )
 
     # Core vLLM & OpenAI sampling hyperparameters
@@ -101,10 +105,10 @@ class QwenChatRequest(BaseModel):
         description="单次回复最大生成 Token 数（上下文总长最高 262144）",
     )
     temperature: float = Field(
-        default=0.6,
+        default=1.0,
         ge=0.0,
         le=2.0,
-        description="采样温度（思考模式推荐 0.6，非思考模式推荐 0.7；0 为贪婪解码）",
+        description="采样温度（Qwen3.8 思考模式官方推荐 1.0，非思考模式推荐 0.7；0 为贪婪解码）",
     )
     top_p: float = Field(
         default=0.95,

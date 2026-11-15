@@ -158,6 +158,8 @@ export function StudioShell({
   const ramBarId = useId();
   const diskBarId = useId();
   const apiDialogTitleId = useId();
+  const controlsId = useId();
+  const resultsId = useId();
 
   const apiDialogRef = useRef<HTMLDialogElement | null>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -259,11 +261,9 @@ export function StudioShell({
     ? ` -H "Authorization: Bearer <YOUR_APP_API_KEY>"`
     : "";
 
-  const pyHeadersValue = savedKey
-    ? `"Authorization": "Bearer ${savedKey}"`
-    : sys?.auth_required
-    ? `"Authorization": "Bearer <YOUR_APP_API_KEY>"`
-    : "";
+  const pythonHeaders = savedKey || sys?.auth_required
+    ? { Authorization: `Bearer ${savedKey || "<YOUR_APP_API_KEY>"}` }
+    : {};
 
   const prettyJson = JSON.stringify(sampleRequestBody, null, 2);
   const sampleUploadFile =
@@ -301,15 +301,15 @@ curl "${origin}/api/v1/tasks/<TASK_ID>"${authPollSuffix}`;
 import time
 import requests
 
-BASE_URL = "${origin}"
-HEADERS = {${pyHeadersValue}}
+BASE_URL = ${JSON.stringify(origin)}
+HEADERS = json.loads(${JSON.stringify(JSON.stringify(pythonHeaders))})
 
 # 1. 如需使用自定义${sampleMediaLabel}，先上传获取 file_id
 # with open("${sampleUploadFile}", "rb") as f:
 #     file_id = requests.post(f"{BASE_URL}/api/v1/files", headers=HEADERS, files={"file": f}).json()["file_id"]
 
 # 2. 提交异步推理任务（包含当前工作台全部自定义控制参数）
-payload = json.loads(r'''${prettyJson}''')
+payload = json.loads(${JSON.stringify(prettyJson)})
 resp = requests.post(f"{BASE_URL}${apiEndpointPath}", json=payload, headers=HEADERS, timeout=30)
 resp.raise_for_status()
 task_id = resp.json()["task_id"]
@@ -317,7 +317,9 @@ print("已提交任务:", task_id)
 
 # 3. 轮询进度并下载最终产物
 while True:
-    info = requests.get(f"{BASE_URL}/api/v1/tasks/{task_id}", headers=HEADERS, timeout=15).json()
+    response = requests.get(f"{BASE_URL}/api/v1/tasks/{task_id}", headers=HEADERS, timeout=15)
+    response.raise_for_status()
+    info = response.json()
     print(f"[{info['status']}] {info['progress'] * 100:.0f}% - {info['stage']}")
     if info["status"] == "succeeded":
         res = info["result"]
@@ -511,9 +513,9 @@ while True:
           </div>
           <div style={{ minInlineSize: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontWeight: 700, fontSize: "1.02rem", color: "var(--studio-text)" }}>
+              <h1 style={{ margin: 0, fontWeight: 700, fontSize: "1.02rem", color: "var(--studio-text)" }}>
                 {sys?.title || defaultTitle}
-              </span>
+              </h1>
               {sys?.mock_mode && <Tag color="warning">Mock 预览模式</Tag>}
               {sys?.engine && (
                 <Tag color="processing" style={{ marginInlineEnd: 0 }}>
@@ -617,11 +619,15 @@ while True:
 
       <main className="studio-main">
         {topBanner && <div style={{ marginBlockEnd: "0.95rem" }}>{topBanner}</div>}
+        <nav className="studio-mobile-nav" aria-label="工作区快速跳转">
+          <a href={`#${controlsId}`}>{layoutRatio === "chat" ? "对话" : "参数设置"}</a>
+          <a href={`#${resultsId}`}>{layoutRatio === "chat" ? "参数设置" : "结果与历史"}</a>
+        </nav>
         <div className="studio-grid" data-layout={layoutRatio}>
-          <section className="studio-column" aria-label="模型创作与全参数控制区">
+          <section id={controlsId} className="studio-column" aria-label="模型创作与全参数控制区">
             {leftPane}
           </section>
-          <aside className="studio-sticky-aside" aria-label="参数与预览面板">
+          <aside id={resultsId} className="studio-sticky-aside" aria-label="参数与预览面板">
             {rightPane}
           </aside>
         </div>

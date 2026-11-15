@@ -99,14 +99,10 @@ def _install_transformers_compat_shim() -> None:
 
 
 def _format_clock(seconds: float, mode: str = "compact") -> str:
-    seconds = max(0.0, float(seconds))
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    sec = int(seconds % 60)
-    ms = int(round((seconds - math.floor(seconds)) * 1000))
-    if ms >= 1000:
-        sec += 1
-        ms -= 1000
+    total_ms = max(0, round(float(seconds) * 1000))
+    total_seconds, ms = divmod(total_ms, 1000)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, sec = divmod(remainder, 60)
     if mode == "srt":
         return f"{hours:02d}:{minutes:02d}:{sec:02d},{ms:03d}"
     if mode == "vtt":
@@ -290,7 +286,9 @@ def _encode_audio_file(
         elif target_fmt == "flac":
             cmd.extend(["-codec:a", "flac"])
         else:
-            cmd.extend(["-codec:a", "pcm_s16le", "-ar", str(sample_rate)])
+            cmd.extend(["-codec:a", "pcm_s16le"])
+        # loudnorm may upsample internally; keep the saved file and metadata aligned.
+        cmd.extend(["-ar", str(sample_rate)])
         cmd.append(str(dest_file))
         subprocess.run(cmd, check=True)
         if target_fmt == "wav":
@@ -357,8 +355,18 @@ def _override_indextts_runtime_knobs(
 
 class IndexTTS25EngineManager:
     def __init__(self) -> None:
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._cache: Dict[Tuple[bool, bool, bool, bool], Any] = {}
+
+    @contextmanager
+    def use_engine(self, *, auto_free_memory: bool = False, **kwargs: Any) -> Iterator[Any]:
+        """Keep model loading, inference and release mutually exclusive."""
+        with self._lock:
+            try:
+                yield self.get_engine(**kwargs)
+            finally:
+                if auto_free_memory:
+                    self.release()
 
     def get_engine(
         self,
@@ -374,10 +382,6 @@ class IndexTTS25EngineManager:
             bool(use_cuda_kernel),
             bool(use_torch_compile),
         )
-        cached = self._cache.get(key)
-        if cached is not None:
-            return cached
-
         with self._lock:
             cached = self._cache.get(key)
             if cached is not None:
@@ -403,6 +407,9 @@ class IndexTTS25EngineManager:
             import torch  # type: ignore
             from indextts.infer_v2_5 import IndexTTS2  # type: ignore
 
+            # A Colab runtime only needs one configuration resident at a time.
+            # Otherwise toggling emotion/precision options retains entire models.
+            self.release()
             on_cuda = bool(torch.cuda.is_available())
             bf16_ok = bool(use_bf16) and on_cuda and bool(torch.cuda.is_bf16_supported())
             tts = IndexTTS2(
@@ -420,34 +427,36 @@ class IndexTTS25EngineManager:
             return tts
 
     def release(self) -> Dict[str, Any]:
-        with self._lock:
+        if not self._lock.acquire(blocking=False):
+            return {"released_instances": 0, "busy": True}
+        try:
             instances = list(self._cache.values())
             self._cache.clear()
-
-        attrs = (
-            "gpt", "semantic_model", "semantic_codec", "s2mel",
-            "campplus_model", "bigvgan", "qwen_emo",
-            "emo_matrix", "spk_matrix",
-            "cache_spk_cond", "cache_s2mel_style", "cache_s2mel_prompt",
-            "cache_emo_cond", "cache_mel",
-        )
-        for inst in instances:
-            for attr in attrs:
-                if hasattr(inst, attr):
-                    try:
+            if not instances:
+                return {"released_instances": 0, "busy": False}
+            attrs = (
+                "gpt", "semantic_model", "semantic_codec", "s2mel",
+                "campplus_model", "bigvgan", "qwen_emo",
+                "semantic_mean", "semantic_std", "emo_matrix", "spk_matrix",
+                "cache_spk_cond", "cache_s2mel_style", "cache_s2mel_prompt",
+                "cache_emo_cond", "cache_mel",
+            )
+            for inst in instances:
+                for attr in attrs:
+                    if hasattr(inst, attr):
                         setattr(inst, attr, None)
-                    except Exception:
-                        pass
 
-        gc.collect()
-        try:
-            import torch  # type: ignore
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
-        except Exception:
-            pass
-        return {"released_instances": len(instances)}
+            gc.collect()
+            try:
+                import torch  # type: ignore
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+            return {"released_instances": len(instances), "busy": False}
+        finally:
+            self._lock.release()
 
 
 ENGINE_MANAGER = IndexTTS25EngineManager()
@@ -525,6 +534,7 @@ def _run_mock_synthesis(
         "srt": srt,
         "vtt": vtt,
         "timeline": timeline,
+        "subtitle_timing": "estimated",
         "mock": True,
     }
 
@@ -566,62 +576,61 @@ def execute_indextts_task(
     import numpy as np  # type: ignore
     import torch  # type: ignore
 
-    random.seed(actual_seed)
-    np.random.seed(actual_seed % (2**32 - 1))
-    torch.manual_seed(actual_seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(actual_seed)
+    def _gr_progress_bridge(value: float, desc: str = "") -> None:
+        mapped = 0.10 + 0.80 * max(0.0, min(1.0, float(value)))
+        progress_cb(mapped, str(desc or "正在合成语音..."))
 
-    tts = ENGINE_MANAGER.get_engine(
+    with ENGINE_MANAGER.use_engine(
         use_bf16=req.use_bf16,
         use_qwen_emo=use_emo_text,
         use_cuda_kernel=req.use_cuda_kernel,
         use_torch_compile=req.use_torch_compile,
         progress_cb=progress_cb,
-    )
-
-    def _gr_progress_bridge(value: float, desc: str = "") -> None:
-        mapped = 0.10 + 0.80 * max(0.0, min(1.0, float(value)))
-        progress_cb(mapped, str(desc or "正在合成语音..."))
-
-    t0 = time.perf_counter()
-    tts.gr_progress = _gr_progress_bridge
-    try:
-        with _override_indextts_runtime_knobs(
-            tts,
-            max_ref_seconds=req.max_ref_seconds,
-            diffusion_steps=req.diffusion_steps,
-            inference_cfg_rate=req.inference_cfg_rate,
-        ):
-            top_k_arg = int(req.top_k) if int(req.top_k) > 0 else None
-            result = tts.infer(
-                spk_audio_prompt=str(spk_path),
-                text=req.text,
-                output_path=None,
-                lang=req.language,
-                emo_audio_prompt=str(emo_audio_path) if emo_audio_path else None,
-                emo_alpha=float(req.emo_alpha),
-                emo_vector=emo_vec,
-                use_emo_text=use_emo_text,
-                emo_text=emo_text,
-                use_random=bool(req.use_random),
-                interval_silence=int(req.interval_silence_ms),
-                max_text_tokens_per_segment=int(req.max_text_tokens_per_segment),
-                duration_factor=float(req.duration_factor),
-                text_normalization=bool(req.text_normalization),
-                do_sample=bool(req.do_sample),
-                temperature=float(req.temperature),
-                top_p=float(req.top_p),
-                top_k=top_k_arg,
-                repetition_penalty=float(req.repetition_penalty),
-                length_penalty=float(req.length_penalty),
-                num_beams=int(req.num_beams),
-                max_mel_tokens=int(req.max_mel_tokens),
-            )
-    finally:
-        tts.gr_progress = None
-
-    infer_elapsed = max(0.01, time.perf_counter() - t0)
+        auto_free_memory=req.auto_free_memory,
+    ) as tts:
+        # Loading weights can consume RNG state. Seed after loading so a take
+        # restored from history behaves the same with a warm or cold engine.
+        random.seed(actual_seed)
+        np.random.seed(actual_seed % (2**32 - 1))
+        torch.manual_seed(actual_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(actual_seed)
+        t0 = time.perf_counter()
+        tts.gr_progress = _gr_progress_bridge
+        try:
+            with _override_indextts_runtime_knobs(
+                tts,
+                max_ref_seconds=req.max_ref_seconds,
+                diffusion_steps=req.diffusion_steps,
+                inference_cfg_rate=req.inference_cfg_rate,
+            ):
+                result = tts.infer(
+                    spk_audio_prompt=str(spk_path),
+                    text=req.text,
+                    output_path=None,
+                    lang=req.language,
+                    emo_audio_prompt=str(emo_audio_path) if emo_audio_path else None,
+                    emo_alpha=float(req.emo_alpha),
+                    emo_vector=emo_vec,
+                    use_emo_text=use_emo_text,
+                    emo_text=emo_text,
+                    use_random=bool(req.use_random),
+                    interval_silence=int(req.interval_silence_ms),
+                    max_text_tokens_per_segment=int(req.max_text_tokens_per_segment),
+                    duration_factor=float(req.duration_factor),
+                    text_normalization=bool(req.text_normalization),
+                    do_sample=bool(req.do_sample),
+                    temperature=float(req.temperature),
+                    top_p=float(req.top_p),
+                    top_k=int(req.top_k),
+                    repetition_penalty=float(req.repetition_penalty),
+                    length_penalty=float(req.length_penalty),
+                    num_beams=int(req.num_beams),
+                    max_mel_tokens=int(req.max_mel_tokens),
+                )
+            infer_elapsed = max(0.01, time.perf_counter() - t0)
+        finally:
+            tts.gr_progress = None
 
     if result is None:
         raise RuntimeError("IndexTTS-2.5 推理返回空结果，请检查输入文本或参考音频是否有效。")
@@ -657,9 +666,6 @@ def execute_indextts_task(
     )
     est_segs = _estimate_segments(req.text, req.max_text_tokens_per_segment)
 
-    if req.auto_free_memory:
-        ENGINE_MANAGER.release()
-
     return {
         "audio_url": f"/api/v1/outputs/{filename}",
         "download_url": f"/api/v1/outputs/{filename}?download=true",
@@ -679,5 +685,6 @@ def execute_indextts_task(
         "srt": srt,
         "vtt": vtt,
         "timeline": timeline,
+        "subtitle_timing": "estimated",
         "mock": False,
     }

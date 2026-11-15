@@ -1,5 +1,7 @@
 import type { LoraSlotConfig } from "@colab/shared";
 
+export const MAX_REFERENCE_IMAGES = 10;
+
 export type WorkflowMode = "t2i" | "img2img" | "edit_single" | "edit_dual" | "edit_multi";
 export type ResolutionTier = "2K" | "1K" | "original";
 export type StandardAspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3" | "21:9";
@@ -126,6 +128,21 @@ export const SYMMETRIC_RATIO_SWAP: Partial<Record<StandardAspectRatio, StandardA
 export function snap32(val: number): number {
   const s = Math.round(val / 32) * 32;
   return Math.max(256, Math.min(4096, s));
+}
+
+export function editImageGeometry(
+  params: QwenImageParams,
+  width: number,
+  height: number,
+  aspect: AspectRatioChoice = "custom",
+): QwenImageParams {
+  return {
+    ...params,
+    resolution_tier: params.resolution_tier === "original" && aspect !== "match_input" ? "2K" : params.resolution_tier,
+    aspect_ratio: aspect,
+    width,
+    height,
+  };
 }
 
 export function calcPresetDimensions(

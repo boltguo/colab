@@ -61,7 +61,7 @@ class IndexTTSGenerateRequest(BaseModel):
         max_length=5000,
         description=(
             "待合成文本。支持自定义读音标注 <文字|读音>："
-            "中文多音字如 银<行|XING2>；英文音标如 <going|G OW1 . IH0 NG>；日文假名如 <明日|あした>"
+            "中文多音字如 银<行|HANG2>；英文音标如 <going|G OW1 . IH0 NG>；日文假名如 <明日|あした>"
         ),
         examples=["你好，欢迎使用 IndexTTS 2.5 现代语音合成工作台！"],
     )

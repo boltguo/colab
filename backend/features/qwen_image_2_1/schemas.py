@@ -47,6 +47,7 @@ KvCacheDtype = Literal["default", "int8", "int4"]
 UnetWeightDtype = Literal["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"]
 ClipDevice = Literal["default", "cpu"]
 ImageOutputFormat = Literal["png", "webp", "jpeg"]
+MAX_REFERENCE_IMAGES = 10
 
 ASPECT_RATIOS: Dict[str, Tuple[int, int]] = {
     "1:1": (1, 1),
@@ -117,7 +118,7 @@ class QwenImageGenerateRequest(BaseModel):
     # 1. Core Creative & Conditioning Inputs
     mode: WorkflowMode = Field(
         default="t2i",
-        description="创作模式：t2i（文生图）或 img2img（图生图 / 图像编辑，支持 1~4 张参考图）。",
+        description="创作模式：t2i（文生图）或 img2img（图生图 / 图像编辑，官方支持最多 10 张参考图）。",
     )
     prompt: str = Field(
         ...,
@@ -131,11 +132,11 @@ class QwenImageGenerateRequest(BaseModel):
         description="反向提示词（注意：需将 cfg 调高至 > 1.0 才会激活反向条件引导）。",
     )
 
-    # Reference Images (supports 1..4 user-uploaded images in img2img mode)
+    # Official multi-reference editing supports up to ten images.
     reference_images: List[str] = Field(
         default_factory=list,
-        max_length=8,
-        description="按顺序排列的参考图引用列表（POST /api/v1/files 返回的 file_id 或 output:<filename>），依次对应 <image1>、<image2>...",
+        max_length=MAX_REFERENCE_IMAGES,
+        description="按顺序排列的参考图引用列表（最多 10 张；POST /api/v1/files 返回的 file_id 或 output:<filename>），依次对应 <image1>…<image10>。",
     )
     image_1: Optional[str] = Field(default=None, description="主参考图 <image1>（可选快捷字段，等价于 reference_images[0]）。")
     image_2: Optional[str] = Field(default=None, description="可选第二参考图 <image2>（等价于 reference_images[1]）。")
@@ -243,7 +244,7 @@ class QwenImageGenerateRequest(BaseModel):
     )
     output_format: ImageOutputFormat = Field(
         default="png",
-        description="输出图片格式：png、webp、jpeg。",
+        description="输出图片格式：png / webp 可保留模型输出的透明通道；jpeg 不支持透明通道。",
     )
     output_quality: int = Field(
         default=95,
@@ -266,11 +267,24 @@ class QwenImageGenerateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_mode_and_references(self) -> "QwenImageGenerateRequest":
+        self.prompt = self.prompt.strip()
+        if not self.prompt:
+            raise ValueError("请输入画面描述或图像编辑指令。")
+        raw_refs = self.reference_images or [self.image_1, self.image_2, self.image_3, self.image_4]
+        if self.mode != "t2i":
+            empty_seen = False
+            for ref in raw_refs:
+                if not ref or not ref.strip():
+                    empty_seen = True
+                elif empty_seen:
+                    raise ValueError("参考图片之间不能留空，请按 <image1>、<image2> 的顺序上传或移除空槽位。")
         refs = self.effective_references()
         if self.mode != "t2i" and len(refs) < 1:
             raise ValueError("图生图模式请至少上传 1 张参考图片 (<image1>)。")
         if self.mode == "edit_dual" and len(refs) < 2:
             raise ValueError("双图融合模式需要至少上传 2 张参考图 (<image1> 与 <image2>)。")
+        if self.resolution_tier == "original" and (self.mode == "t2i" or self.aspect_ratio != "match_input"):
+            raise ValueError("原图分辨率仅用于图生图，请同时选择跟随主参考图比例。")
         if self.mode == "t2i" and self.aspect_ratio == "match_input":
             self.aspect_ratio = "1:1"
         self.width = snap32(self.width)

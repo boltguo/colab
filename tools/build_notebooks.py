@@ -141,8 +141,8 @@ seed_code3, seed_md3 = step3_comfy_app("seedvr2", md_template=MD3_SEEDVR2)
 set_source(seed_cells[0], f"""# SeedVR2（现代 Web 视频与图片 4K 超分工作台 + 全参数 API）
 
 - **支持显卡**：40GB 及以上显存显卡（`A100 40GB / 80GB`、`H100 80GB`、`RTX 6000 96GB`）
-- **单页双模态超分**：将视频画质超分修复（`7B Sharp` 旗舰锐化 / `3B Fast` 长视频高吞吐）与单图真 4K 超分修复统一在单个现代工作台内，彻底告别 `.json` 工作流切换
-- **工业级后处理与防爆显存**：内置 **CIELAB / Wavelet / AdaIN** 精准色彩对齐、**Split Latent** 长视频时间分块（Hann 窗平滑去闪烁）、**Tiled VAE** 空间瓦片编解码、原视频音轨无损继承与 **同屏 A/B 卷帘实时对比**
+- **单页双模态超分**：在同一工作台切换视频超分（`7B Sharp` / `3B Fast`）与图片超分；可指定 4K 目标尺寸，实际尺寸取决于原图和放大策略
+- **后处理与显存控制**：内置 **CIELAB / Wavelet / AdaIN** 色彩对齐、**Split Latent** 时间分块（支持单帧 / `4n+1` 分块与 Hann 窗融合）、**Tiled VAE** 编解码与 **同屏 A/B 卷帘对比**；保留原声内容，但音轨随成片重新编码，不保证位流无损
 {ACCESS_LINE}
 - **执行顺序**：`1. 环境检测` → `2. 安装内部推理引擎与应用服务包` → `3. 下载并校验 SeedVR2 双规格权重与 VAE` → `4. 启动现代 Web 工作台与 API 服务`
 
@@ -199,7 +199,8 @@ h3_code3, h3_md3 = step3_comfy_app("minimax-h3")
 set_source(h3_cells[0], f"""# MiniMax-H3（现代 Web 音画视频工作台 + 全参数 API + Turbo 极速加速）
 
 - **支持显卡**：80GB 及以上显存显卡（`A100 80GB` / `H100 80GB` / `RTX 6000 96GB`）
-- **单页全能融合**：音画同生文生视频（`t2v`）、单首帧或首尾帧图生视频（`fl2v`）、多模态参考生视频（`r2v`，自由组合 `<Picture 1..5>` / `<Video 1..2>` / `<Audio 1..4>`），无需导入或切换 `.json` 工作流
+- **单页全能融合**：音画同生文生视频（`t2v`）、单首帧或首尾帧图生视频（`fl2v`）、多模态参考生视频（`r2v`，最多 9 张图片、3 段视频、3 段独立音频，合计最多 12 个文件；视频原声不另计），无需导入或切换 `.json` 工作流
+- **分辨率说明**：当前使用 H3-Base 原生 `768p`；`540p` 为低清试跑，自定义宽高为实验性画布，未接入官方 `H3-Regenerate-2K` 高分辨率再生成或超分流程
 - **Turbo 极速与热加载**：内置官方 **FL2V 8 步 Turbo** 与 **Ref2V 4 步 Turbo** 一键切换，并支持从 Hugging Face 或 Civitai / HTTPS 在线热挂载自定义 `.safetensors` LoRA
 {ACCESS_LINE}
 - **执行顺序**：`1. 环境检测` → `2. 安装内部推理引擎与应用服务包` → `3. 下载并校验基础模型权重` → `4. 启动现代 Web 工作台与 API 服务`
@@ -256,7 +257,7 @@ qwen_code3, qwen_md3 = step3_comfy_app("qwen-image-2.1")
 set_source(qwen_img_cells[0], f"""# Qwen-Image 2.1（现代 Web 工作台 + 全参数 API + 在线 LoRA 热挂载）
 
 - **推荐显卡**：80GB 级显卡（A100 80GB / H100 80GB / RTX 6000 96GB）畅跑 2K BF16 多图融合；40GB A100 亦可通过工作台 `KV 缓存 CPU 预取` / `FP8` 模式运行
-- **单页全能融合**：原生 2K/1K 文生图、`<image1>` 单图保主体指令编辑、`<image1>` + `<image2>` 双图场景融合、最多 4 图参考组合、A/B 卷帘原图对比与一键继续精修
+- **单页全能融合**：原生 2K 与 1K 文生图、单图指令编辑、双图融合、最多 10 图参考组合、透明参考图 Alpha 保留、A/B 卷帘原图对比与一键继续精修
 - **动态 LoRA 热加载**：内置精选 `Anime Consistency` 一键拉取，并支持输入任意 Hugging Face 仓库或 Civitai / HTTPS `.safetensors` 链接在后台自动校验并挂载（支持最多 6 层叠加）
 {ACCESS_LINE}
 - **执行顺序**：`1. 环境检测` → `2. 安装内部推理引擎与应用服务包` → `3. 下载并校验基础模型权重` → `4. 启动现代 Web 工作台与 API 服务`
@@ -296,7 +297,7 @@ set_source(qwen_img_cells[7], MD4_APP, False)
 set_source(qwen_img_cells[8], fill(tpl["step4_comfy_app"],
     FEATURE_NAME="qwen-image-2.1",
     LAUNCH_ARGS="",
-    REQUIRED_NODES='{"TextEncodeQwenImage21", "QwenImage21Cache", "LoraLoaderModelOnly"}',
+    REQUIRED_NODES='{"TextEncodeQwenImage21", "QwenImage21Cache", "JoinImageWithAlpha", "LoraLoaderModelOnly"}',
     HELPERS=HELPERS,
     LAUNCHER_SOURCE="\n" + tpl["comfy_launcher"],
     SAMPLE_REQUEST_JSON=repr({
@@ -321,7 +322,7 @@ set_source(indextts_cells[0], f"""# IndexTTS 2.5（现代 Web 工作台 + REST/W
 
 - **支持显卡**：A100 (40GB / 80GB)、H100 (80GB)、RTX 6000 (96GB)
 - **底层引擎**：官方原生 `index-tts`（零 ComfyUI 依赖，BF16 推理，含 QwenEmotion）
-- **单页多合一能力**：零样本多语种克隆（`zh / en / ja / es / ar`）、8 维情绪向量滑块、双音频音色/情绪分离、自然语言情绪控制、中文 `<汉字|PINYIN2>` 多音字标注、自动 SRT 字幕生成
+- **单页多合一能力**：零样本多语种克隆（`zh / en / ja / es / ar`）、8 维情绪向量、双音频音色/情绪分离、自然语言情绪控制、多音字标注与估算 SRT 字幕（非语音对齐）
 {ACCESS_LINE}
 - **执行顺序**：`1. 环境检测` → `2. 安装 IndexTTS 2.5 引擎与应用服务包` → `3. 下载 IndexTTS 2.5 模型权重` → `4. 启动现代 Web 工作台与 API 服务`
 

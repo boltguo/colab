@@ -172,7 +172,7 @@ def _build_router(
     )
     async def get_resolution_presets(_: None = Depends(auth_dep)) -> Dict[str, object]:
         res_table: Dict[str, Dict[str, Dict[str, int]]] = {}
-        for tier in ("540p", "768p", "1080p"):
+        for tier in ("540p", "768p"):
             res_table[tier] = {
                 ar: {"width": w, "height": h}
                 for ar in ASPECT_RATIOS

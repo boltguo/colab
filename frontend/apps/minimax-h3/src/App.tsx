@@ -50,6 +50,7 @@ import {
   ASPECT_RATIO_OPTIONS,
   DEFAULT_MINIMAX_H3_PARAMS,
   DURATION_PRESETS,
+  H3_REFERENCE_LIMITS,
   NATIVE_FPS,
   SYMMETRIC_RATIO_SWAP,
   alignH3Frames,
@@ -387,6 +388,7 @@ export function MiniMaxH3StudioApp() {
     setFl2vPrimaryDims(null);
     setR2vPrimaryDims(null);
     setParams(DEFAULT_MINIMAX_H3_PARAMS);
+    setShowNegPrompt(false);
     message.success("已恢复默认参数");
   };
 
@@ -483,6 +485,7 @@ export function MiniMaxH3StudioApp() {
     () => refAudioSlots.filter((s) => Boolean(s.fileRef.trim())).length,
     [refAudioSlots]
   );
+  const referenceSlotCount = refImageSlots.length + refVideoSlots.length + refAudioSlots.length;
 
   const alignedFrames = useMemo(
     () =>
@@ -541,6 +544,10 @@ export function MiniMaxH3StudioApp() {
         return;
       }
     } else if (params.mode === "r2v") {
+      if (uploadedImgCount + uploadedVidCount + uploadedAudCount > H3_REFERENCE_LIMITS.total) {
+        message.warning("参考图片、视频与独立音频合计最多 12 个文件；视频自带原声不另计。");
+        return;
+      }
       if (uploadedImgCount + uploadedVidCount + uploadedAudCount < 1) {
         message.warning("多模态参考生视频模式请至少上传 1 项参考素材（图片 / 视频 / 音频）。");
         return;
@@ -739,16 +746,17 @@ export function MiniMaxH3StudioApp() {
                   <span className="studio-tabular">
                     {uploadedImgCount + uploadedVidCount + uploadedAudCount}
                   </span>{" "}
-                  / {refImageSlots.length + refVideoSlots.length + refAudioSlots.length}）
+                  / {H3_REFERENCE_LIMITS.total} 个文件）
                 </Text>
 
                 <Space size={6} wrap>
-                  {refImageSlots.length < 5 && (
+                  {refImageSlots.length < H3_REFERENCE_LIMITS.images && (
                     <Button
                       htmlType="button"
                       size="small"
                       type="dashed"
                       icon={<PlusOutlined />}
+                      disabled={referenceSlotCount >= H3_REFERENCE_LIMITS.total}
                       onClick={() =>
                         setRefImageSlots((prev) => [...prev, { id: nextId("img"), fileRef: "" }])
                       }
@@ -756,12 +764,13 @@ export function MiniMaxH3StudioApp() {
                       添加参考图
                     </Button>
                   )}
-                  {refVideoSlots.length < 2 && (
+                  {refVideoSlots.length < H3_REFERENCE_LIMITS.videos && (
                     <Button
                       htmlType="button"
                       size="small"
                       type="dashed"
                       icon={<VideoCameraOutlined />}
+                      disabled={referenceSlotCount >= H3_REFERENCE_LIMITS.total}
                       onClick={() =>
                         setRefVideoSlots((prev) => [
                           ...prev,
@@ -772,12 +781,13 @@ export function MiniMaxH3StudioApp() {
                       添加参考视频
                     </Button>
                   )}
-                  {refAudioSlots.length < 2 && (
+                  {refAudioSlots.length < H3_REFERENCE_LIMITS.audios && (
                     <Button
                       htmlType="button"
                       size="small"
                       type="dashed"
                       icon={<AudioOutlined />}
+                      disabled={referenceSlotCount >= H3_REFERENCE_LIMITS.total}
                       onClick={() =>
                         setRefAudioSlots((prev) => [...prev, { id: nextId("aud"), fileRef: "" }])
                       }
@@ -787,6 +797,11 @@ export function MiniMaxH3StudioApp() {
                   )}
                 </Space>
               </div>
+
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                最多 9 张图片、3 段视频、3 段独立音频，合计不超过 12 个文件；视频原声不另计。
+                已添加 {referenceSlotCount} 个素材槽位（含待上传），移除空槽位后可继续添加其他类型。
+              </Text>
 
               <div
                 className="studio-image-slot-grid"
@@ -1041,16 +1056,15 @@ export function MiniMaxH3StudioApp() {
             <div className="studio-field-group" style={{ flex: "1 1 300px" }}>
               <FieldLabel
                 label="分辨率档位 (Resolution)"
-                tooltip="独立控制清晰度像素面积：768p（约 0.98MP，官方训练甜点如 1344×768）、540p（快速草稿预览）、1080p（高清重采样）"
+                tooltip="当前接入 H3-Base，原生档位为 768p（如 1344×768）；540p 为低分辨率试跑。自定义宽高仅改变推理画布，未接入高分辨率再生成或超分流程。"
               />
               <Segmented
                 block
                 value={params.resolution_tier === "custom" ? "768p" : params.resolution_tier}
                 onChange={(val) => handleResolutionChange(val as H3ResolutionTier)}
                 options={[
-                  { label: "540p 快速预览", value: "540p" },
+                  { label: "540p 低清试跑", value: "540p" },
                   { label: "768p 原生标准", value: "768p" },
-                  { label: "1080p 高清", value: "1080p" },
                 ]}
               />
             </div>
@@ -1063,7 +1077,13 @@ export function MiniMaxH3StudioApp() {
               <Segmented
                 block
                 value={params.soundtrack_enabled ? "on" : "off"}
-                onChange={(val) => updateParam("soundtrack_enabled", val === "on")}
+                onChange={(val) => {
+                  const enabled = val === "on";
+                  if (enabled && params.fps !== NATIVE_FPS) {
+                    message.info("已恢复 24 fps，保持画面与生成音轨同步。");
+                  }
+                  setParams((prev) => ({ ...prev, soundtrack_enabled: enabled, fps: enabled ? NATIVE_FPS : prev.fps }));
+                }}
                 options={[
                   {
                     label: (
@@ -1229,6 +1249,7 @@ export function MiniMaxH3StudioApp() {
                   max={60}
                   step={1}
                   value={params.fps}
+                  disabled={params.soundtrack_enabled}
                   onChange={(v) => updateParam("fps", Math.max(12, Math.min(60, Number(v || 24))))}
                 />
               </div>
@@ -1240,8 +1261,15 @@ export function MiniMaxH3StudioApp() {
               style={{ fontSize: 12, paddingBlockEnd: 6 }}
             >
               {snap32(params.width)} × {snap32(params.height)} px（{megapixels} MP · 32px 对齐）
+              {params.soundtrack_enabled
+                ? " · 音画同生固定 24 fps"
+                : " · 调整帧率会改变播放速度与成片时长，不进行插帧"}
             </Text>
           </div>
+
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            H3-Base 原生为 768p。手动宽高属于实验性画布尺寸，不执行高分辨率再生成或超分。
+          </Text>
 
           {/* Row 4: Video Duration Presets + Slider + 17k+5 Frame Grid Readout */}
           <div
@@ -1530,8 +1558,8 @@ export function MiniMaxH3StudioApp() {
                         <InputNumber
                           size="small"
                           style={{ inlineSize: 90 }}
-                          min={-999}
-                          max={999}
+                          min={-alignedFrames}
+                          max={alignedFrames - 1}
                           step={1}
                           value={params.guide_frame_idx}
                           onChange={(v) => updateParam("guide_frame_idx", Math.round(Number(v || 0)))}
@@ -1781,9 +1809,14 @@ export function MiniMaxH3StudioApp() {
               size="small"
               style={{ inlineSize: 132 }}
               min={0}
+              max={Number.MAX_SAFE_INTEGER}
               step={1}
               value={params.seed}
-              onChange={(v) => updateParam("seed", Math.max(0, Math.floor(Number(v || 0))))}
+              onChange={(v) => {
+                const nextSeed = Math.max(0, Math.floor(Number(v || 0)));
+                updateParam("seed", nextSeed);
+                setSeedLocked(nextSeed > 0);
+              }}
               placeholder="0 = 随机"
             />
             <Tooltip title={seedLocked ? "已锁定种子" : "锁定当前种子"}>
@@ -1794,7 +1827,11 @@ export function MiniMaxH3StudioApp() {
                 ghost={seedLocked}
                 icon={seedLocked ? <LockOutlined /> : <UnlockOutlined />}
                 aria-label={seedLocked ? "取消锁定种子" : "锁定当前种子"}
-                onClick={() => setSeedLocked((v) => !v)}
+                onClick={() => {
+                  if (seedLocked) updateParam("seed", 0);
+                  else if (!params.seed && displayedEntry) updateParam("seed", displayedEntry.result.used_seed);
+                  setSeedLocked((v) => !v);
+                }}
               />
             </Tooltip>
             <Tooltip title="重置为随机种子 (0)">
@@ -2201,30 +2238,36 @@ export function MiniMaxH3StudioApp() {
                           style={{ padding: 0, blockSize: "auto", fontSize: 12 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setParams(item.params);
-                            if (item.params.mode === "r2v") {
-                              setRefImageSlots(
-                                item.params.ref_images?.length
-                                  ? item.params.ref_images.map((ref) => ({
-                                      id: nextId("img"),
-                                      fileRef: ref,
-                                    }))
-                                  : [{ id: nextId("img"), fileRef: "" }]
-                              );
-                              setRefVideoSlots(
-                                (item.params.ref_videos || []).map((v) => ({
-                                  id: nextId("vid"),
-                                  fileRef: v.file_id,
-                                  useVideoAudio: v.use_video_audio,
-                                }))
-                              );
-                              setRefAudioSlots(
-                                (item.params.ref_audios || []).map((a) => ({
-                                  id: nextId("aud"),
-                                  fileRef: a,
-                                }))
-                              );
-                            }
+                            setParams({
+                              ...item.params,
+                              seed: item.result.used_seed,
+                              fps: item.params.soundtrack_enabled ? NATIVE_FPS : item.params.fps,
+                            });
+                            setSeedLocked(true);
+                            setShowNegPrompt(Boolean(item.params.negative_prompt));
+                            setFl2vPrimaryDims(null);
+                            setR2vPrimaryDims(null);
+                            setRefImageSlots(
+                              item.params.ref_images?.length
+                                ? item.params.ref_images.map((ref) => ({
+                                    id: nextId("img"),
+                                    fileRef: ref,
+                                  }))
+                                : [{ id: nextId("img"), fileRef: "" }]
+                            );
+                            setRefVideoSlots(
+                              (item.params.ref_videos || []).map((v) => ({
+                                id: nextId("vid"),
+                                fileRef: v.file_id,
+                                useVideoAudio: v.use_video_audio,
+                              }))
+                            );
+                            setRefAudioSlots(
+                              (item.params.ref_audios || []).map((a) => ({
+                                id: nextId("aud"),
+                                fileRef: a,
+                              }))
+                            );
                             message.info("已回填该成片的全部生成参数");
                           }}
                         >

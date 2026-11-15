@@ -1,4 +1,4 @@
-export type ReasoningEffort = "low" | "medium" | "high";
+export type ReasoningEffort = "low" | "medium" | "xhigh";
 export type ResponseFormatMode = "text" | "json_object";
 
 export interface ChatAttachmentItem {
@@ -40,12 +40,15 @@ export interface ChatTurn {
   streaming?: boolean;
   thinkingActive?: boolean;
   error?: string;
+  finishReason?: string;
+  stopped?: boolean;
 }
 
 export interface QwenSamplingConfig {
   system_prompt: string;
   enable_thinking: boolean;
   reasoning_effort: ReasoningEffort;
+  preserve_thinking: boolean;
   max_tokens: number;
   temperature: number;
   top_p: number;
@@ -64,9 +67,10 @@ export interface QwenSamplingConfig {
 export const DEFAULT_QWEN_SAMPLING: QwenSamplingConfig = {
   system_prompt: "",
   enable_thinking: true,
-  reasoning_effort: "high",
+  reasoning_effort: "xhigh",
+  preserve_thinking: true,
   max_tokens: 8192,
-  temperature: 0.6,
+  temperature: 1.0,
   top_p: 0.95,
   top_k: 20,
   min_p: 0.0,

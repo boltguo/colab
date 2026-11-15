@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 from pathlib import Path
+import socket
 import threading
 import time
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
@@ -31,14 +32,44 @@ def _allow_local_file_scheme() -> bool:
 
 def _encode_file_for_vllm(path: Path, kind: str) -> str:
     """Encode a validated local upload path into file:// (when vLLM allows local media) or data: URI."""
+    mime = mimetypes.guess_type(path.name)[0] or ""
+    _validate_media_type(mime, kind)
     if _allow_local_file_scheme():
         return path.resolve().as_uri()
-    mime = mimetypes.guess_type(path.name)[0] or (
-        "video/mp4" if kind == "video" else "image/png"
-    )
     raw = path.read_bytes()
     b64 = base64.b64encode(raw).decode("ascii")
     return f"data:{mime};base64,{b64}"
+
+
+def _validate_media_type(mime: str, kind: str) -> None:
+    if not mime.lower().startswith(f"{kind}/"):
+        label = "视频" if kind == "video" else "图片"
+        raise ValueError(f"附件类型不匹配：请选择{label}文件，当前类型为 {mime or '未知格式'}。")
+
+
+def _validate_external_media_url(url: str, kind: str) -> None:
+    lowered = url.lower()
+    if lowered.startswith("file:"):
+        raise ValueError("外部请求不支持直接传入 file:// 路径，请先调用 POST /api/v1/files 上传。")
+    if lowered.startswith("data:"):
+        mime = url[5:].split(",", 1)[0].split(";", 1)[0]
+        _validate_media_type(mime, kind)
+
+
+def _rewrite_media_part(part: Dict[str, Any], storage: MediaStorage) -> Dict[str, Any]:
+    part_copy = dict(part)
+    for url_key, kind in (("image_url", "image"), ("video_url", "video")):
+        sub = part_copy.get(url_key)
+        url = sub.get("url") if isinstance(sub, dict) else sub
+        if not isinstance(url, str):
+            continue
+        url = url.strip()
+        _validate_external_media_url(url, kind)
+        if url.startswith("upload:"):
+            local_path = storage.resolve_input_ref(url[len("upload:") :])
+            media_url = _encode_file_for_vllm(local_path, kind)
+            part_copy[url_key] = {**sub, "url": media_url} if isinstance(sub, dict) else media_url
+    return part_copy
 
 
 def resolve_attachment_to_part(att: QwenAttachment, storage: MediaStorage) -> Dict[str, Any]:
@@ -46,7 +77,8 @@ def resolve_attachment_to_part(att: QwenAttachment, storage: MediaStorage) -> Di
     if not ref:
         raise ValueError("多模态附件缺少 file_id。")
 
-    if ref.startswith(("https://", "http://", "data:")):
+    _validate_external_media_url(ref, att.kind)
+    if ref.lower().startswith(("https://", "http://", "data:")):
         media_url = ref
     else:
         clean_ref = ref[len("upload:") :] if ref.startswith("upload:") else ref
@@ -60,6 +92,8 @@ def resolve_attachment_to_part(att: QwenAttachment, storage: MediaStorage) -> Di
 
 def _convert_message_to_openai(msg: QwenChatMessage, storage: MediaStorage) -> Dict[str, Any]:
     out: Dict[str, Any] = {"role": msg.role}
+    if msg.role == "assistant" and msg.reasoning_content is not None:
+        out["reasoning_content"] = msg.reasoning_content
     if msg.name:
         out["name"] = msg.name
     if msg.tool_call_id:
@@ -72,18 +106,7 @@ def _convert_message_to_openai(msg: QwenChatMessage, storage: MediaStorage) -> D
         for item in msg.content:
             if not isinstance(item, dict):
                 continue
-            item_copy = dict(item)
-            for url_key in ("image_url", "video_url"):
-                sub = item_copy.get(url_key)
-                if isinstance(sub, dict) and isinstance(sub.get("url"), str):
-                    u = sub["url"].strip()
-                    if u.startswith("upload:"):
-                        local_path = storage.resolve_input_ref(u[len("upload:") :])
-                        kind = "video" if url_key == "video_url" else "image"
-                        item_copy[url_key] = {**sub, "url": _encode_file_for_vllm(local_path, kind)}
-                    elif u.startswith("file://"):
-                        raise ValueError("外部请求不支持直接传入 file:// 路径，请先调用 POST /api/v1/files 上传。")
-            parts.append(item_copy)
+            parts.append(_rewrite_media_part(item, storage))
         for att in msg.attachments:
             parts.append(resolve_attachment_to_part(att, storage))
         out["content"] = parts
@@ -119,18 +142,7 @@ def rewrite_openai_payload_uploads(payload: Dict[str, Any], storage: MediaStorag
             if not isinstance(part, dict):
                 new_parts.append(part)
                 continue
-            part_copy = dict(part)
-            for url_key in ("image_url", "video_url"):
-                sub = part_copy.get(url_key)
-                if isinstance(sub, dict) and isinstance(sub.get("url"), str):
-                    u = sub["url"].strip()
-                    if u.startswith("file://"):
-                        raise ValueError("禁止外部直接传入 file:// 本地路径，请使用 https://、data: 或先上传至 /api/v1/files。")
-                    if u.startswith("upload:"):
-                        local_path = storage.resolve_input_ref(u[len("upload:") :])
-                        kind = "video" if url_key == "video_url" else "image"
-                        part_copy[url_key] = {**sub, "url": _encode_file_for_vllm(local_path, kind)}
-            new_parts.append(part_copy)
+            new_parts.append(_rewrite_media_part(part, storage))
         updated_msgs.append({**m, "content": new_parts})
     return {**payload, "messages": updated_msgs}
 
@@ -157,6 +169,7 @@ def build_vllm_chat_payload(
         "stream": stream,
         "chat_template_kwargs": {
             "enable_thinking": bool(req.enable_thinking),
+            "preserve_thinking": bool(req.preserve_thinking),
         },
     }
     if stream:
@@ -199,14 +212,71 @@ async def forward_vllm_json_or_stream(
     chunk_queue: asyncio.Queue[Optional[bytes]] = asyncio.Queue(maxsize=64)
     abort_evt = threading.Event()
     conn_holder: List[http.client.HTTPConnection] = []
+    socket_holder: List[socket.socket] = []
+    pending_puts: List[Any] = []
+
+    def _abort() -> None:
+        abort_evt.set()
+        for pending in list(pending_puts):
+            pending.cancel()
+        # shutdown wakes a worker blocked in getresponse/readline before close
+        # touches the response's buffered reader. Keep the socket even when an
+        # HTTP/1.0 response has detached it from HTTPConnection.
+        sockets = list(socket_holder)
+        for conn in conn_holder:
+            active_socket = conn.sock
+            if active_socket is not None:
+                sockets.append(active_socket)
+        for sock in sockets:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        for conn in conn_holder:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _publish_headers(status: int, ctype: str, data: Optional[bytes]) -> None:
+        def _set_result() -> None:
+            if not header_future.done():
+                header_future.set_result((status, ctype, data))
+
+        if not abort_evt.is_set():
+            loop.call_soon_threadsafe(_set_result)
+
+    def _put_chunk(chunk: Optional[bytes]) -> bool:
+        if abort_evt.is_set():
+            return False
+        pending = asyncio.run_coroutine_threadsafe(chunk_queue.put(chunk), loop)
+        pending_puts.append(pending)
+        try:
+            if abort_evt.is_set():
+                return False
+            # Backpressure must not discard the terminal sentinel. Cancellation
+            # explicitly cancels this future if the downstream stops reading.
+            pending.result()
+            return True
+        finally:
+            pending.cancel()
+            pending_puts.remove(pending)
 
     def _worker() -> None:
         conn: Optional[http.client.HTTPConnection] = None
+        resp: Optional[http.client.HTTPResponse] = None
         try:
             conn, base_path = _open_vllm_connection(timeout=600.0)
             conn_holder.append(conn)
+            if abort_evt.is_set():
+                return
             target_path = f"{base_path}{path_and_query}"
             conn.request(method, target_path, body=body, headers=headers)
+            active_socket = conn.sock
+            if active_socket is not None:
+                socket_holder.append(active_socket)
+            if abort_evt.is_set():
+                return
             resp = conn.getresponse()
             status = resp.status
             ctype = resp.getheader("Content-Type") or "application/json"
@@ -214,50 +284,47 @@ async def forward_vllm_json_or_stream(
 
             if not is_sse or status >= 400:
                 data = resp.read()
-                loop.call_soon_threadsafe(
-                    lambda: None if header_future.done() else header_future.set_result((status, ctype, data))
-                )
+                _publish_headers(status, ctype, data)
                 return
 
-            loop.call_soon_threadsafe(
-                lambda: None if header_future.done() else header_future.set_result((status, ctype, None))
-            )
+            _publish_headers(status, ctype, None)
             while not abort_evt.is_set():
                 line = resp.readline()
                 if not line:
                     break
-                fut = asyncio.run_coroutine_threadsafe(chunk_queue.put(line), loop)
-                fut.result(timeout=60.0)
+                if not _put_chunk(line):
+                    break
         except Exception as exc:
             err_payload = json.dumps(
                 {"error": {"message": f"连接内部 vLLM 引擎失败：{exc}", "type": "engine_unavailable"}},
                 ensure_ascii=False,
             ).encode("utf-8")
             if not header_future.done():
-                loop.call_soon_threadsafe(
-                    lambda: None
-                    if header_future.done()
-                    else header_future.set_result((502, "application/json", err_payload))
-                )
+                _publish_headers(502, "application/json", err_payload)
         finally:
             if not header_future.done():
-                loop.call_soon_threadsafe(
-                    lambda: None
-                    if header_future.done()
-                    else header_future.set_result((502, "application/json", b'{"error":"vLLM closed"}'))
-                )
-            try:
-                asyncio.run_coroutine_threadsafe(chunk_queue.put(None), loop).result(timeout=2.0)
-            except Exception:
-                pass
+                _publish_headers(502, "application/json", b'{"error":"vLLM closed"}')
+            if resp is not None:
+                try:
+                    resp.close()
+                except Exception:
+                    pass
             if conn is not None:
                 try:
                     conn.close()
                 except Exception:
                     pass
+            try:
+                _put_chunk(None)
+            except Exception:
+                pass
 
     threading.Thread(target=_worker, name="vllm-proxy-stream", daemon=True).start()
-    status_code, content_type, immediate_body = await header_future
+    try:
+        status_code, content_type, immediate_body = await header_future
+    except asyncio.CancelledError:
+        _abort()
+        raise
 
     if immediate_body is not None:
         return status_code, content_type, immediate_body, None
@@ -270,12 +337,7 @@ async def forward_vllm_json_or_stream(
                     break
                 yield chunk
         finally:
-            abort_evt.set()
-            for c in conn_holder:
-                try:
-                    c.close()
-                except Exception:
-                    pass
+            _abort()
 
     return status_code, content_type, None, _iter_sse()
 
@@ -434,106 +496,129 @@ async def stream_playground_sse(
         yield _sse({"type": "done", "finish_reason": finish_reason})
         return
 
-    payload = build_vllm_chat_payload(req, storage, stream=True)
-    body_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    status_code, _ctype, err_body, raw_iter = await forward_vllm_json_or_stream(
-        "POST",
-        "/v1/chat/completions",
-        body_bytes,
-        {"Content-Type": "application/json", "Accept": "text/event-stream"},
-    )
-    if err_body is not None or raw_iter is None:
-        detail = err_body.decode("utf-8", errors="replace") if err_body else f"HTTP {status_code}"
-        yield _sse({"type": "error", "error": f"vLLM 请求失败 ({status_code})：{detail}"})
-        return
-
-    tool_calls_map: Dict[int, Dict[str, Any]] = {}
-    prompt_tokens = 0
-    completion_tokens = 0
-    finish_reason = "stop"
-    think_start_ts: Optional[float] = None
-    think_end_ts: Optional[float] = None
-
-    async for raw_line in raw_iter:
-        line = raw_line.decode("utf-8", errors="replace").strip()
-        if not line or not line.startswith("data:"):
-            continue
-        data_str = line[5:].strip()
-        if data_str == "[DONE]":
-            break
-        try:
-            chunk = json.loads(data_str)
-        except Exception:
-            continue
-
-        if isinstance(chunk.get("error"), dict):
-            yield _sse({"type": "error", "error": chunk["error"].get("message") or str(chunk["error"])})
+    raw_iter: Optional[AsyncIterator[bytes]] = None
+    try:
+        payload = build_vllm_chat_payload(req, storage, stream=True)
+        body_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        status_code, _ctype, err_body, raw_iter = await forward_vllm_json_or_stream(
+            "POST",
+            "/v1/chat/completions",
+            body_bytes,
+            {"Content-Type": "application/json", "Accept": "text/event-stream"},
+        )
+        if err_body is not None or raw_iter is None:
+            detail = err_body.decode("utf-8", errors="replace") if err_body else f"HTTP {status_code}"
+            yield _sse({"type": "error", "error": f"vLLM 请求失败 ({status_code})：{detail}"})
             return
 
-        usage = chunk.get("usage")
-        if isinstance(usage, dict):
-            prompt_tokens = int(usage.get("prompt_tokens") or prompt_tokens)
-            completion_tokens = int(usage.get("completion_tokens") or completion_tokens)
+        tool_calls_map: Dict[int, Dict[str, Any]] = {}
+        prompt_tokens = 0
+        completion_tokens = 0
+        finish_reason: Optional[str] = None
+        saw_done = False
+        think_start_ts: Optional[float] = None
+        think_end_ts: Optional[float] = None
 
-        choices = chunk.get("choices")
-        if not isinstance(choices, list) or not choices:
-            continue
-        choice0 = choices[0]
-        if choice0.get("finish_reason"):
-            finish_reason = str(choice0["finish_reason"])
-        delta = choice0.get("delta") or {}
+        async for raw_line in raw_iter:
+            line = raw_line.decode("utf-8", errors="replace").strip()
+            if not line or not line.startswith("data:"):
+                continue
+            data_str = line[5:].strip()
+            if data_str == "[DONE]":
+                saw_done = True
+                break
+            try:
+                chunk = json.loads(data_str)
+            except Exception:
+                continue
 
-        r_piece = delta.get("reasoning_content") or delta.get("reasoning") or ""
-        c_piece = delta.get("content") or ""
+            if not isinstance(chunk, dict):
+                continue
+            if chunk.get("error"):
+                error = chunk["error"]
+                detail = error.get("message") if isinstance(error, dict) else str(error)
+                yield _sse({"type": "error", "error": detail or str(error)})
+                return
 
-        if r_piece and think_start_ts is None:
-            think_start_ts = time.perf_counter()
-        if c_piece and think_start_ts is not None and think_end_ts is None:
-            think_end_ts = time.perf_counter()
+            usage = chunk.get("usage")
+            if isinstance(usage, dict):
+                prompt_tokens = int(usage.get("prompt_tokens") or prompt_tokens)
+                completion_tokens = int(usage.get("completion_tokens") or completion_tokens)
 
-        tc_deltas = delta.get("tool_calls")
-        if isinstance(tc_deltas, list):
-            for tc in tc_deltas:
-                idx = int(tc.get("index", 0))
-                cur = tool_calls_map.setdefault(
-                    idx,
-                    {"id": "", "type": "function", "function": {"name": "", "arguments": ""}},
-                )
-                if tc.get("id"):
-                    cur["id"] = tc["id"]
-                fn = tc.get("function") or {}
-                if fn.get("name"):
-                    cur["function"]["name"] += fn["name"]
-                if fn.get("arguments"):
-                    cur["function"]["arguments"] += fn["arguments"]
+            choices = chunk.get("choices")
+            if not isinstance(choices, list) or not choices:
+                continue
+            choice0 = choices[0]
+            if not isinstance(choice0, dict):
+                continue
+            if choice0.get("finish_reason"):
+                finish_reason = str(choice0["finish_reason"])
+            delta = choice0.get("delta") or {}
+            if not isinstance(delta, dict):
+                continue
 
-        if r_piece or c_piece:
-            yield _sse({"type": "delta", "reasoning": r_piece, "content": c_piece})
+            r_piece = delta.get("reasoning_content") or delta.get("reasoning") or ""
+            c_piece = delta.get("content") or ""
 
-    if tool_calls_map:
-        ordered_calls = [tool_calls_map[k] for k in sorted(tool_calls_map)]
-        yield _sse({"type": "delta", "reasoning": "", "content": "", "tool_calls": ordered_calls})
+            if r_piece and think_start_ts is None:
+                think_start_ts = time.perf_counter()
+            if c_piece and think_start_ts is not None and think_end_ts is None:
+                think_end_ts = time.perf_counter()
 
-    now_ts = time.perf_counter()
-    elapsed = max(0.05, now_ts - started)
-    thinking_sec = (
-        round((think_end_ts or now_ts) - think_start_ts, 2)
-        if think_start_ts is not None
-        else 0.0
-    )
-    yield _sse(
-        {
-            "type": "usage",
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "total_tokens": prompt_tokens + completion_tokens,
-            "thinking_sec": thinking_sec,
-            "elapsed_sec": round(elapsed, 2),
-            "tokens_per_sec": round(completion_tokens / elapsed, 1) if completion_tokens else 0.0,
-            "mock": False,
-        }
-    )
-    yield _sse({"type": "done", "finish_reason": finish_reason})
+            tc_deltas = delta.get("tool_calls")
+            if isinstance(tc_deltas, list):
+                for tc in tc_deltas:
+                    idx = int(tc.get("index", 0))
+                    cur = tool_calls_map.setdefault(
+                        idx,
+                        {"id": "", "type": "function", "function": {"name": "", "arguments": ""}},
+                    )
+                    if tc.get("id"):
+                        cur["id"] = tc["id"]
+                    fn = tc.get("function") or {}
+                    if fn.get("name"):
+                        cur["function"]["name"] += fn["name"]
+                    if fn.get("arguments"):
+                        cur["function"]["arguments"] += fn["arguments"]
+
+            if r_piece or c_piece:
+                yield _sse({"type": "delta", "reasoning": r_piece, "content": c_piece})
+
+        if finish_reason is None and not saw_done:
+            yield _sse({"type": "error", "error": "vLLM 响应流意外中断，回复尚未完成，请重试。"})
+            return
+
+        if tool_calls_map:
+            ordered_calls = [tool_calls_map[k] for k in sorted(tool_calls_map)]
+            yield _sse({"type": "delta", "reasoning": "", "content": "", "tool_calls": ordered_calls})
+
+        now_ts = time.perf_counter()
+        elapsed = max(0.05, now_ts - started)
+        thinking_sec = (
+            round((think_end_ts or now_ts) - think_start_ts, 2)
+            if think_start_ts is not None
+            else 0.0
+        )
+        yield _sse(
+            {
+                "type": "usage",
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+                "thinking_sec": thinking_sec,
+                "elapsed_sec": round(elapsed, 2),
+                "tokens_per_sec": round(completion_tokens / elapsed, 1) if completion_tokens else 0.0,
+                "mock": False,
+            }
+        )
+        yield _sse({"type": "done", "finish_reason": finish_reason or "stop"})
+    except Exception as exc:
+        yield _sse({"type": "error", "error": f"生成失败：{exc}"})
+    finally:
+        if raw_iter is not None:
+            close = getattr(raw_iter, "aclose", None)
+            if close is not None:
+                await close()
 
 
 def execute_qwen_task(

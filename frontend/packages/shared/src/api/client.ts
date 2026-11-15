@@ -36,6 +36,7 @@ export function saveApiKey(rawKey: string): string {
     } catch {
       // ignore storage errors
     }
+    window.dispatchEvent(new Event("colab:auth-changed"));
   }
   return cleanKey;
 }
@@ -181,6 +182,14 @@ export async function fetchTaskStatus<TResult = Record<string, unknown>, TParams
   return parseJsonOrThrow<TaskRecord<TResult, TParams>>(resp);
 }
 
+export async function fetchRecentTasks<TResult, TParams>(limit = 50): Promise<TaskRecord<TResult, TParams>[]> {
+  const resp = await fetch(resolveApiUrl(`/api/v1/tasks?limit=${Math.min(100, Math.max(1, limit))}`), {
+    headers: buildAuthHeaders(),
+  });
+  const data = await parseJsonOrThrow<{ items: TaskRecord<TResult, TParams>[] }>(resp);
+  return data.items;
+}
+
 export async function cancelTaskById(taskId: string): Promise<TaskRecord> {
   const resp = await fetch(resolveApiUrl(`/api/v1/tasks/${encodeURIComponent(taskId)}`), {
     method: "DELETE",
@@ -205,6 +214,7 @@ export function subscribeTaskProgress<TResult = Record<string, unknown>, TParams
   let closed = false;
   let ws: WebSocket | null = null;
   let pollTimer: number | null = null;
+  let pollInFlight = false;
 
   const stopAll = () => {
     closed = true;
@@ -225,7 +235,8 @@ export function subscribeTaskProgress<TResult = Record<string, unknown>, TParams
   const startPollingFallback = () => {
     if (closed || pollTimer !== null) return;
     const pollOnce = async () => {
-      if (closed) return;
+      if (closed || pollInFlight) return;
+      pollInFlight = true;
       try {
         const snapshot = await fetchTaskStatus<TResult, TParams>(taskId);
         if (closed) return;
@@ -237,6 +248,8 @@ export function subscribeTaskProgress<TResult = Record<string, unknown>, TParams
         if (!closed && onError) {
           onError(err instanceof Error ? err : new Error(String(err)));
         }
+      } finally {
+        pollInFlight = false;
       }
     };
     void pollOnce();

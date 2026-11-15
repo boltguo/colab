@@ -4,9 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v0.1.0)"
+        description: "New release tag (e.g. v0.1.1; existing tags cannot be overwritten)"
         required: true
-        default: "v0.1.0"
+
+concurrency:
+  group: feature-app-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -14,11 +17,29 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.event.inputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: main
+
+      - name: Validate new release tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9][A-Za-z0-9.-]*)?$ ]]; then
+            echo "::error::Use a new version tag such as v0.1.1 or v0.1.1-rc.1."
+            exit 1
+          fi
+          git check-ref-format "refs/tags/${TAG_NAME}"
+          EXISTING_TAG="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}")"
+          EXISTING_RELEASES="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" --jq '.[].tag_name')"
+          if [[ -n "$EXISTING_TAG" ]] || printf '%s\n' "$EXISTING_RELEASES" | grep -Fxq -- "$TAG_NAME"; then
+            echo "::error::This tag already exists. Choose a new tag to preserve pinned notebook downloads."
+            exit 1
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -43,7 +64,6 @@ jobs:
 
       - name: Build deterministic feature tarballs, manifest & notebooks
         run: |
-          TAG_NAME="${{ github.event.inputs.tag }}"
           python3 tools/build_release.py --tag "${TAG_NAME}"
           python3 tools/build_notebooks.py
 
@@ -53,7 +73,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add tools/release_manifest.json notebooks/
-            git commit -m "chore(release): sync manifest and notebooks for ${{ github.event.inputs.tag }}"
+            git commit -m "chore(release): sync manifest and notebooks for ${TAG_NAME}"
             git push origin HEAD:main
           fi
 
@@ -61,12 +81,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${{ github.event.inputs.tag }}"
-          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
-            gh release upload "${TAG_NAME}" release_artifacts/*.tar.gz release_artifacts/SHA256SUMS --clobber
-          else
-            gh release create "${TAG_NAME}" release_artifacts/*.tar.gz release_artifacts/SHA256SUMS \
-              --target main \
-              --title "${TAG_NAME}" \
-              --generate-notes
-          fi
+          gh release create "${TAG_NAME}" release_artifacts/*.tar.gz release_artifacts/SHA256SUMS \
+            --target "$(git rev-parse HEAD)" \
+            --title "${TAG_NAME}" \
+            --generate-notes

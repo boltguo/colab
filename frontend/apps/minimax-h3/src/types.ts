@@ -1,7 +1,8 @@
 import type { LoraSlotConfig } from "@colab/shared";
 
 export type H3Mode = "t2v" | "fl2v" | "r2v";
-export type H3ResolutionTier = "768p" | "540p" | "1080p" | "custom";
+export type H3ResolutionTier = "768p" | "540p" | "custom";
+export const H3_REFERENCE_LIMITS = { images: 9, videos: 3, audios: 3, total: 12 } as const;
 export type StandardAspectRatio =
   | "16:9"
   | "9:16"
@@ -189,7 +190,6 @@ export function durationToH3Frames(durationSec: number): number {
 const RESOLUTION_MEGAPIXELS: Record<string, number> = {
   "540p": 0.52,
   "768p": 0.98,
-  "1080p": 2.0,
 };
 
 export function calcH3Dimensions(

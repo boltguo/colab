@@ -236,14 +236,17 @@ def _convert_or_copy_image(
                 rgb = img.convert("RGB")
                 rgb.save(dest, format="JPEG", quality=quality, subsampling=0)
             return w, h
-    except ImportError:
+    except ImportError as exc:
+        if fmt != "png":
+            raise RuntimeError("WebP / JPEG 导出需要 Pillow，请安装后重试或选择 PNG。") from exc
         # Fallback if Pillow is unavailable: read PNG IHDR dimensions directly
-        shutil.copy2(src_png, dest)
-        w, h = 2048, 2048
         with src_png.open("rb") as f:
             sig = f.read(24)
             if len(sig) >= 24 and sig[:8] == b"\x89PNG\r\n\x1a\n":
                 w, h = struct.unpack("!II", sig[16:24])
+            else:
+                raise ValueError("无法读取输出图片尺寸，拒绝导出损坏的 PNG 文件。")
+        shutil.copy2(src_png, dest)
         return int(w), int(h)
 
 
@@ -275,17 +278,21 @@ class QwenImageRunner:
     @staticmethod
     def _probe_image_dims(path: Path) -> Tuple[int, int]:
         try:
-            from PIL import Image  # type: ignore
-
-            with Image.open(path) as im:
-                return int(im.size[0]), int(im.size[1])
-        except Exception:
+            from PIL import Image, ImageOps  # type: ignore
+        except ImportError:
             with path.open("rb") as f:
                 sig = f.read(24)
                 if len(sig) >= 24 and sig[:8] == b"\x89PNG\r\n\x1a\n":
                     w, h = struct.unpack("!II", sig[16:24])
                     return int(w), int(h)
-        return 1024, 1024
+            raise ValueError("无法读取参考图尺寸，请安装 Pillow 或上传有效的 PNG 图片。")
+        try:
+            with Image.open(path) as im:
+                im.load()
+                oriented = ImageOps.exif_transpose(im)
+                return int(oriented.width), int(oriented.height)
+        except Exception as exc:
+            raise ValueError("无法读取参考图，请上传有效的 PNG、JPEG 或 WebP 图片。") from exc
 
     def is_ready(self) -> Tuple[bool, bool]:
         """Return (ready, loaded) tuple for /api/v1/system."""
@@ -333,9 +340,13 @@ class QwenImageRunner:
         if req.mode != "t2i" and refs and req.aspect_ratio == "match_input":
             rw, rh = self._probe_image_dims(refs[0])
             if ref_res == 0:
+                if max(rw, rh) > 4096:
+                    raise ValueError("主参考图超过工作台单边 4096 像素上限，请改选 1K / 2K；原图模式不会静默缩小图片。")
                 w, h = snap32(rw), snap32(rh)
             else:
                 ratio = rw / max(1, rh)
+                if max(math.sqrt(ref_res * ref_res * ratio), math.sqrt(ref_res * ref_res / ratio)) > 4112:
+                    raise ValueError("跟随参考图比例后的尺寸超出工作台单边 4096 像素上限，请降低分辨率或使用自定义比例。")
                 w = snap32(math.sqrt(ref_res * ref_res * ratio))
                 h = snap32(math.sqrt(ref_res * ref_res / ratio))
             use_ref_latent = req.reference_conditioning_mode == "vae_and_vision"
@@ -461,7 +472,14 @@ class QwenImageRunner:
                 "inputs": {"image": staged_name},
             }
             labels[load_id] = f"读取参考图 <image{idx + 1}>"
-            encode_inputs[f"images.image_{idx + 1}"] = [load_id, 0]
+            # LoadImage returns RGB plus an inverse-alpha mask. Restore RGBA
+            # before the official 2.1 encoder, which preserves reference alpha.
+            alpha_id = f"ref_alpha_{idx + 1}"
+            graph[alpha_id] = {
+                "class_type": "JoinImageWithAlpha",
+                "inputs": {"image": [load_id, 0], "alpha": [load_id, 1]},
+            }
+            encode_inputs[f"images.image_{idx + 1}"] = [alpha_id, 0]
 
         use_vae_ref = has_refs and req.reference_conditioning_mode == "vae_and_vision"
         if use_vae_ref:

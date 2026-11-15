@@ -2,6 +2,7 @@
 import json
 import math
 import os
+from fractions import Fraction
 from pathlib import Path
 import secrets
 import shutil
@@ -34,12 +35,17 @@ VAE_FILENAME = "seedvr2_ema_vae_fp16.safetensors"
 def _probe_image_dims_stdlib(path: Path) -> Tuple[int, int]:
     """Probe natural (width, height) from Pillow or PNG/JPEG/GIF/WebP headers."""
     try:
-        from PIL import Image  # type: ignore
-
-        with Image.open(path) as im:
-            return int(im.size[0]), int(im.size[1])
-    except Exception:
-        pass
+        from PIL import Image, ImageOps  # type: ignore
+    except ImportError:
+        Image = None
+    if Image is not None:
+        try:
+            with Image.open(path) as im:
+                im.load()
+                oriented = ImageOps.exif_transpose(im)
+                return int(oriented.width), int(oriented.height)
+        except Exception as exc:
+            raise ValueError("无法读取源图片，请重新上传有效的 PNG、JPEG 或 WebP 文件。") from exc
 
     try:
         with path.open("rb") as f:
@@ -92,13 +98,15 @@ def _probe_image_dims_stdlib(path: Path) -> Tuple[int, int]:
                     f.seek(seg_len - 2, os.SEEK_CUR)
     except Exception:
         pass
-    return 1024, 1024
+    raise ValueError("无法读取源图片尺寸，请重新上传有效的 PNG、JPEG 或 WebP 文件。")
 
 
 def _probe_video_meta(path: Path) -> Tuple[int, int, float, float, bool]:
     """Probe (width, height, duration_sec, fps, has_audio) via ffprobe if available."""
     ffprobe_bin = shutil.which("ffprobe")
-    if ffprobe_bin and path.is_file():
+    if not ffprobe_bin:
+        raise RuntimeError("未找到 ffprobe，无法读取视频信息；请先安装 ffmpeg 后重试。")
+    if path.is_file():
         try:
             proc = subprocess.run(
                 [
@@ -106,7 +114,7 @@ def _probe_video_meta(path: Path) -> Tuple[int, int, float, float, bool]:
                     "-v",
                     "error",
                     "-show_entries",
-                    "stream=codec_type,width,height,r_frame_rate,avg_frame_rate:format=duration",
+                    "stream=codec_type,width,height,r_frame_rate,avg_frame_rate,duration,nb_frames:stream_tags=rotate:stream_side_data=rotation:format=duration",
                     "-of",
                     "json",
                     str(path),
@@ -119,32 +127,54 @@ def _probe_video_meta(path: Path) -> Tuple[int, int, float, float, bool]:
             payload = json.loads(proc.stdout or "{}")
             streams = payload.get("streams") or []
             fmt = payload.get("format") or {}
-            width, height = 1280, 720
-            fps = 24.0
-            has_audio = False
-
-            for st in streams:
-                ctype = st.get("codec_type")
-                if ctype == "video" and width == 1280 and height == 720:
-                    if st.get("width") and st.get("height"):
-                        width = int(st["width"])
-                        height = int(st["height"])
-                    rate_str = st.get("avg_frame_rate") or st.get("r_frame_rate") or "24/1"
-                    if "/" in str(rate_str):
-                        num_s, den_s = str(rate_str).split("/", 1)
-                        num, den = float(num_s or 0), float(den_s or 1)
-                        if den > 0 and num > 0:
-                            fps = round(num / den, 3)
-                elif ctype == "audio":
-                    has_audio = True
-
-            dur = float(fmt.get("duration") or 0.0)
-            if dur <= 0.0:
-                dur = 4.0
-            return max(16, width), max(16, height), round(dur, 2), fps, has_audio
-        except Exception:
-            pass
-    return 1280, 720, 4.0, 24.0, True
+            video = next((st for st in streams if st.get("codec_type") == "video"), None)
+            if not video:
+                raise ValueError("文件中没有视频画面。")
+            width, height = int(video.get("width") or 0), int(video.get("height") or 0)
+            # Phone videos may store a landscape raster with a portrait display
+            # matrix. Match the orientation used by the browser and Comfy decoder.
+            rotations = [item.get("rotation") for item in video.get("side_data_list", [])]
+            rotations.append((video.get("tags") or {}).get("rotate"))
+            for raw_rotation in rotations:
+                try:
+                    rotation = float(raw_rotation)
+                    if not math.isfinite(rotation):
+                        continue
+                    if math.isclose(rotation % 180, 90, abs_tol=0.01):
+                        width, height = height, width
+                    break
+                except (TypeError, ValueError):
+                    continue
+            fps = 0.0
+            for rate in (video.get("avg_frame_rate"), video.get("r_frame_rate")):
+                try:
+                    candidate = float(Fraction(str(rate)))
+                    if math.isfinite(candidate) and candidate > 0:
+                        fps = candidate
+                        break
+                except (ValueError, ZeroDivisionError):
+                    continue
+            duration = 0.0
+            for raw_duration in (video.get("duration"), fmt.get("duration")):
+                try:
+                    candidate = float(raw_duration)
+                    if math.isfinite(candidate) and candidate > 0:
+                        duration = candidate
+                        break
+                except (TypeError, ValueError):
+                    continue
+            if duration <= 0 and fps > 0:
+                try:
+                    duration = float(video.get("nb_frames") or 0) / fps
+                except (TypeError, ValueError):
+                    pass
+            if min(width, height) < 2 or fps <= 0 or not math.isfinite(duration) or duration <= 0:
+                raise ValueError("视频缺少有效的画幅、帧率或时长。")
+            has_audio = any(st.get("codec_type") == "audio" for st in streams)
+            return width, height, duration, fps, has_audio
+        except Exception as exc:
+            raise ValueError("无法读取源视频，请重新上传可播放的 MP4、WebM、MOV 或 MKV 文件。") from exc
+    raise ValueError("源视频文件不存在，请重新上传。")
 
 
 def _write_fallback_png(dest: Path, width: int, height: int, seed: int) -> None:
@@ -196,8 +226,8 @@ def _render_mock_upscaled_image(
     """Upscale and sharpen the uploaded image in --mock mode so A/B wipe preview works authentically."""
     # Cap mock preview output at 2560px max edge to keep local preview fast (<250ms)
     scale_cap = min(1.0, 2560.0 / max(target_w, target_h))
-    out_w = align_even(round(target_w * scale_cap), minimum=64)
-    out_h = align_even(round(target_h * scale_cap), minimum=64)
+    out_w = align_even(round(target_w * scale_cap))
+    out_h = align_even(round(target_h * scale_cap))
 
     try:
         from PIL import Image, ImageEnhance, ImageFilter  # type: ignore
@@ -223,7 +253,7 @@ def _render_mock_upscaled_image(
                 upscaled.convert("RGB").save(dest, format="JPEG", quality=quality, subsampling=0)
             else:
                 upscaled.save(dest, format="PNG")
-            return target_w, target_h
+            return out_w, out_h
     except Exception:
         pass
 
@@ -250,12 +280,12 @@ def _render_mock_upscaled_image(
                 timeout=15,
             )
             if dest.is_file() and dest.stat().st_size > 0:
-                return target_w, target_h
+                return out_w, out_h
         except Exception:
             pass
 
     _write_fallback_png(dest, out_w, out_h, seed=seed)
-    return target_w, target_h
+    return _probe_image_dims_stdlib(dest)
 
 
 def _render_mock_upscaled_video(
@@ -270,13 +300,14 @@ def _render_mock_upscaled_video(
     start_time: float,
     duration: float,
     fps_override: float,
+    source_fps: float,
     seed: int,
 ) -> None:
     """Upscale and sharpen the uploaded video via ffmpeg in --mock mode (with synthetic fallback)."""
     ffmpeg_bin = shutil.which("ffmpeg")
     scale_cap = min(1.0, 1280.0 / max(target_w, target_h))
-    out_w = align_even(round(target_w * scale_cap), minimum=128)
-    out_h = align_even(round(target_h * scale_cap), minimum=128)
+    out_w = align_even(round(target_w * scale_cap))
+    out_h = align_even(round(target_h * scale_cap))
 
     if ffmpeg_bin:
         # 1) Try upscaling the real uploaded video first
@@ -291,16 +322,18 @@ def _render_mock_upscaled_video(
             cmd: List[str] = [ffmpeg_bin, "-y", "-hide_banner", "-loglevel", "error"]
             if trim_video and start_time > 0:
                 cmd.extend(["-ss", f"{start_time:.3f}"])
-            cmd.extend(["-i", str(src_path)])
             if trim_video and duration > 0:
                 cmd.extend(["-t", f"{min(duration, 10.0):.3f}"])
             else:
                 cmd.extend(["-t", "8.0"])
+            cmd.extend(["-i", str(src_path)])
 
             vf = f"scale={out_w}:{out_h}:flags=lanczos,unsharp=5:5:1.15:5:5:0.0"
             if fps_override > 0:
-                vf += f",fps={fps_override:.2f}"
+                vf += f",setpts={source_fps / fps_override:.9f}*PTS"
             cmd.extend(["-vf", vf])
+            if fps_override > 0:
+                cmd.extend(["-r", str(fps_override)])
 
             if fmt == "webm":
                 cmd.extend(["-c:v", "libvpx-vp9", "-b:v", "1400k", "-pix_fmt", "yuv420p"])
@@ -375,7 +408,12 @@ def _convert_or_copy_image(
     """Read actual output image dimensions and optionally transcode PNG -> WebP / JPEG."""
     try:
         from PIL import Image  # type: ignore
-
+    except ImportError as exc:
+        if fmt != "png":
+            raise RuntimeError("图片格式转换需要 Pillow，请安装后重试或选择 PNG 格式。") from exc
+        shutil.copy2(src_png, dest)
+        return _probe_image_dims_stdlib(src_png)
+    try:
         with Image.open(src_png) as img:
             w, h = img.size
             if fmt == "png":
@@ -385,9 +423,8 @@ def _convert_or_copy_image(
             else:
                 img.convert("RGB").save(dest, format="JPEG", quality=quality, subsampling=0)
             return int(w), int(h)
-    except Exception:
-        shutil.copy2(src_png, dest)
-        return _probe_image_dims_stdlib(src_png)
+    except Exception as exc:
+        raise RuntimeError(f"无法导出 {fmt.upper()} 图片，请重试或选择 PNG 格式。") from exc
 
 
 class SeedVR2Runner:
@@ -454,10 +491,24 @@ class SeedVR2Runner:
         *,
         actual_seed: int,
         staged_input_name: str,
+        target_dimensions: Optional[Tuple[int, int]] = None,
     ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str], str]:
         """Dynamically assemble the SeedVR2 operator graph for Image or Video Super-Resolution."""
         graph: Dict[str, Dict[str, Any]] = {}
         labels: Dict[str, str] = {}
+
+        def resize_inputs(source_ref: List[Any]) -> Dict[str, Any]:
+            if target_dimensions is None:
+                return self._build_resize_inputs(req, source_ref)
+            width, height = target_dimensions
+            return {
+                "input": source_ref,
+                "scale_method": req.upscale_interpolation,
+                "resize_type": "scale dimensions",
+                "resize_type.width": width,
+                "resize_type.height": height,
+                "resize_type.crop": req.crop_mode if req.sizing_mode == "dimensions" else "disabled",
+            }
 
         unet_name = UNET_7B_SHARP if req.model_variant == "7b_sharp" else UNET_3B_FAST
         model_title = "SeedVR2 7B Sharp FP16" if req.model_variant == "7b_sharp" else "SeedVR2 3B Fast FP16"
@@ -499,7 +550,7 @@ class SeedVR2Runner:
 
             graph["resize"] = {
                 "class_type": "ResizeImageMaskNode",
-                "inputs": self._build_resize_inputs(req, resize_src),
+                "inputs": resize_inputs(resize_src),
             }
             labels["resize"] = "按目标超分尺寸预插值放大"
 
@@ -612,7 +663,7 @@ class SeedVR2Runner:
 
         graph["resize"] = {
             "class_type": "ResizeImageMaskNode",
-            "inputs": self._build_resize_inputs(req, ["demux", 0]),
+            "inputs": resize_inputs(["demux", 0]),
         }
         labels["resize"] = "视频帧序列预放大"
 
@@ -775,15 +826,20 @@ class SeedVR2Runner:
             in_w, in_h = _probe_image_dims_stdlib(src_path)
             in_dur: Optional[float] = None
             in_fps: Optional[float] = None
-            src_has_audio = False
         else:
-            in_w, in_h, probed_dur, probed_fps, src_has_audio = _probe_video_meta(src_path)
+            in_w, in_h, probed_dur, probed_fps, _ = _probe_video_meta(src_path)
             if req.trim_video:
-                rem = max(0.1, probed_dur - req.start_time)
-                in_dur = round(min(rem, req.duration) if req.duration > 0 else rem, 2)
+                if req.start_time >= probed_dur:
+                    raise ValueError(f"截取起点必须早于视频结束时间（{probed_dur:.2f} 秒）。")
+                rem = probed_dur - req.start_time
+                in_dur = min(rem, req.duration) if req.duration > 0 else rem
             else:
                 in_dur = probed_dur
             in_fps = req.fps_override if req.fps_override > 0 else probed_fps
+            if not 1 <= in_fps <= 120:
+                raise ValueError("源视频帧率超出 1~120 FPS；请先转换为支持的帧率后上传。")
+            if req.fps_override > 0:
+                in_dur *= probed_fps / req.fps_override
 
         out_w, out_h = compute_target_dimensions(
             in_w,
@@ -795,7 +851,8 @@ class SeedVR2Runner:
             target_width=req.target_width,
             target_height=req.target_height,
         )
-        eff_scale = round(max(out_w / max(1, in_w), out_h / max(1, in_h)), 2)
+        if max(out_w, out_h) > 16384:
+            raise ValueError(f"目标尺寸 {out_w}×{out_h} 超出单边 16384 像素上限，请降低放大倍数或目标尺寸。")
 
         if req.mode == "video" and not req.split_latent and (out_w * out_h >= 2560 * 1440) and (in_dur or 0) > 6.0:
             warnings.append(
@@ -824,7 +881,7 @@ class SeedVR2Runner:
                     f"seedvr2_img_{req.model_variant}",
                     ext_map_img[req.image_output_format],
                 )
-                _render_mock_upscaled_image(
+                actual_w, actual_h = _render_mock_upscaled_image(
                     src_path,
                     dest,
                     target_w=out_w,
@@ -847,9 +904,9 @@ class SeedVR2Runner:
                     input_url=input_url,
                     input_width=in_w,
                     input_height=in_h,
-                    width=out_w,
-                    height=out_h,
-                    effective_scale=eff_scale,
+                    width=actual_w,
+                    height=actual_h,
+                    effective_scale=round(max(actual_w / in_w, actual_h / in_h), 2),
                     duration_sec=None,
                     fps=None,
                     has_audio=False,
@@ -883,8 +940,10 @@ class SeedVR2Runner:
                 start_time=req.start_time,
                 duration=req.duration,
                 fps_override=req.fps_override,
+                source_fps=probed_fps,
                 seed=actual_seed,
             )
+            actual_w, actual_h, actual_dur, actual_fps, actual_audio = _probe_video_meta(dest)
             return SeedVR2Result(
                 media_type="video",
                 mode="video",
@@ -898,12 +957,14 @@ class SeedVR2Runner:
                 input_url=input_url,
                 input_width=in_w,
                 input_height=in_h,
-                width=out_w,
-                height=out_h,
-                effective_scale=eff_scale,
-                duration_sec=in_dur,
-                fps=in_fps,
-                has_audio=bool(req.keep_audio and src_has_audio),
+                input_fps=probed_fps,
+                input_start_time=req.start_time if req.trim_video else 0.0,
+                width=actual_w,
+                height=actual_h,
+                effective_scale=round(max(actual_w / in_w, actual_h / in_h), 2),
+                duration_sec=actual_dur,
+                fps=actual_fps,
+                has_audio=actual_audio,
                 used_seed=actual_seed,
                 steps=req.steps,
                 cfg=req.cfg,
@@ -924,6 +985,7 @@ class SeedVR2Runner:
                 req,
                 actual_seed=actual_seed,
                 staged_input_name=staged_name,
+                target_dimensions=(out_w, out_h),
             )
 
             history_entry = self.comfy.run_prompt(
@@ -1022,6 +1084,8 @@ class SeedVR2Runner:
                 input_url=input_url,
                 input_width=in_w,
                 input_height=in_h,
+                input_fps=probed_fps,
+                input_start_time=req.start_time if req.trim_video else 0.0,
                 width=vid_w or out_w,
                 height=vid_h or out_h,
                 effective_scale=round(max((vid_w or out_w) / max(1, in_w), (vid_h or out_h) / max(1, in_h)), 2),

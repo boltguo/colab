@@ -37,6 +37,7 @@ import {
   useStudioFeedback,
 } from "@colab/shared";
 import { MarkdownBody } from "./MarkdownBody";
+import { buildChatMessages, buildOpenAiPayload, parseStopWords, parseToolsJson, readChatEvents } from "./chat";
 import {
   ChatAttachmentItem,
   ChatTurn,
@@ -114,6 +115,9 @@ export function QwenChatStudioApp() {
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const lightboxRef = useRef<HTMLDialogElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamingRef = useRef(false);
+  const uploadingRef = useRef(false);
+  const mountedRef = useRef(true);
   const lastCompositionEndRef = useRef<number | null>(null);
   const shouldStickBottomRef = useRef(true);
   const turnSeqRef = useRef(1);
@@ -128,6 +132,14 @@ export function QwenChatStudioApp() {
   const [draggingMedia, setDraggingMedia] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const nextId = (prefix: string) => {
     const id = `${prefix}-${turnSeqRef.current}`;
@@ -146,12 +158,14 @@ export function QwenChatStudioApp() {
   const handleToggleThinking = (enabled: boolean) => {
     setSampling((prev) => {
       const next = { ...prev, enable_thinking: enabled };
-      if (enabled && prev.temperature === 0.7 && prev.top_p === 0.8) {
-        next.temperature = 0.6;
+      if (enabled && prev.temperature === 0.7 && prev.top_p === 0.8 && prev.presence_penalty === 1.5) {
+        next.temperature = 1.0;
         next.top_p = 0.95;
-      } else if (!enabled && prev.temperature === 0.6 && prev.top_p === 0.95) {
+        next.presence_penalty = 0.0;
+      } else if (!enabled && prev.temperature === 1.0 && prev.top_p === 0.95 && prev.presence_penalty === 0.0) {
         next.temperature = 0.7;
         next.top_p = 0.8;
+        next.presence_penalty = 1.5;
       }
       return next;
     });
@@ -193,17 +207,27 @@ export function QwenChatStudioApp() {
 
   const handleUploadFiles = async (files: FileList | File[]) => {
     const list = Array.from(files);
-    if (!list.length) return;
+    if (!list.length || uploadingRef.current) return;
+    if (list.some((file) => !/\.(png|jpe?g|webp|gif|mp4|webm|mov|mkv)$/i.test(file.name))) {
+      message.warning("请选择支持的图片或视频文件。");
+      return;
+    }
+    if (list.some((file) => !file.size || file.size > 512 * 1024 * 1024)) {
+      message.warning("附件不能为空，单个文件需在 512 MB 以内。");
+      return;
+    }
     if (pendingAttachments.length + list.length > 12) {
       message.warning("单轮最多附加 12 个图片或视频文件。");
       return;
     }
 
+    uploadingRef.current = true;
     setUploadingCount((c) => c + list.length);
     try {
       for (const file of list) {
         try {
           const uploaded = await uploadMediaFile(file);
+          if (!mountedRef.current) return;
           const kind: "image" | "video" = isVideoFilenameOrMime(uploaded.filename, uploaded.content_type)
             ? "video"
             : "image";
@@ -223,54 +247,31 @@ export function QwenChatStudioApp() {
         }
       }
     } finally {
-      setUploadingCount((c) => Math.max(0, c - list.length));
+      uploadingRef.current = false;
+      if (mountedRef.current) setUploadingCount((c) => Math.max(0, c - list.length));
     }
   };
 
   const parseToolsSafe = useCallback((): { ok: true; tools?: unknown[] } | { ok: false; error: string } => {
-    const raw = sampling.tools_json.trim();
-    if (!raw) return { ok: true, tools: undefined };
     try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return { ok: false, error: "工具定义 (Tools JSON) 必须是 JSON 数组格式 `[...]`。" };
-      }
-      return { ok: true, tools: parsed };
+      return { ok: true, tools: parseToolsJson(sampling.tools_json) };
     } catch (err) {
-      return {
-        ok: false,
-        error: `Tools JSON 解析失败：${err instanceof Error ? err.message : String(err)}`,
-      };
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
   }, [sampling.tools_json]);
 
-  const parsedStops = useMemo(
-    () =>
-      sampling.stop_text
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .slice(0, 8),
-    [sampling.stop_text]
-  );
+  const parsedStops = useMemo(() => parseStopWords(sampling.stop_text), [sampling.stop_text]);
 
   const buildApiPayloadFromHistory = useCallback(
     (historyTurns: ChatTurn[], toolsOverride?: unknown[]) => {
-      const messages = historyTurns.map((t) => ({
-        role: t.role,
-        content: t.content,
-        attachments: (t.attachments || []).map((a) => ({
-          kind: a.kind,
-          file_id: a.fileId,
-          filename: a.filename,
-        })),
-      }));
+      const messages = buildChatMessages(historyTurns);
       return {
         model: "qwen3.8-27b",
         system_prompt: sampling.system_prompt,
         messages,
         enable_thinking: sampling.enable_thinking,
         reasoning_effort: sampling.reasoning_effort,
+        preserve_thinking: sampling.preserve_thinking,
         max_tokens: sampling.max_tokens,
         temperature: sampling.temperature,
         top_p: sampling.top_p,
@@ -292,12 +293,18 @@ export function QwenChatStudioApp() {
 
   const streamConversation = useCallback(
     async (historyWithUser: ChatTurn[]) => {
+      if (streamingRef.current) return;
       const toolsCheck = parseToolsSafe();
       if (!toolsCheck.ok) {
         message.error(toolsCheck.error);
         return;
       }
 
+      if (parsedStops.length > 8) {
+        message.error("最多支持 8 个停止词，请删减后再发送。");
+        return;
+      }
+      streamingRef.current = true;
       const assistantId = nextId("asst");
       const assistantPlaceholder: ChatTurn = {
         id: assistantId,
@@ -344,99 +351,45 @@ export function QwenChatStudioApp() {
           throw new Error(errMsg);
         }
 
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          let boundary = buffer.indexOf("\n\n");
-          while (boundary !== -1) {
-            const rawEvent = buffer.slice(0, boundary).trim();
-            buffer = buffer.slice(boundary + 2);
-            boundary = buffer.indexOf("\n\n");
-
-            if (!rawEvent) continue;
-            for (const line of rawEvent.split("\n")) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data:")) continue;
-              const jsonStr = trimmed.slice(5).trim();
-              if (!jsonStr || jsonStr === "[DONE]") continue;
-
-              let evt: Record<string, unknown>;
-              try {
-                evt = JSON.parse(jsonStr) as Record<string, unknown>;
-              } catch {
-                continue;
-              }
-
-              if (evt.type === "error") {
-                const errText = String(evt.error || "推理出错");
-                setTurns((prev) =>
-                  prev.map((t) =>
-                    t.id === assistantId
-                      ? { ...t, error: errText, streaming: false, thinkingActive: false }
-                      : t
-                  )
-                );
-                break;
-              }
-
-              if (evt.type === "delta") {
-                const rDelta = String(evt.reasoning || "");
-                const cDelta = String(evt.content || "");
-                const tcDelta = Array.isArray(evt.tool_calls)
-                  ? (evt.tool_calls as ToolCallItem[])
-                  : undefined;
-
-                setTurns((prev) =>
-                  prev.map((t) => {
-                    if (t.id !== assistantId) return t;
-                    const nextReason = (t.reasoningContent || "") + rDelta;
-                    const nextContent = t.content + cDelta;
-                    return {
-                      ...t,
-                      reasoningContent: nextReason,
-                      content: nextContent,
-                      toolCalls: tcDelta || t.toolCalls,
-                      thinkingActive: Boolean(nextReason && !nextContent && !tcDelta),
-                    };
-                  })
-                );
-              } else if (evt.type === "usage") {
-                setTurns((prev) =>
-                  prev.map((t) =>
-                    t.id === assistantId
-                      ? {
-                          ...t,
-                          usage: {
-                            promptTokens: Number(evt.prompt_tokens || 0),
-                            completionTokens: Number(evt.completion_tokens || 0),
-                            totalTokens: Number(evt.total_tokens || 0),
-                            thinkingSec: Number(evt.thinking_sec || 0),
-                            elapsedSec: Number(evt.elapsed_sec || 0),
-                            tokensPerSec: Number(evt.tokens_per_sec || 0),
-                            mock: Boolean(evt.mock),
-                          },
-                        }
-                      : t
-                  )
-                );
-              } else if (evt.type === "done") {
-                setTurns((prev) =>
-                  prev.map((t) =>
-                    t.id === assistantId
-                      ? { ...t, streaming: false, thinkingActive: false }
-                      : t
-                  )
-                );
-              }
-            }
+        let completed = false;
+        for await (const evt of readChatEvents(resp.body)) {
+          if (evt.type === "error") throw new Error(String(evt.error || "推理出错"));
+          if (evt.type === "delta") {
+            const rDelta = String(evt.reasoning || "");
+            const cDelta = String(evt.content || "");
+            const tcDelta = Array.isArray(evt.tool_calls) ? evt.tool_calls as ToolCallItem[] : undefined;
+            setTurns((prev) => prev.map((turn) => {
+              if (turn.id !== assistantId) return turn;
+              const reasoningContent = (turn.reasoningContent || "") + rDelta;
+              const content = turn.content + cDelta;
+              return {
+                ...turn, reasoningContent, content,
+                toolCalls: tcDelta || turn.toolCalls,
+                thinkingActive: Boolean(reasoningContent && !content && !tcDelta),
+              };
+            }));
+          } else if (evt.type === "usage") {
+            setTurns((prev) => prev.map((turn) => turn.id === assistantId ? {
+              ...turn,
+              usage: {
+                promptTokens: Number(evt.prompt_tokens || 0),
+                completionTokens: Number(evt.completion_tokens || 0),
+                totalTokens: Number(evt.total_tokens || 0),
+                thinkingSec: Number(evt.thinking_sec || 0),
+                elapsedSec: Number(evt.elapsed_sec || 0),
+                tokensPerSec: Number(evt.tokens_per_sec || 0),
+                mock: Boolean(evt.mock),
+              },
+            } : turn));
+          } else if (evt.type === "done") {
+            completed = true;
+            setTurns((prev) => prev.map((turn) => turn.id === assistantId ? {
+              ...turn, finishReason: String(evt.finish_reason || "stop"),
+            } : turn));
+            break;
           }
         }
+        if (!completed) throw new Error("连接提前中断，回复可能不完整。可点击“重新生成”重试。");
 
         setTurns((prev) =>
           prev.map((t) =>
@@ -452,7 +405,7 @@ export function QwenChatStudioApp() {
                     ...t,
                     streaming: false,
                     thinkingActive: false,
-                    content: t.content || "（已手动停止生成）",
+                    stopped: true,
                   }
                 : t
             )
@@ -466,19 +419,29 @@ export function QwenChatStudioApp() {
                 : t
             )
           );
-          message.error(errMsg);
+          if (mountedRef.current) message.error(errMsg);
         }
       } finally {
         abortControllerRef.current = null;
-        setIsStreaming(false);
+        streamingRef.current = false;
+        if (mountedRef.current) setIsStreaming(false);
       }
     },
-    [buildApiPayloadFromHistory, message, parseToolsSafe, sampling.enable_thinking]
+    [buildApiPayloadFromHistory, message, parseToolsSafe, parsedStops.length, sampling.enable_thinking]
   );
 
   const handleSendSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isStreaming || uploadingCount > 0) return;
+    if (streamingRef.current || uploadingRef.current) return;
+    const toolsCheck = parseToolsSafe();
+    if (!toolsCheck.ok) {
+      message.error(toolsCheck.error);
+      return;
+    }
+    if (parsedStops.length > 8) {
+      message.error("最多支持 8 个停止词，请删减后再发送。");
+      return;
+    }
 
     const trimmed = inputText.trim();
     if (!trimmed && pendingAttachments.length === 0) {
@@ -515,7 +478,12 @@ export function QwenChatStudioApp() {
   };
 
   const handleResetSampling = () => {
-    setSampling(DEFAULT_QWEN_SAMPLING);
+    setSampling((previous) => ({
+      ...DEFAULT_QWEN_SAMPLING,
+      system_prompt: previous.system_prompt,
+      tools_json: previous.tools_json,
+      tool_choice: previous.tool_choice,
+    }));
     message.success("已恢复推荐采样参数");
   };
 
@@ -536,12 +504,18 @@ export function QwenChatStudioApp() {
     return null;
   }, [turns]);
 
+  const sampleTurns = useMemo<ChatTurn[]>(() => {
+    if (inputText.trim() || pendingAttachments.length) {
+      return [...turns, { id: "draft", role: "user", content: inputText.trim(), attachments: pendingAttachments }];
+    }
+    const requestTurns = turns.at(-1)?.role === "assistant" ? turns.slice(0, -1) : turns;
+    return requestTurns.length ? requestTurns : [{ id: "sample", role: "user", content: "你好，请简要介绍你自己。" }];
+  }, [inputText, pendingAttachments, turns]);
+
   const sampleRequestBody = useMemo(() => {
-    const sampleTurns: ChatTurn[] = turns.length
-      ? turns
-      : [{ id: "sample", role: "user", content: inputText.trim() || "请简要介绍 Qwen3.8-27B 的核心多模态与长上下文特性。" }];
-    return buildApiPayloadFromHistory(sampleTurns) as unknown as Record<string, unknown>;
-  }, [buildApiPayloadFromHistory, inputText, turns]);
+    const parsed = parseToolsSafe();
+    return buildApiPayloadFromHistory(sampleTurns, parsed.ok ? parsed.tools : undefined) as unknown as Record<string, unknown>;
+  }, [buildApiPayloadFromHistory, parseToolsSafe, sampleTurns]);
 
   const renderCustomApiTabs = useCallback(
     ({ origin, savedKey, authRequired, copyText }: StudioCustomApiTabContext) => {
@@ -559,75 +533,53 @@ export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 
 claude --model qwen3.8-27b`;
 
-      const sysLine = sampling.system_prompt.trim()
-        ? `        {"role": "system", "content": ${JSON.stringify(sampling.system_prompt.trim())}},\n`
-        : "";
-      const effortLine = sampling.enable_thinking
-        ? `        "reasoning_effort": "${sampling.reasoning_effort}",\n`
-        : "";
-
-      const openaiPySnippet = `from openai import OpenAI
+      let requestPayload: Record<string, unknown>;
+      try {
+        requestPayload = {
+          ...buildOpenAiPayload(sampling, sampleTurns),
+          stream: true,
+          stream_options: { include_usage: true },
+        };
+      } catch (err) {
+        return [{
+          key: "validation", label: "参数检查",
+          children: <Alert type="warning" showIcon message={err instanceof Error ? err.message : String(err)} />,
+        }];
+      }
+      const payloadJson = JSON.stringify(requestPayload, null, 2);
+      const openaiPySnippet = `import json
+from openai import OpenAI
 
 client = OpenAI(
-    base_url="${origin}/v1",
-    api_key="${effectiveKey}",
+    base_url=${JSON.stringify(`${origin}/v1`)},
+    api_key=${JSON.stringify(effectiveKey)},
 )
 
-stream = client.chat.completions.create(
-    model="qwen3.8-27b",
-    messages=[
-${sysLine}        {"role": "user", "content": "请分析这段代码的时间复杂度并给出优化方案"},
-    ],
-    max_tokens=${sampling.max_tokens},
-    temperature=${sampling.temperature},
-    top_p=${sampling.top_p},
-    presence_penalty=${sampling.presence_penalty},
-    frequency_penalty=${sampling.frequency_penalty},
-    stream=True,
-    extra_body={
-        "top_k": ${sampling.top_k},
-        "min_p": ${sampling.min_p},
-        "repetition_penalty": ${sampling.repetition_penalty},
-${effortLine}        "chat_template_kwargs": {"enable_thinking": ${sampling.enable_thinking ? "True" : "False"}},
-    },
-)
+# 当前问题、附件、采样参数、JSON 模式和工具配置均已带入。
+# upload: 引用只在当前 Colab 实例中有效。
+payload = json.loads(${JSON.stringify(payloadJson)})
+extra_keys = ("top_k", "min_p", "repetition_penalty", "chat_template_kwargs")
+extra_body = {key: payload.pop(key) for key in extra_keys if key in payload}
+stream = client.chat.completions.create(**payload, extra_body=extra_body)
 
 for chunk in stream:
     if not chunk.choices:
         continue
     delta = chunk.choices[0].delta
-    reasoning = getattr(delta, "reasoning_content", None)
+    reasoning = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
     if reasoning:
         print(reasoning, end="", flush=True)
     if delta.content:
-        print(delta.content, end="", flush=True)`;
+        print(delta.content, end="", flush=True)
+    if delta.tool_calls:
+        print(delta.tool_calls)`;
 
-      const curlPayload = JSON.stringify(
-        {
-          model: "qwen3.8-27b",
-          messages: [
-            ...(sampling.system_prompt.trim()
-              ? [{ role: "system", content: sampling.system_prompt.trim() }]
-              : []),
-            { role: "user", content: "你好，请用一句话介绍你自己。" },
-          ],
-          max_tokens: sampling.max_tokens,
-          temperature: sampling.temperature,
-          top_p: sampling.top_p,
-          top_k: sampling.top_k,
-          chat_template_kwargs: { enable_thinking: sampling.enable_thinking },
-          ...(sampling.enable_thinking ? { reasoning_effort: sampling.reasoning_effort } : {}),
-        },
-        null,
-        2
-      );
-
-      const curlSnippet = `# 1. OpenAI 兼容接口 (/v1/chat/completions)
-curl -X POST "${origin}/v1/chat/completions" \\
+      const curlSnippet = `# 流式调用；参数与当前工作台一致
+curl -N -X POST "${origin}/v1/chat/completions" \\
   -H "Content-Type: application/json" \\
-${authHeaderCurl}  -d '${curlPayload.replace(/'/g, "'\\''")}'
+${authHeaderCurl}  -d '${payloadJson.replace(/'/g, "'\\''")}'
 
-# 2. 查询在线模型与最大上下文 (/v1/models)
+# 查询在线模型
 curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bearer ${effectiveKey}"` : ""}`;
 
       return [
@@ -702,7 +654,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
         },
       ];
     },
-    [sampling]
+    [sampling, sampleTurns]
   );
 
   // ---------------------------------------------------------------------------
@@ -835,9 +787,8 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                   )}
 
                   {/* Error or Content */}
-                  {turn.error ? (
-                    <Alert type="error" showIcon message={turn.error} />
-                  ) : turn.role === "assistant" ? (
+                  {turn.error && <Alert type="error" showIcon message={turn.error} />}
+                  {turn.role === "assistant" ? (
                     turn.content ? (
                       <MarkdownBody text={turn.content} />
                     ) : turn.streaming && !turn.thinkingActive ? (
@@ -870,6 +821,8 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
 
                 {/* Subtle Per-Message Metadata & Actions */}
                 <div className="studio-chat-meta-row studio-tabular">
+                  {turn.stopped && <span>已停止生成</span>}
+                  {turn.finishReason === "length" && <span>已达输出长度上限，可增加 Max Tokens 后重新生成</span>}
                   {turn.usage && (
                     <span>
                       输入 {turn.usage.promptTokens} · 输出 {turn.usage.completionTokens} tokens ·{" "}
@@ -1019,7 +972,6 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
               if (e.nativeEvent.isComposing || e.keyCode === 229) {
                 return;
               }
@@ -1029,6 +981,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               ) {
                 return;
               }
+              e.preventDefault();
               formRef.current?.requestSubmit();
             }
           }}
@@ -1165,6 +1118,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               <Switch
                 size="small"
                 checked={sampling.enable_thinking}
+                aria-label="开启深度思考"
                 onChange={handleToggleThinking}
               />
             </div>
@@ -1181,8 +1135,17 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                 options={[
                   { label: "低 Low", value: "low" },
                   { label: "中 Med", value: "medium" },
-                  { label: "高 High", value: "high" },
+                  { label: "高 XHigh", value: "xhigh" },
                 ]}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12.5 }}>保留历史思考（官方默认）</Text>
+              <Switch
+                size="small"
+                aria-label="保留历史思考"
+                checked={sampling.preserve_thinking}
+                onChange={(checked) => updateSampling("preserve_thinking", checked)}
               />
             </div>
           </div>
@@ -1217,7 +1180,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             <div style={{ display: "grid", gridTemplateColumns: "1fr 98px", gap: 10, alignItems: "center" }}>
               <Slider
                 min={256}
-                max={65536}
+                max={131072}
                 step={256}
                 value={sampling.max_tokens}
                 onChange={(v) => updateSampling("max_tokens", v)}
@@ -1240,7 +1203,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             <div className="studio-field-label">
               <span>
                 采样温度 (Temperature){" "}
-                <Tooltip title="思考模式官方推荐 0.60；非思考直出模式推荐 0.70。设为 0 为确定性贪婪解码。">
+                <Tooltip title="Qwen3.8 思考模式官方推荐温度 1.0；非思考模式推荐温度 0.7、Top-P 0.8、Presence Penalty 1.5。设为 0 为贪婪解码。">
                   <span style={{ color: "var(--studio-text-muted)", cursor: "help" }}>ⓘ</span>
                 </Tooltip>
               </span>
@@ -1262,7 +1225,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                 className="studio-tabular"
                 style={{ inlineSize: "100%" }}
                 value={sampling.temperature}
-                onChange={(v) => updateSampling("temperature", Number(v ?? 0.6))}
+                onChange={(v) => updateSampling("temperature", Number(v ?? 1.0))}
               />
             </div>
           </div>
@@ -1275,9 +1238,9 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 84px", gap: 10, alignItems: "center" }}>
               <Slider
-                min={0.05}
+                min={0.01}
                 max={1}
-                step={0.05}
+                step={0.01}
                 value={sampling.top_p}
                 onChange={(v) => updateSampling("top_p", v)}
               />
@@ -1297,13 +1260,13 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
           {/* Top-K */}
           <div className="studio-field-group">
             <div className="studio-field-label">
-              <span>候选词截断 (Top-K，-1 为不限)</span>
+              <span>候选词截断 (Top-K，0 / -1 为不限)</span>
               <span className="studio-tabular">{sampling.top_k}</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 84px", gap: 10, alignItems: "center" }}>
               <Slider
                 min={-1}
-                max={200}
+                max={500}
                 step={1}
                 value={sampling.top_k}
                 onChange={(v) => updateSampling("top_k", v)}
@@ -1441,6 +1404,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               </div>
 
               <div className="studio-field-group">
+                <Text type="secondary" style={{ fontSize: 12 }}>工具调用仅用于预览与调试，不会自动执行。</Text>
                 <div className="studio-field-label">
                   <span style={{ fontSize: 12 }}>工具定义 (Tools JSON，OpenAI 数组格式)</span>
                   <Select
