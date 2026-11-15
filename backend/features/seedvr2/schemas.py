@@ -118,7 +118,7 @@ class SeedVR2GenerateRequest(BaseModel):
         default=2.0,
         ge=1.0,
         le=8.0,
-        description="放大倍数（sizing_mode='multiplier' 时生效，视频推荐 2.0x，图片推荐 4.0x 真 4K）",
+        description="放大倍数（sizing_mode='multiplier' 时生效；实际尺寸由源尺寸乘倍数决定，4x 不等于固定 4K）",
     )
     target_shorter_edge: int = Field(
         default=1440,
@@ -168,9 +168,9 @@ class SeedVR2GenerateRequest(BaseModel):
     )
     frames_per_chunk: int = Field(
         default=21,
-        ge=5,
+        ge=1,
         le=257,
-        description="手动每块像素帧数（自动对齐至 4n + 1，如 9、13、17、21、25、33、49）",
+        description="手动每块像素帧数（自动对齐至 4n + 1，支持 1、5、9、13…257）",
     )
     temporal_overlap: int = Field(
         default=2,
@@ -198,7 +198,7 @@ class SeedVR2GenerateRequest(BaseModel):
     )
     keep_audio: bool = Field(
         default=True,
-        description="视频超分后是否无损保留原视频音轨（仅视频模式生效）",
+        description="视频超分后是否保留原声（仅视频模式生效；解码后随成片重新编码，不保证音频位流无损）",
     )
     fps_override: float = Field(
         default=0.0,
@@ -212,7 +212,7 @@ class SeedVR2GenerateRequest(BaseModel):
         default=1,
         ge=1,
         le=20,
-        description="扩散修复步数（SeedVR2 原生为 1 步对抗蒸馏极速修复，默认 1 步即可达到最佳锐度）",
+        description="扩散修复步数（SeedVR2 原生为 1 步对抗蒸馏；多步属于实验设置，不保证改善质量）",
     )
     cfg: float = Field(
         default=1.0,
@@ -278,7 +278,7 @@ class SeedVR2GenerateRequest(BaseModel):
     )
     image_output_format: ImageOutputFormat = Field(
         default="png",
-        description="图片超分导出格式：png（无损真 4K）| webp | jpeg",
+        description="图片超分导出格式：png（无损编码）| webp | jpeg；实际尺寸由放大策略决定",
     )
     image_quality: int = Field(
         default=94,

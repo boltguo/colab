@@ -109,7 +109,7 @@ test("API payload includes every configured sampling control and current media r
 
 test("Non-thinking mode omits reasoning effort, random seed and unused tool controls", () => {
   const payload = buildOpenAiPayload({ ...DEFAULT_QWEN_SAMPLING, enable_thinking: false }, [user]);
-  assert.deepEqual(payload.chat_template_kwargs, { enable_thinking: false });
+  assert.deepEqual(payload.chat_template_kwargs, { enable_thinking: false, preserve_thinking: true });
   for (const key of ["reasoning_effort", "seed", "tools", "tool_choice", "response_format"]) {
     assert.equal(key in payload, false, key);
   }
@@ -117,6 +117,19 @@ test("Non-thinking mode omits reasoning effort, random seed and unused tool cont
 
 test("More than eight stop words are rejected instead of silently truncated", () => {
   assert.throws(() => buildOpenAiPayload({ ...DEFAULT_QWEN_SAMPLING, stop_text: "a,b,c,d,e,f,g,h,i" }, [user]), /8/);
+});
+
+test("Qwen3.8 uses official xhigh defaults and exports preserved reasoning history", () => {
+  assert.equal(DEFAULT_QWEN_SAMPLING.reasoning_effort, "xhigh");
+  assert.equal(DEFAULT_QWEN_SAMPLING.temperature, 1.0);
+  const history = [user, { id: "answer", role: "assistant", content: "答案", reasoningContent: "模型返回的历史思考" }];
+  for (const preserve_thinking of [true, false]) {
+    const payload = buildOpenAiPayload({ ...DEFAULT_QWEN_SAMPLING, preserve_thinking }, history);
+    assert.equal(payload.chat_template_kwargs.preserve_thinking, preserve_thinking);
+    assert.equal(payload.reasoning_effort, "xhigh");
+    assert.equal(payload.messages[1].reasoning_content, "模型返回的历史思考");
+    assert.equal(buildChatMessages(history)[1].reasoning_content, "模型返回的历史思考");
+  }
 });
 
 test("History preserves tool-call previews without inventing executed tool responses", () => {

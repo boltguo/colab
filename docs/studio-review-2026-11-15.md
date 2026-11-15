@@ -41,8 +41,15 @@
 
 IndexTTS 主权重沿用固定 revision，但官方初始化还会下载部分辅助模型。完整辅助权重清单的锁定不在这次适度优化范围内。
 
+## MiniMax-H3 能力规格更正
+
+- 对照官方 H3 模型说明与固定版本 ComfyUI 节点，参考上限改为 9 张图片、3 段视频、3 段独立音频，混合输入最多 12 个文件；视频自带原声不另计文件数。前端槽位、提交校验与 Pydantic 限制同步更新。
+- 当前只接入 H3-Base 原生 768p，移除未经实现的 `1080p` 档位与 API 预设。保留 `540p` 低清试跑和底层实验性画布控制，并明确它们不执行 `H3-Regenerate-2K` 或超分。
+- 新增单模态及混合数量边界、最高编号参考节点透传和 API 拒绝未实现分辨率的回归检查；README 与笔记本说明同步更正，笔记本由模板生成。
+
 ## 核对依据
 
+- [MiniMax-H3 官方规格](https://github.com/MiniMax-AI/MiniMax-H3#system-overview)：H3-Base 768p、H3-Regenerate-2K 与 9 图 / 3 视频 / 3 音频 / 总计 12 文件。
 - [ComfyUI 固定版本](https://github.com/Comfy-Org/ComfyUI/tree/423cbd20511becb1f16122ab518e92e58bfa03d9)：`nodes_minimax_h3.py`、`nodes_qwen.py`、`nodes_seedvr.py`、`nodes_video.py` 及视频旋转处理。
 - [IndexTTS 固定推理源码](https://github.com/index-tts/index-tts/blob/d9e41aac89fd00b3d71497fddb287b7f24613712/indextts/infer_v2_5.py)：模型生命周期、采样与运行时参数。
 - [vLLM 0.32.0 采样参数](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/sampling_params.py)：Top-K=0/-1 等参数语义。

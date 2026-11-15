@@ -158,12 +158,14 @@ export function QwenChatStudioApp() {
   const handleToggleThinking = (enabled: boolean) => {
     setSampling((prev) => {
       const next = { ...prev, enable_thinking: enabled };
-      if (enabled && prev.temperature === 0.7 && prev.top_p === 0.8) {
-        next.temperature = 0.6;
+      if (enabled && prev.temperature === 0.7 && prev.top_p === 0.8 && prev.presence_penalty === 1.5) {
+        next.temperature = 1.0;
         next.top_p = 0.95;
-      } else if (!enabled && prev.temperature === 0.6 && prev.top_p === 0.95) {
+        next.presence_penalty = 0.0;
+      } else if (!enabled && prev.temperature === 1.0 && prev.top_p === 0.95 && prev.presence_penalty === 0.0) {
         next.temperature = 0.7;
         next.top_p = 0.8;
+        next.presence_penalty = 1.5;
       }
       return next;
     });
@@ -269,6 +271,7 @@ export function QwenChatStudioApp() {
         messages,
         enable_thinking: sampling.enable_thinking,
         reasoning_effort: sampling.reasoning_effort,
+        preserve_thinking: sampling.preserve_thinking,
         max_tokens: sampling.max_tokens,
         temperature: sampling.temperature,
         top_p: sampling.top_p,
@@ -1132,8 +1135,17 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                 options={[
                   { label: "低 Low", value: "low" },
                   { label: "中 Med", value: "medium" },
-                  { label: "高 High", value: "high" },
+                  { label: "高 XHigh", value: "xhigh" },
                 ]}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12.5 }}>保留历史思考（官方默认）</Text>
+              <Switch
+                size="small"
+                aria-label="保留历史思考"
+                checked={sampling.preserve_thinking}
+                onChange={(checked) => updateSampling("preserve_thinking", checked)}
               />
             </div>
           </div>
@@ -1191,7 +1203,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             <div className="studio-field-label">
               <span>
                 采样温度 (Temperature){" "}
-                <Tooltip title="思考模式官方推荐 0.60；非思考直出模式推荐 0.70。设为 0 为确定性贪婪解码。">
+                <Tooltip title="Qwen3.8 思考模式官方推荐温度 1.0；非思考模式推荐温度 0.7、Top-P 0.8、Presence Penalty 1.5。设为 0 为贪婪解码。">
                   <span style={{ color: "var(--studio-text-muted)", cursor: "help" }}>ⓘ</span>
                 </Tooltip>
               </span>
@@ -1213,7 +1225,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                 className="studio-tabular"
                 style={{ inlineSize: "100%" }}
                 value={sampling.temperature}
-                onChange={(v) => updateSampling("temperature", Number(v ?? 0.6))}
+                onChange={(v) => updateSampling("temperature", Number(v ?? 1.0))}
               />
             </div>
           </div>

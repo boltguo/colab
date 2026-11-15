@@ -25,6 +25,8 @@ export function buildChatMessages(turns: ChatTurn[]) {
     turn.role === "user" || turn.content || turn.toolCalls?.length
   )).map((turn) => ({
     role: turn.role,
+    ...(turn.role === "assistant" && turn.reasoningContent
+      ? { reasoning_content: turn.reasoningContent } : {}),
     // The workbench previews tool calls; it does not execute functions or
     // fabricate tool results. Preserve this information as ordinary context.
     content: turn.content + (turn.toolCalls?.length
@@ -45,6 +47,7 @@ export function buildOpenAiPayload(sampling: QwenSamplingConfig, turns: ChatTurn
   if (stops.length > 8) throw new Error("最多支持 8 个停止词，请删减后再发送。");
   const messages: Record<string, unknown>[] = buildChatMessages(turns).map((turn) => ({
     role: turn.role,
+    ...(turn.reasoning_content ? { reasoning_content: turn.reasoning_content } : {}),
     content: turn.attachments.length ? [
       ...turn.attachments.map((attachment) => attachment.kind === "video"
         ? { type: "video_url", video_url: { url: `upload:${attachment.file_id}` } }
@@ -64,7 +67,10 @@ export function buildOpenAiPayload(sampling: QwenSamplingConfig, turns: ChatTurn
     presence_penalty: sampling.presence_penalty,
     frequency_penalty: sampling.frequency_penalty,
     repetition_penalty: sampling.repetition_penalty,
-    chat_template_kwargs: { enable_thinking: sampling.enable_thinking },
+    chat_template_kwargs: {
+      enable_thinking: sampling.enable_thinking,
+      preserve_thinking: sampling.preserve_thinking,
+    },
     ...(sampling.enable_thinking ? { reasoning_effort: sampling.reasoning_effort } : {}),
     ...(sampling.seed !== null ? { seed: sampling.seed } : {}),
     ...(stops.length ? { stop: stops } : {}),

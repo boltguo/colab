@@ -15,6 +15,77 @@ from backend.features.minimax_h3.schemas import MiniMaxH3GenerateRequest
 
 
 class MiniMaxRequestTests(unittest.TestCase):
+    def test_base_model_does_not_advertise_an_unimplemented_hd_tier(self):
+        self.assertEqual(MiniMaxH3GenerateRequest(prompt="镜头").resolution_tier, "768p")
+        with self.assertRaises(ValidationError):
+            MiniMaxH3GenerateRequest(prompt="镜头", resolution_tier="1080p")
+        # The engine's explicit canvas controls remain available as experimental sizes.
+        custom = MiniMaxH3GenerateRequest(
+            prompt="镜头", resolution_tier="custom", aspect_ratio="custom", width=1920, height=1088,
+        )
+        self.assertEqual((custom.width, custom.height), (1920, 1088))
+
+    def test_official_reference_limits_are_available_per_modality(self):
+        for name, limit, make_item in (
+            ("ref_images", 9, lambda i: f"image-{i}.png"),
+            ("ref_videos", 3, lambda i: {"file_id": f"video-{i}.mp4"}),
+            ("ref_audios", 3, lambda i: f"audio-{i}.wav"),
+        ):
+            refs = [make_item(i) for i in range(limit)]
+            with self.subTest(name=name):
+                request = MiniMaxH3GenerateRequest(mode="r2v", prompt="参考", **{name: refs})
+                self.assertEqual(len(getattr(request, name)), limit)
+                with self.assertRaises(ValidationError):
+                    MiniMaxH3GenerateRequest(mode="r2v", prompt="参考", **{name: refs + [make_item(limit)]})
+
+    def test_mixed_references_share_a_twelve_file_budget(self):
+        videos = [{"file_id": f"video-{i}.mp4", "use_video_audio": True} for i in range(3)]
+        request = MiniMaxH3GenerateRequest(
+            mode="r2v", prompt="参考", ref_images=[f"image-{i}.png" for i in range(6)],
+            ref_videos=videos, ref_audios=[f"audio-{i}.wav" for i in range(3)],
+        )
+        self.assertEqual(len(request.ref_images) + len(request.ref_videos) + len(request.ref_audios), 12)
+        with self.assertRaisesRegex(ValidationError, "合计最多 12 个文件"):
+            MiniMaxH3GenerateRequest(
+                mode="r2v", prompt="参考", ref_images=[f"image-{i}.png" for i in range(7)],
+                ref_videos=videos, ref_audios=[f"audio-{i}.wav" for i in range(3)],
+            )
+        # A video's embedded soundtrack is part of that file, not a thirteenth upload.
+        full = MiniMaxH3GenerateRequest(
+            mode="r2v", prompt="参考", ref_images=[f"image-{i}.png" for i in range(9)], ref_videos=videos,
+        )
+        self.assertEqual(len(full.ref_images), 9)
+
+    def test_graph_forwards_highest_reference_slots_without_truncation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            runner = MiniMaxH3Runner(MediaStorage(root), root, mock_mode=True)
+            for image_count, audio_count in ((9, 0), (6, 3)):
+                with self.subTest(images=image_count, audios=audio_count):
+                    images = [f"image-{i}.png" for i in range(image_count)]
+                    videos = [(f"video-{i}.mp4", True) for i in range(3)]
+                    audios = [f"audio-{i}.wav" for i in range(audio_count)]
+                    request = MiniMaxH3GenerateRequest(
+                        mode="r2v", prompt="参考", ref_images=images,
+                        ref_videos=[{"file_id": name, "use_video_audio": keep} for name, keep in videos],
+                        ref_audios=audios,
+                    )
+                    graph, _, _ = runner._build_comfy_graph(
+                        request, actual_seed=42, canvas_w=1344, canvas_h=768, aligned_frames=124,
+                        turbo_lora_filename=None, resolved_loras=[], staged_first_frame=None,
+                        staged_last_frame=None, staged_guide_image=None, staged_guide_audio=None,
+                        staged_ref_images=images, staged_ref_videos=videos, staged_ref_audios=audios,
+                    )
+                    inputs = graph["cond_pos"]["inputs"]
+                    for i, name in enumerate(images):
+                        self.assertEqual(inputs[f"ref_images.ref_image_{i}"], [f"load_ref_img_{i}", 0])
+                        self.assertEqual(graph[f"load_ref_img_{i}"]["inputs"]["image"], name)
+                    self.assertEqual(inputs["ref_videos.ref_video_2"], ["split_ref_vid_2", 0])
+                    self.assertEqual(inputs["ref_video_audios.ref_video_audio_2"], ["split_ref_vid_2", 1])
+                    for i, name in enumerate(audios):
+                        self.assertEqual(inputs[f"ref_audios.ref_audio_{i}"], [f"load_ref_aud_{i}", 0])
+                        self.assertEqual(graph[f"load_ref_aud_{i}"]["inputs"]["audio"], name)
+
     def test_generated_audio_requires_native_fps(self):
         with self.assertRaisesRegex(ValidationError, "24 fps"):
             MiniMaxH3GenerateRequest(prompt="对白", fps=30)

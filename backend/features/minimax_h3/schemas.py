@@ -4,7 +4,7 @@ from typing import Dict, List, Literal, Optional, Tuple
 from pydantic import BaseModel, Field, model_validator
 
 H3Mode = Literal["t2v", "i2v", "fl2v", "r2v"]
-H3ResolutionTier = Literal["768p", "540p", "1080p", "custom"]
+H3ResolutionTier = Literal["768p", "540p", "custom"]
 H3AspectRatio = Literal[
     "match_input",
     "16:9",
@@ -62,8 +62,9 @@ ASPECT_RATIOS: Dict[str, Tuple[int, int]] = {
 RESOLUTION_MEGAPIXELS: Dict[str, float] = {
     "540p": 0.52,
     "768p": 0.98,
-    "1080p": 2.00,
 }
+
+REFERENCE_LIMITS = {"images": 9, "videos": 3, "audios": 3, "total": 12}
 
 NATIVE_FPS = 24
 
@@ -235,18 +236,18 @@ class MiniMaxH3GenerateRequest(BaseModel):
     # 3. Multimodal Reference Inputs (for r2v mode)
     ref_images: List[str] = Field(
         default_factory=list,
-        max_length=5,
-        description="r2v 模式参考图片列表（最多 5 张，依次对应 <Picture 1>..<Picture 5>）。",
+        max_length=REFERENCE_LIMITS["images"],
+        description="r2v 模式参考图片列表（最多 9 张，依次对应 <Picture 1>..<Picture 9>；图片、视频与独立音频合计最多 12 个文件）。",
     )
     ref_videos: List[ReferenceVideoSlot] = Field(
         default_factory=list,
-        max_length=2,
-        description="r2v 模式可选参考视频列表（最多 2 段，依次对应 <Video 1>..<Video 2>）。",
+        max_length=REFERENCE_LIMITS["videos"],
+        description="r2v 模式可选参考视频列表（最多 3 段，依次对应 <Video 1>..<Video 3>；视频自带原声不另占文件名额）。",
     )
     ref_audios: List[str] = Field(
         default_factory=list,
-        max_length=2,
-        description="r2v 模式可选独立参考音频列表（最多 2 段，排在参考视频原声之后依次编号为 <Audio J>）。",
+        max_length=REFERENCE_LIMITS["audios"],
+        description="r2v 模式可选独立参考音频列表（最多 3 段，排在参考视频原声之后依次编号为 <Audio J>；所有参考文件合计最多 12 个）。",
     )
     ref_image_size: RefImageSizeMode = Field(
         default="match",
@@ -260,7 +261,7 @@ class MiniMaxH3GenerateRequest(BaseModel):
     # 4. Independent Resolution Tier, Aspect Ratio, Dimensions & Duration / FPS
     resolution_tier: H3ResolutionTier = Field(
         default="768p",
-        description="独立分辨率档位：768p（0.98 MP 原生甜点，如 1344×768）、540p（0.52 MP 快速预览）、1080p（2.0 MP 高清）或 custom。",
+        description="H3-Base 原生档位为 768p（如 1344×768）；540p 为低分辨率试跑，custom 为实验性自定义画布。当前未接入 H3-Regenerate-2K 高分辨率再生成。",
     )
     aspect_ratio: H3AspectRatio = Field(
         default="16:9",
@@ -270,13 +271,13 @@ class MiniMaxH3GenerateRequest(BaseModel):
         default=1344,
         ge=256,
         le=2560,
-        description="输出画面宽度（自动对齐 32 的倍数；当 aspect_ratio='custom' 时直接采用此值）。",
+        description="输出画面宽度（自动对齐 32 的倍数；自定义比例或档位直接采用此值）。自定义画布不代表已支持原生高清或超分。",
     )
     height: int = Field(
         default=768,
         ge=256,
         le=2560,
-        description="输出画面高度（自动对齐 32 的倍数；当 aspect_ratio='custom' 时直接采用此值）。",
+        description="输出画面高度（自动对齐 32 的倍数；自定义比例或档位直接采用此值）。自定义画布不代表已支持原生高清或超分。",
     )
     duration_sec: float = Field(
         default=5.0,
@@ -458,6 +459,13 @@ class MiniMaxH3GenerateRequest(BaseModel):
             if not first and not last:
                 raise ValueError("首尾帧图生视频模式请至少上传首帧图片（或尾帧图片）。")
         elif self.mode == "r2v":
+            reference_count = (
+                len(self.effective_ref_images())
+                + len(self.effective_ref_videos())
+                + len(self.effective_ref_audios())
+            )
+            if reference_count > REFERENCE_LIMITS["total"]:
+                raise ValueError("参考图片、视频与独立音频合计最多 12 个文件；视频自带原声不另计。")
             if (
                 not self.effective_ref_images()
                 and not self.effective_ref_videos()

@@ -45,6 +45,7 @@ import type { StageImageEntry } from "@colab/shared";
 import {
   ASPECT_RATIO_OPTIONS,
   DEFAULT_QWEN_IMAGE_PARAMS,
+  MAX_REFERENCE_IMAGES,
   SYMMETRIC_RATIO_SWAP,
   calcPresetDimensions,
   calcRefMatchedDimensions,
@@ -331,6 +332,11 @@ export function QwenImageStudioApp() {
       return;
     }
     if (isImg2Img) {
+      if (params.resolution_tier === "original" && primaryRefDims &&
+        (primaryRefDims.w > 4096 || primaryRefDims.h > 4096)) {
+        message.warning("主参考图超过工作台单边 4096 像素上限，请改选 1K / 2K；原图模式不会静默缩小图片。");
+        return;
+      }
       const firstEmpty = refSlots.findIndex((slot) => !slot.fileRef.trim());
       if (firstEmpty >= 0 && refSlots.slice(firstEmpty + 1).some((slot) => slot.fileRef.trim())) {
         message.warning(`参考图 ${firstEmpty + 1} 尚未上传，请补充图片或删除这张空卡片，让图片与 <imageN> 编号保持一致。`);
@@ -338,7 +344,7 @@ export function QwenImageStudioApp() {
       }
     }
     await runTask(buildCleanedPayload());
-  }, [buildCleanedPayload, cleanUploadedRefs.length, isBusy, isImg2Img, message, params.prompt, refSlots, runTask]);
+  }, [buildCleanedPayload, cleanUploadedRefs.length, isBusy, isImg2Img, message, params.prompt, params.resolution_tier, primaryRefDims, refSlots, runTask]);
 
   const displayedEntry = useMemo(() => {
     if (selectedTakeId) {
@@ -431,7 +437,7 @@ export function QwenImageStudioApp() {
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
-          {/* User-Uploaded Reference Image Slots (Img2Img only, optional 2..4 images) */}
+          {/* Official multi-reference editing supports up to ten images. */}
           {isImg2Img && (
             <div
               style={{
@@ -446,10 +452,10 @@ export function QwenImageStudioApp() {
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minBlockSize: 24 }}>
                 <Text strong style={{ fontSize: 13 }}>
-                  参考图片（已上传 <span className="studio-tabular">{cleanUploadedRefs.length}</span> / {refSlots.length}）
+                  参考图片（已上传 <span className="studio-tabular">{cleanUploadedRefs.length}</span> / {MAX_REFERENCE_IMAGES} 张）
                 </Text>
 
-                {refSlots.length < 4 && (
+                {refSlots.length < MAX_REFERENCE_IMAGES && (
                   <Button
                     htmlType="button"
                     size="small"
@@ -1091,7 +1097,7 @@ export function QwenImageStudioApp() {
             options={[
               { label: "PNG 无损", value: "png" },
               { label: "WebP 高清", value: "webp" },
-              { label: "JPEG 通用", value: "jpeg" },
+              { label: "JPEG（无透明通道）", value: "jpeg" },
             ]}
           />
         </Space>

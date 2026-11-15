@@ -1,5 +1,7 @@
 import type { LoraSlotConfig } from "@colab/shared";
 
+export const MAX_REFERENCE_IMAGES = 10;
+
 export type WorkflowMode = "t2i" | "img2img" | "edit_single" | "edit_dual" | "edit_multi";
 export type ResolutionTier = "2K" | "1K" | "original";
 export type StandardAspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "3:2" | "2:3" | "21:9";

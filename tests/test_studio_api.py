@@ -167,6 +167,19 @@ class StudioApiSmokeTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg/ffprobe not installed")
     def test_minimax_keyframe_upload_generate_and_download(self):
         with self.studio("minimax-h3") as client:
+            presets = client.get("/api/v1/resolution-presets", headers=self.headers)
+            self.assertEqual(set(presets.json()["resolutions"]), {"540p", "768p"})
+            unsupported = client.post("/api/v1/generate", headers=self.headers, json={
+                "prompt": "镜头", "resolution_tier": "1080p",
+            })
+            self.assertEqual(unsupported.status_code, 422)
+            too_many = client.post("/api/v1/generate", headers=self.headers, json={
+                "mode": "r2v", "prompt": "参考",
+                "ref_images": ["image.png"] * 9,
+                "ref_videos": [{"file_id": "video.mp4"}] * 3,
+                "ref_audios": ["audio.wav"],
+            })
+            self.assertEqual(too_many.status_code, 422)
             ref = self.upload(client, "first-frame.png", self.image_bytes(), "image/png")
             result = self.generate(client, {
                 "mode": "fl2v", "prompt": "镜头缓慢推进", "first_frame": ref,

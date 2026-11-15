@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi import HTTPException, Request
+from pydantic import ValidationError
 
 from backend.core.storage import MediaStorage
 from backend.features.qwen3_8_27b import runner
@@ -54,16 +55,29 @@ class QwenChatTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["stop"], ["END"])
         self.assertEqual(payload["response_format"], {"type": "json_object"})
         self.assertEqual(payload["stream_options"], {"include_usage": True})
-        self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": True})
+        self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": True, "preserve_thinking": True})
         self.assertEqual(payload["reasoning_effort"], "medium")
         self.assertEqual(payload["messages"][0], {"role": "system", "content": "简洁回答"})
-        self.assertNotIn("reasoning_content", payload["messages"][2])
+        self.assertEqual(payload["messages"][2]["reasoning_content"], "旧思考")
 
         req.enable_thinking = False
         payload = runner.build_vllm_chat_payload(req, self.storage, stream=False)
         self.assertNotIn("reasoning_effort", payload)
         self.assertNotIn("stream_options", payload)
         self.assertEqual(payload["top_k"], 0)
+
+    def test_official_thinking_levels_defaults_and_preservation_option(self):
+        req = QwenChatRequest(prompt="解释")
+        self.assertEqual(req.reasoning_effort, "xhigh")
+        self.assertEqual(req.temperature, 1.0)
+        self.assertTrue(req.preserve_thinking)
+        with self.assertRaises(ValidationError):
+            QwenChatRequest(prompt="解释", reasoning_effort="high")
+        for effort in ("low", "medium", "xhigh"):
+            req = QwenChatRequest(prompt="解释", reasoning_effort=effort, preserve_thinking=False)
+            payload = runner.build_vllm_chat_payload(req, self.storage, stream=False)
+            self.assertEqual(payload["reasoning_effort"], effort)
+            self.assertFalse(payload["chat_template_kwargs"]["preserve_thinking"])
 
     def test_local_and_inline_media_types_match_the_attachment_kind(self):
         for name in ("voice.wav", "photo.png", "clip.mp4"):

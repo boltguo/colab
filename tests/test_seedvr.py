@@ -23,6 +23,14 @@ from backend.features.seedvr2.schemas import (
 
 
 class SeedVR2RequestTests(unittest.TestCase):
+    def test_native_single_frame_chunk_option_is_available(self):
+        req = SeedVR2GenerateRequest(
+            input_file="video.mp4", split_latent=True, chunking_mode="manual", frames_per_chunk=1,
+        )
+        self.assertEqual(req.frames_per_chunk, 1)
+        with self.assertRaises(ValidationError):
+            SeedVR2GenerateRequest(input_file="video.mp4", frames_per_chunk=0)
+
     def test_default_keeps_original_audio_and_framerate(self):
         req = SeedVR2GenerateRequest(input_file="video.mp4")
         self.assertTrue(req.keep_audio)

@@ -50,6 +50,7 @@ import {
   ASPECT_RATIO_OPTIONS,
   DEFAULT_MINIMAX_H3_PARAMS,
   DURATION_PRESETS,
+  H3_REFERENCE_LIMITS,
   NATIVE_FPS,
   SYMMETRIC_RATIO_SWAP,
   alignH3Frames,
@@ -484,6 +485,7 @@ export function MiniMaxH3StudioApp() {
     () => refAudioSlots.filter((s) => Boolean(s.fileRef.trim())).length,
     [refAudioSlots]
   );
+  const referenceSlotCount = refImageSlots.length + refVideoSlots.length + refAudioSlots.length;
 
   const alignedFrames = useMemo(
     () =>
@@ -542,6 +544,10 @@ export function MiniMaxH3StudioApp() {
         return;
       }
     } else if (params.mode === "r2v") {
+      if (uploadedImgCount + uploadedVidCount + uploadedAudCount > H3_REFERENCE_LIMITS.total) {
+        message.warning("参考图片、视频与独立音频合计最多 12 个文件；视频自带原声不另计。");
+        return;
+      }
       if (uploadedImgCount + uploadedVidCount + uploadedAudCount < 1) {
         message.warning("多模态参考生视频模式请至少上传 1 项参考素材（图片 / 视频 / 音频）。");
         return;
@@ -740,16 +746,17 @@ export function MiniMaxH3StudioApp() {
                   <span className="studio-tabular">
                     {uploadedImgCount + uploadedVidCount + uploadedAudCount}
                   </span>{" "}
-                  / {refImageSlots.length + refVideoSlots.length + refAudioSlots.length}）
+                  / {H3_REFERENCE_LIMITS.total} 个文件）
                 </Text>
 
                 <Space size={6} wrap>
-                  {refImageSlots.length < 5 && (
+                  {refImageSlots.length < H3_REFERENCE_LIMITS.images && (
                     <Button
                       htmlType="button"
                       size="small"
                       type="dashed"
                       icon={<PlusOutlined />}
+                      disabled={referenceSlotCount >= H3_REFERENCE_LIMITS.total}
                       onClick={() =>
                         setRefImageSlots((prev) => [...prev, { id: nextId("img"), fileRef: "" }])
                       }
@@ -757,12 +764,13 @@ export function MiniMaxH3StudioApp() {
                       添加参考图
                     </Button>
                   )}
-                  {refVideoSlots.length < 2 && (
+                  {refVideoSlots.length < H3_REFERENCE_LIMITS.videos && (
                     <Button
                       htmlType="button"
                       size="small"
                       type="dashed"
                       icon={<VideoCameraOutlined />}
+                      disabled={referenceSlotCount >= H3_REFERENCE_LIMITS.total}
                       onClick={() =>
                         setRefVideoSlots((prev) => [
                           ...prev,
@@ -773,12 +781,13 @@ export function MiniMaxH3StudioApp() {
                       添加参考视频
                     </Button>
                   )}
-                  {refAudioSlots.length < 2 && (
+                  {refAudioSlots.length < H3_REFERENCE_LIMITS.audios && (
                     <Button
                       htmlType="button"
                       size="small"
                       type="dashed"
                       icon={<AudioOutlined />}
+                      disabled={referenceSlotCount >= H3_REFERENCE_LIMITS.total}
                       onClick={() =>
                         setRefAudioSlots((prev) => [...prev, { id: nextId("aud"), fileRef: "" }])
                       }
@@ -788,6 +797,11 @@ export function MiniMaxH3StudioApp() {
                   )}
                 </Space>
               </div>
+
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                最多 9 张图片、3 段视频、3 段独立音频，合计不超过 12 个文件；视频原声不另计。
+                已添加 {referenceSlotCount} 个素材槽位（含待上传），移除空槽位后可继续添加其他类型。
+              </Text>
 
               <div
                 className="studio-image-slot-grid"
@@ -1042,16 +1056,15 @@ export function MiniMaxH3StudioApp() {
             <div className="studio-field-group" style={{ flex: "1 1 300px" }}>
               <FieldLabel
                 label="分辨率档位 (Resolution)"
-                tooltip="独立控制清晰度像素面积：768p（约 0.98MP，官方训练甜点如 1344×768）、540p（快速草稿预览）、1080p（高清重采样）"
+                tooltip="当前接入 H3-Base，原生档位为 768p（如 1344×768）；540p 为低分辨率试跑。自定义宽高仅改变推理画布，未接入高分辨率再生成或超分流程。"
               />
               <Segmented
                 block
                 value={params.resolution_tier === "custom" ? "768p" : params.resolution_tier}
                 onChange={(val) => handleResolutionChange(val as H3ResolutionTier)}
                 options={[
-                  { label: "540p 快速预览", value: "540p" },
+                  { label: "540p 低清试跑", value: "540p" },
                   { label: "768p 原生标准", value: "768p" },
-                  { label: "1080p 高清", value: "1080p" },
                 ]}
               />
             </div>
@@ -1253,6 +1266,10 @@ export function MiniMaxH3StudioApp() {
                 : " · 调整帧率会改变播放速度与成片时长，不进行插帧"}
             </Text>
           </div>
+
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            H3-Base 原生为 768p。手动宽高属于实验性画布尺寸，不执行高分辨率再生成或超分。
+          </Text>
 
           {/* Row 4: Video Duration Presets + Slider + 17k+5 Frame Grid Readout */}
           <div

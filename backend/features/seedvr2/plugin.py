@@ -109,7 +109,7 @@ def _build_router(
                     "id": "7b_sharp",
                     "filename": "seedvr2_7b_sharp_fp16.safetensors",
                     "label": "SeedVR2 7B Sharp (FP16 · 15.35 GiB)",
-                    "recommended_for": ["单图 4x 真 4K 细节重绘", "短视频高锐度超分修复"],
+                    "recommended_for": ["单图高分辨率细节修复", "短视频高锐度超分修复"],
                 },
                 {
                     "id": "3b_fast",

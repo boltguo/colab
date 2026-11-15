@@ -92,6 +92,8 @@ def resolve_attachment_to_part(att: QwenAttachment, storage: MediaStorage) -> Di
 
 def _convert_message_to_openai(msg: QwenChatMessage, storage: MediaStorage) -> Dict[str, Any]:
     out: Dict[str, Any] = {"role": msg.role}
+    if msg.role == "assistant" and msg.reasoning_content is not None:
+        out["reasoning_content"] = msg.reasoning_content
     if msg.name:
         out["name"] = msg.name
     if msg.tool_call_id:
@@ -167,6 +169,7 @@ def build_vllm_chat_payload(
         "stream": stream,
         "chat_template_kwargs": {
             "enable_thinking": bool(req.enable_thinking),
+            "preserve_thinking": bool(req.preserve_thinking),
         },
     }
     if stream:

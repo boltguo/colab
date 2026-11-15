@@ -47,6 +47,7 @@ KvCacheDtype = Literal["default", "int8", "int4"]
 UnetWeightDtype = Literal["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"]
 ClipDevice = Literal["default", "cpu"]
 ImageOutputFormat = Literal["png", "webp", "jpeg"]
+MAX_REFERENCE_IMAGES = 10
 
 ASPECT_RATIOS: Dict[str, Tuple[int, int]] = {
     "1:1": (1, 1),
@@ -117,7 +118,7 @@ class QwenImageGenerateRequest(BaseModel):
     # 1. Core Creative & Conditioning Inputs
     mode: WorkflowMode = Field(
         default="t2i",
-        description="创作模式：t2i（文生图）或 img2img（图生图 / 图像编辑，支持 1~4 张参考图）。",
+        description="创作模式：t2i（文生图）或 img2img（图生图 / 图像编辑，官方支持最多 10 张参考图）。",
     )
     prompt: str = Field(
         ...,
@@ -131,11 +132,11 @@ class QwenImageGenerateRequest(BaseModel):
         description="反向提示词（注意：需将 cfg 调高至 > 1.0 才会激活反向条件引导）。",
     )
 
-    # Reference Images (supports 1..4 user-uploaded images in img2img mode)
+    # Official multi-reference editing supports up to ten images.
     reference_images: List[str] = Field(
         default_factory=list,
-        max_length=8,
-        description="按顺序排列的参考图引用列表（POST /api/v1/files 返回的 file_id 或 output:<filename>），依次对应 <image1>、<image2>...",
+        max_length=MAX_REFERENCE_IMAGES,
+        description="按顺序排列的参考图引用列表（最多 10 张；POST /api/v1/files 返回的 file_id 或 output:<filename>），依次对应 <image1>…<image10>。",
     )
     image_1: Optional[str] = Field(default=None, description="主参考图 <image1>（可选快捷字段，等价于 reference_images[0]）。")
     image_2: Optional[str] = Field(default=None, description="可选第二参考图 <image2>（等价于 reference_images[1]）。")
@@ -243,7 +244,7 @@ class QwenImageGenerateRequest(BaseModel):
     )
     output_format: ImageOutputFormat = Field(
         default="png",
-        description="输出图片格式：png、webp、jpeg。",
+        description="输出图片格式：png / webp 可保留模型输出的透明通道；jpeg 不支持透明通道。",
     )
     output_quality: int = Field(
         default=95,

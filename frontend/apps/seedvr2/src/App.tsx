@@ -96,7 +96,7 @@ const LONGER_EDGE_PRESETS = [
   { label: "4K (3840)", value: 3840 },
   { label: "DCI 4K (4096)", value: 4096 },
 ];
-const CHUNK_FRAME_PRESETS = [9, 13, 17, 21, 25, 33, 49];
+const CHUNK_FRAME_PRESETS = [1, 5, 9, 13, 17, 21, 25, 33, 49];
 
 export function SeedVR2StudioApp() {
   const scaleInputId = useId();
@@ -760,15 +760,15 @@ export function SeedVR2StudioApp() {
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>无损保留原视频音轨</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>保留原视频音轨</div>
                     <div style={{ fontSize: 11.5, color: "var(--studio-text-muted)" }}>
-                      自动提取原声并混流进超分成片
+                      保留原声并重新编码到成片，不保证位流无损
                     </div>
                   </div>
                   <Switch
                     checked={params.keep_audio}
                     onChange={(v) => updateParam("keep_audio", v)}
-                    aria-label="无损保留原视频音轨"
+                    aria-label="保留原视频音轨"
                   />
                 </div>
 
@@ -849,7 +849,7 @@ export function SeedVR2StudioApp() {
                           size="small"
                           className="studio-tabular"
                           style={{ inlineSize: 88 }}
-                          min={5}
+                          min={1}
                           max={257}
                           step={4}
                           value={params.frames_per_chunk}
@@ -945,7 +945,7 @@ export function SeedVR2StudioApp() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>保留图片透明通道 (Preserve Alpha)</div>
                 <div style={{ fontSize: 12, color: "var(--studio-text-muted)" }}>
-                  对带透明底的 PNG / WebP 贴图同步放大 Alpha 遮罩并无损合成
+                  对带透明底的 PNG / WebP 图片同步缩放 Alpha 遮罩并合成透明通道
                 </div>
               </div>
               <Switch
@@ -1780,7 +1780,7 @@ export function SeedVR2StudioApp() {
     <StudioShell
       brandBadge="VR2"
       defaultTitle="SeedVR2 视频与图片 4K 超分工作台"
-      defaultSubtitle="7B Sharp 旗舰锐化 · 3B Fast 长视频极速 · 1 步对抗扩散修复 · CIELAB 追色与原声无损继承"
+      defaultSubtitle="7B Sharp 旗舰锐化 · 3B Fast 长视频极速 · 1 步对抗扩散修复 · CIELAB 追色与原声保留"
       apiEndpointPath="/api/v1/generate"
       mediaKind={params.mode === "image" ? "image" : "video"}
       sampleRequestBody={effectivePayload as unknown as Record<string, unknown>}
