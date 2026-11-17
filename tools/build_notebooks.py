@@ -40,12 +40,12 @@ MD3_VLLM = """### 3. 下载 Qwen3.8-27B 模型
 MD4_APP = """### 4. 启动现代 Web 工作台与 API 服务
 - **功能**：启动 FastAPI 服务（`127.0.0.1:8188`，同时承载 `/` 现代前端工作台、`/api/v1/*` 业务接口与 `/docs` OpenAPI 文档），并挂载 Cloudflare Tunnel。
 - **隧道选择**：`TUNNEL_MODE` 默认选择 `Quick Tunnel (临时链接)`（免费公网临时域名，实例关闭即失效）；也可切换为 `自有 Tunnel`，从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
-- **访问密码**：在下方 `ACCESS_PASSWORD` 填写应用访问密码，或在 Secrets 配置同名项。登录网页后，在右上角「API Key」中单独设置外部调用密钥。共享笔记本时建议使用 Secrets。
+- **访问密码**：在下方 `ACCESS_PASSWORD` 填写应用访问密码，或在 Secrets 配置同名项。API 默认免鉴权；需要鉴权时，登录网页并在右上角「API Key」中单独设置密钥。共享笔记本时建议使用 Secrets。
 - **使用**：直接运行，点击输出的公网链接即可在网页操作或直接复制对应链接调用 API。"""
 MD4_VLLM = """### 4. 启动现代多模态 Web 工作台与 OpenAI / Claude Code API 服务
 - **功能**：后台启动内部 `vllm serve`（`127.0.0.1:8189`，`262144` 上下文，MTP 投机采样）与对外 FastAPI 网关（`127.0.0.1:8188`，同时承载 `/` 多模态对话工作台、OpenAI `/v1/chat/completions`、Anthropic `/v1/messages` 与 `/docs`）。
 - **隧道选择**：`TUNNEL_MODE` 默认选择 `Quick Tunnel (临时链接)`（免费公网临时域名，实例关闭即失效）；也可切换为 `自有 Tunnel`，从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
-- **访问密码**：在下方 `ACCESS_PASSWORD` 填写应用访问密码，或在 Secrets 配置同名项。登录网页后，在右上角「API Key」中单独设置 OpenAI / Claude Code 接口密钥。共享笔记本时建议使用 Secrets。
+- **访问密码**：在下方 `ACCESS_PASSWORD` 填写应用访问密码，或在 Secrets 配置同名项。OpenAI / Claude Code 接口默认免鉴权；需要鉴权时，在网页右上角「API Key」中单独设置密钥。共享笔记本时建议使用 Secrets。
 - **使用**：直接运行，点击公网链接打开网页对话，或复制输出的环境变量直连 Claude Code / OpenAI SDK。"""
 
 METADATA = lambda name: {

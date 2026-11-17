@@ -26,4 +26,6 @@ test("browser requests use the session while configured API keys are only used i
   assert.equal(calls[1].options.method, "POST");
   assert.equal(calls[1].options.headers.Authorization, undefined);
   assert.deepEqual(JSON.parse(calls[1].options.body), { api_key: "new-external-key" });
+  await configureApiKey("");
+  assert.deepEqual(JSON.parse(calls[2].options.body), { api_key: "" });
 });

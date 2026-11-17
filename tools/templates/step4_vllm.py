@@ -219,7 +219,7 @@ print(f"""
 📖 在线 API 文档         : {host_url}/docs
 🩺 机器与显存实时状态    : {host_url}/api/v1/system
 {tunnel_tip}
-🔑 API Key：登录网页后，在右上角「API Key」中单独设置。
+🔑 API 默认免鉴权；如需鉴权，在网页右上角「API Key」中设置。
 
 === 1. Claude Code (cc) 直连配置（Anthropic /v1/messages 原生协议）===
 export ANTHROPIC_BASE_URL="{host_url}"
