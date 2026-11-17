@@ -54,6 +54,8 @@ class SystemStatusResponse(BaseModel):
     version: str = "0.1.0"
     engine: str
     auth_required: bool = False
+    web_auth_required: bool = False
+    api_key_configured: bool = False
     browser_authenticated: bool = False
     mock_mode: bool = False
     public_url: str = ""

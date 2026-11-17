@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 const LEGACY_BASE_URL_KEY = "colab_studio_base_url";
-const STORAGE_API_KEY = "colab_studio_api_key";
+const STORAGE_API_KEY = "colab_studio_snippet_key";
 
 export function loadApiKey(): string {
   if (typeof window === "undefined") {
@@ -17,7 +17,8 @@ export function loadApiKey(): string {
   }
   try {
     window.localStorage.removeItem(LEGACY_BASE_URL_KEY);
-    return (window.localStorage.getItem(STORAGE_API_KEY) || "").trim();
+    window.localStorage.removeItem("colab_studio_api_key");
+    return (window.sessionStorage.getItem(STORAGE_API_KEY) || "").trim();
   } catch {
     return "";
   }
@@ -28,10 +29,11 @@ export function saveApiKey(rawKey: string): string {
   if (typeof window !== "undefined") {
     try {
       window.localStorage.removeItem(LEGACY_BASE_URL_KEY);
+      window.localStorage.removeItem("colab_studio_api_key");
       if (cleanKey) {
-        window.localStorage.setItem(STORAGE_API_KEY, cleanKey);
+        window.sessionStorage.setItem(STORAGE_API_KEY, cleanKey);
       } else {
-        window.localStorage.removeItem(STORAGE_API_KEY);
+        window.sessionStorage.removeItem(STORAGE_API_KEY);
       }
     } catch {
       // ignore storage errors
@@ -62,23 +64,12 @@ export function getEffectiveOrigin(sysPublicUrl?: string): string {
   return cleanSysUrl && !cleanSysUrl.includes("<") ? cleanSysUrl : "http://127.0.0.1:8188";
 }
 
-export function resolveApiUrl(path: string, includeAuthQuery = false): string {
-  const apiKey = loadApiKey();
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  if (includeAuthQuery && apiKey) {
-    const sep = cleanPath.includes("?") ? "&" : "?";
-    return `${cleanPath}${sep}api_key=${encodeURIComponent(apiKey)}`;
-  }
-  return cleanPath;
+export function resolveApiUrl(path: string, _includeAuthQuery = false): string {
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
 function buildAuthHeaders(extra?: Record<string, string>): Record<string, string> {
-  const apiKey = loadApiKey();
-  const headers: Record<string, string> = { ...(extra || {}) };
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-  return headers;
+  return { ...(extra || {}) };
 }
 
 async function parseJsonOrThrow<T>(resp: Response): Promise<T> {
@@ -107,6 +98,15 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
     headers: buildAuthHeaders(),
   });
   return parseJsonOrThrow<SystemStatus>(resp);
+}
+
+export async function configureApiKey(key: string): Promise<void> {
+  const resp = await fetch("/auth/api-key", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: key }),
+  });
+  await parseJsonOrThrow<{ configured: boolean }>(resp);
 }
 
 export async function fetchPresets(): Promise<PresetItem[]> {
@@ -262,9 +262,7 @@ export function subscribeTaskProgress<TResult = Record<string, unknown>, TParams
   try {
     const sameOrigin = typeof window !== "undefined" ? window.location.origin : "http://127.0.0.1:8188";
     const wsOrigin = sameOrigin.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:");
-    const apiKey = loadApiKey();
-    const query = apiKey ? `?api_key=${encodeURIComponent(apiKey)}` : "";
-    const wsUrl = `${wsOrigin}/api/v1/tasks/${encodeURIComponent(taskId)}/ws${query}`;
+    const wsUrl = `${wsOrigin}/api/v1/tasks/${encodeURIComponent(taskId)}/ws`;
 
     ws = new WebSocket(wsUrl);
     ws.onmessage = (ev) => {

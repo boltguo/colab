@@ -1,6 +1,5 @@
 # @title 4. 启动现代 Web 工作台与 API 服务 {display-mode: "form"}
 TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
-REQUIRE_API_KEY = True  # @param {type:"boolean"}
 ACCESS_PASSWORD = ""  # @param {type:"string"}
 USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
 import hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
@@ -24,23 +23,23 @@ if FEATURE_NAME == "indextts-2.5":
     if missing_media_tools:
         raise RuntimeError(f"缺少媒体处理工具：{', '.join(missing_media_tools)}。请先执行 !apt-get -qq update && apt-get -qq install -y ffmpeg，再运行第 4 步。")
 
-def resolve_app_api_key():
+def resolve_access_password():
     if ACCESS_PASSWORD.strip():
         return ACCESS_PASSWORD.strip()
     key = ""
     try:
         from google.colab import userdata
-        key = (userdata.get("APP_API_KEY") or "").strip()
+        key = (userdata.get("ACCESS_PASSWORD") or "").strip()
     except Exception:
         key = ""
     if not key:
-        key = os.environ.get("APP_API_KEY", "").strip()
+        key = os.environ.get("ACCESS_PASSWORD", "").strip()
     return key
 
-app_api_key = resolve_app_api_key() if REQUIRE_API_KEY else ""
-if REQUIRE_API_KEY and not app_api_key:
+access_password = resolve_access_password()
+if not access_password:
     raise RuntimeError(
-        "请在 ACCESS_PASSWORD 填写访问密码，或在 Colab 左侧 🔑 Secrets 配置 APP_API_KEY。"
+        "请在 ACCESS_PASSWORD 填写应用访问密码，或在 Colab 左侧 🔑 Secrets 配置同名项。"
     )
 
 def ready(timeout=5):
@@ -57,7 +56,8 @@ env_overrides = {
     "COLAB_PORT": str(PORT),
     "COLAB_DATA_DIR": str(DATA_DIR),
     "COLAB_DIST_DIR": str(APP_DIR / "dist" / FEATURE_NAME),
-    "COLAB_API_KEY": app_api_key,
+    "COLAB_ACCESS_PASSWORD": access_password,
+    "COLAB_API_KEY": "",
 {{EXTRA_ENV}}}
 
 cmd = [
@@ -76,8 +76,8 @@ cmd = [
 launch_fingerprint = json.dumps({
     "cmd": cmd,
     "release": read_text(APP_DIR / ".release_sha256").strip(),
-    "auth_sha256": hashlib.sha256(app_api_key.encode("utf-8")).hexdigest(),
-    "env": {key: value for key, value in env_overrides.items() if key != "COLAB_API_KEY"},
+    "web_auth_sha256": hashlib.sha256(access_password.encode("utf-8")).hexdigest(),
+    "env": {key: value for key, value in env_overrides.items() if key not in {"COLAB_ACCESS_PASSWORD", "COLAB_API_KEY"}},
 }, sort_keys=True)
 running = ready() or (process_running(PROCESS_PATTERN) and ready(timeout=15))
 if running and read_text(LAUNCH_CONFIG) != launch_fingerprint:
@@ -116,6 +116,7 @@ else:
         print(tail(LOG))
         raise TimeoutError("应用服务 2 分钟内未就绪，请查看上方日志。")
 
+verify_web_password(BASE, PROCESS_PATTERN)
 host_url = start_cf_tunnel(cf_token)
 tunnel_mode_key = "custom" if cf_token else "quick"
 if not DATA_DIR.is_symlink():
@@ -132,7 +133,7 @@ sample_body = json.dumps(
     {"text": "你好，欢迎调用 IndexTTS 2.5 API 服务！", "speaker_audio": "preset:ref_audio", "language": "zh"},
     ensure_ascii=False,
 )
-auth_note = ' -H "Authorization: Bearer $APP_API_KEY"' if app_api_key else ""
+auth_note = ' -H "Authorization: Bearer YOUR_API_KEY"'
 tunnel_tip = (
     "⚠️ 提示：当前使用 Cloudflare Quick Tunnel 临时公网域名，实例关闭或重连隧道后地址即失效；如需固定域名请在上方选择「自有 Tunnel」。"
     if tunnel_mode_key == "quick"
@@ -144,6 +145,7 @@ print(f"""
 📖 在线 API 文档   : {host_url}/docs
 🩺 系统与显存状态  : {host_url}/api/v1/system
 {tunnel_tip}
+🔑 API Key：登录网页后，在右上角「API Key」中单独设置。
 
 === 快速 API 调用示例 ===
 curl -X POST "{host_url}/api/v1/generate" \\

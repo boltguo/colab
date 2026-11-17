@@ -1,4 +1,5 @@
 """Access gate regression tests without a model engine."""
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from backend.core.app_factory import FeaturePlugin, create_feature_app
 from backend.core.config import AppSettings
 from backend.core.models import GpuStats
-from backend.core.security import SESSION_COOKIE, create_session, valid_session
+from backend.core.security import AuthState, SESSION_COOKIE, create_session, valid_session
 
 
 class WebAccessTests(unittest.TestCase):
@@ -24,7 +25,7 @@ class WebAccessTests(unittest.TestCase):
         (dist / "assets").mkdir(parents=True)
         (dist / "index.html").write_text('<!doctype html><title>private-studio</title><script src="/assets/app.js"></script>')
         (dist / "assets/app.js").write_text('const privateAsset = true;')
-        self.settings = AppSettings("gate-test", "127.0.0.1", 8188, self.root / "data", dist, self.key, True, self.root)
+        self.settings = AppSettings("gate-test", "127.0.0.1", 8188, self.root / "data", dist, "", True, self.root, access_password=self.key)
         plugin = FeaturePlugin("gate-test", "Test", "", "Mock", "test", lambda p: p, lambda *args: {})
         self.app = create_feature_app(plugin, self.settings)
         (self.root / "data/outputs/private.png").write_bytes(b"private-output")
@@ -69,11 +70,64 @@ class WebAccessTests(unittest.TestCase):
     def test_api_tokens_still_work_without_a_browser_cookie(self):
         # HTTP header credentials are ASCII; the browser login also supports Unicode passwords.
         self.app = create_feature_app(FeaturePlugin("gate-test", "Test", "", "Mock", "test", lambda p: p, lambda *args: {}),
-                                      AppSettings("gate-test", "127.0.0.1", 8188, self.root / "api-data", self.settings.dist_dir, "api-test-key", True, self.root))
+                                      replace(self.settings, data_dir=self.root / "api-data", api_key="api-test-key"))
         with TestClient(self.app) as client:
             for headers in [{"Authorization": "Bearer api-test-key"}, {"X-API-Key": "api-test-key"}]:
                 self.assertEqual(client.get("/api/v1/tasks", headers=headers).status_code, 200)
             self.assertEqual(client.get("/api/v1/tasks?api_key=api-test-key").status_code, 200)
+            self.assertEqual(client.get("/", headers={"Authorization": "Bearer api-test-key"}, follow_redirects=False).status_code, 303)
+
+    def test_web_login_and_api_key_have_independent_permissions(self):
+        self.assertEqual(self.client.post("/auth/api-key", json={"api_key": "external-key"}).status_code, 401)
+        self.login()
+        cookie = self.client.cookies.get(SESSION_COOKIE)
+        # The browser can use the application before any external API key exists.
+        system = self.client.get("/api/v1/system").json()
+        self.assertTrue(system["web_auth_required"])
+        self.assertFalse(system["api_key_configured"])
+        self.assertEqual(self.client.post("/api/v1/tasks", json={"params": {}}).status_code, 200)
+        response = self.client.post("/auth/api-key", json={"api_key": "external-key"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.cookies.get(SESSION_COOKIE), cookie)
+        self.assertTrue(self.client.get("/api/v1/system").json()["api_key_configured"])
+        response = self.client.post("/auth/api-key", json={"api_key": "replacement-key"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get("/").status_code, 200)
+        self.client.cookies.clear()
+        self.assertEqual(self.client.get("/api/v1/tasks", params={"api_key": self.key}).status_code, 401)
+        self.assertEqual(self.client.get("/api/v1/tasks", headers={"Authorization": "Bearer external-key"}).status_code, 401)
+        api_headers = {"Authorization": "Bearer replacement-key"}
+        self.assertEqual(self.client.get("/api/v1/tasks", headers=api_headers).status_code, 200)
+        self.assertEqual(self.client.get("/", headers=api_headers).status_code, 303)
+        self.assertEqual(self.client.post("/auth/api-key", headers=api_headers, json={"api_key": "attacker-key"}).status_code, 401)
+        self.assertEqual(self.client.post("/auth/login", data={"password": "replacement-key"}).status_code, 401)
+        self.login()
+
+    def test_api_key_survives_restart_and_web_password_rotation_without_plaintext_storage(self):
+        self.login()
+        self.assertEqual(self.client.post("/auth/api-key", json={"api_key": "persistent-key"}).status_code, 200)
+        path = self.settings.data_dir / "api_key.json"
+        self.assertNotIn("persistent-key", path.read_text())
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        rotated = create_feature_app(FeaturePlugin("gate-test", "Test", "", "Mock", "test", lambda p: p, lambda *args: {}),
+                                     replace(self.settings, access_password="new-web-password"))
+        with TestClient(rotated, base_url="https://studio.test", follow_redirects=False) as client:
+            client.cookies.update(self.client.cookies)
+            self.assertEqual(client.get("/").status_code, 303)
+            self.assertEqual(client.get("/api/v1/tasks", headers={"Authorization": "Bearer persistent-key"}).status_code, 200)
+            self.assertEqual(client.post("/auth/login", data={"password": "new-web-password"}).status_code, 303)
+
+    def test_api_key_settings_validate_inputs_and_reject_symlinks(self):
+        self.login()
+        for key in ["", "short", "with whitespace", "中文密钥abcdefgh"]:
+            self.assertEqual(self.client.post("/auth/api-key", json={"api_key": key}).status_code, 422)
+        self.assertEqual(self.client.post("/auth/api-key", json={"api_key": "external-key"}, headers={"Origin": "https://other.test"}).status_code, 403)
+        target = self.root / "outside.json"
+        target.write_text('{}')
+        (self.settings.data_dir / "api_key.json").symlink_to(target)
+        with self.assertRaises(RuntimeError):
+            AuthState(self.key, self.settings.data_dir)
+        self.assertEqual(target.read_text(), '{}')
 
     def test_cookie_auth_rejects_cross_site_writes_and_websockets(self):
         self.assertEqual(self.client.post("/auth/login", data={"password": self.key}, headers={"Origin": "https://other.test"}).status_code, 403)

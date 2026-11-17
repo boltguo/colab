@@ -1,6 +1,5 @@
 # @title 4. 启动现代 Web 工作台与 OpenAI / Claude Code API 服务 {display-mode: "form"}
 TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
-REQUIRE_API_KEY = True  # @param {type:"boolean"}
 ACCESS_PASSWORD = ""  # @param {type:"string"}
 USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
 import hashlib, json, os, re, subprocess, sys, time, urllib.request
@@ -35,23 +34,23 @@ model_dir = (
 if Path(model_dir).is_symlink() or not (Path(model_dir) / "config.json").is_file():
     raise RuntimeError(f"未找到模型目录 {model_dir}，请先运行第 3 步下载模型。")
 
-def resolve_app_api_key():
+def resolve_access_password():
     if ACCESS_PASSWORD.strip():
         return ACCESS_PASSWORD.strip()
     key = ""
     try:
         from google.colab import userdata
-        key = (userdata.get("APP_API_KEY") or "").strip()
+        key = (userdata.get("ACCESS_PASSWORD") or "").strip()
     except Exception:
         key = ""
     if not key:
-        key = os.environ.get("APP_API_KEY", "").strip()
+        key = os.environ.get("ACCESS_PASSWORD", "").strip()
     return key
 
-app_api_key = resolve_app_api_key() if REQUIRE_API_KEY else ""
-if REQUIRE_API_KEY and not app_api_key:
+access_password = resolve_access_password()
+if not access_password:
     raise RuntimeError(
-        "请在 ACCESS_PASSWORD 填写访问密码，或在 Colab 左侧 🔑 Secrets 配置 APP_API_KEY。"
+        "请在 ACCESS_PASSWORD 填写应用访问密码，或在 Colab 左侧 🔑 Secrets 配置同名项。"
     )
 
 if DATA_DIR.is_symlink() or UPLOADS_DIR.is_symlink():
@@ -132,7 +131,8 @@ env_overrides = {
     "COLAB_PORT": str(PORT),
     "COLAB_DATA_DIR": str(DATA_DIR),
     "COLAB_DIST_DIR": str(APP_DIR / "dist" / FEATURE_NAME),
-    "COLAB_API_KEY": app_api_key,
+    "COLAB_ACCESS_PASSWORD": access_password,
+    "COLAB_API_KEY": "",
     "VLLM_BASE_URL": VLLM_BASE,
     "VLLM_ALLOW_LOCAL_MEDIA": "1",
 }
@@ -153,8 +153,8 @@ app_cmd = [
 app_fingerprint = json.dumps({
     "cmd": app_cmd,
     "release": read_text(APP_DIR / ".release_sha256").strip(),
-    "auth_sha256": hashlib.sha256(app_api_key.encode("utf-8")).hexdigest(),
-    "env": {key: value for key, value in env_overrides.items() if key != "COLAB_API_KEY"},
+    "web_auth_sha256": hashlib.sha256(access_password.encode("utf-8")).hexdigest(),
+    "env": {key: value for key, value in env_overrides.items() if key not in {"COLAB_ACCESS_PASSWORD", "COLAB_API_KEY"}},
 }, sort_keys=True)
 app_is_up = app_ready() or (process_running(APP_PROCESS_PATTERN) and app_ready(timeout=15))
 if app_is_up and read_text(APP_LAUNCH_CONFIG) != app_fingerprint:
@@ -194,6 +194,7 @@ else:
         raise TimeoutError("Web/API 服务 2 分钟内未就绪，请检查日志。")
 
 # 3. 挂载 Cloudflare Tunnel 并同步隧道元数据
+verify_web_password(BASE, APP_PROCESS_PATTERN)
 host_url = start_cf_tunnel(cf_token)
 tunnel_mode_key = "custom" if cf_token else "quick"
 tunnel_info_path = DATA_DIR / "tunnel_info.json"
@@ -204,7 +205,7 @@ if not tunnel_info_path.is_symlink():
     )
 check_public_url(host_url, "/api/v1/health")
 
-key_display = "$APP_API_KEY" if app_api_key else "EMPTY"
+key_display = "YOUR_API_KEY"
 tunnel_tip = (
     "⚠️ 提示：当前使用 Cloudflare Quick Tunnel 临时公网域名，实例关闭或重连隧道后地址即失效；如需固定域名请在上方选择「自有 Tunnel」。"
     if tunnel_mode_key == "quick"
@@ -216,6 +217,7 @@ print(f"""
 📖 在线 API 文档         : {host_url}/docs
 🩺 机器与显存实时状态    : {host_url}/api/v1/system
 {tunnel_tip}
+🔑 API Key：登录网页后，在右上角「API Key」中单独设置。
 
 === 1. Claude Code (cc) 直连配置（Anthropic /v1/messages 原生协议）===
 export ANTHROPIC_BASE_URL="{host_url}"

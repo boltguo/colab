@@ -1,12 +1,13 @@
-"""Shared-password gate for the Studio, API docs, and private media."""
+"""Browser password gate and browser-only API key configuration."""
 import asyncio
 from html import escape
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
-from .security import SESSION_COOKIE, SESSION_TTL, create_session, matches_key, request_has_key, same_origin, valid_session
+from .security import AuthState, SESSION_COOKIE, SESSION_TTL, create_session, matches_key, same_origin
 
 _LOGIN_STYLE = Path(__file__).with_name("login.css").read_text(encoding="utf-8")
 _LOGIN_ART = Path(__file__).with_name("login_art.svg").read_text(encoding="utf-8")
@@ -26,27 +27,32 @@ def login_page(error: str = "") -> HTMLResponse:
                  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"})
 
 
-def install_web_access(app: FastAPI, api_key: str) -> None:
+class ApiKeyUpdate(BaseModel):
+    api_key: str = Field(min_length=8, max_length=512)
+
+
+def install_web_access(app: FastAPI, auth: AuthState) -> None:
     @app.middleware("http")
     async def access_gate(request: Request, call_next):
         public_route = request.url.path in {"/api/v1/health", "/auth/login"} or (
             request.url.path == "/auth/logout" and request.method == "POST"
         )
-        if api_key and request.method != "OPTIONS" and not public_route:
-            explicit_key = request_has_key(request, api_key)
-            browser_session = valid_session(request.cookies.get(SESSION_COOKIE, ""), api_key)
-            if not explicit_key and not browser_session:
-                if request.method in {"GET", "HEAD"} and not request.url.path.startswith(("/api/", "/v1/")):
+        if request.method != "OPTIONS" and not public_route:
+            is_api = request.url.path.startswith(("/api/", "/v1/"))
+            browser_session = auth.browser_authenticated(request)
+            allowed = auth.allows_api(request) if is_api else not auth.access_password or browser_session
+            if not allowed:
+                if request.method in {"GET", "HEAD"} and not is_api:
                     return RedirectResponse("/auth/login", status_code=303)
-                return JSONResponse({"detail": "请先输入访问密码，或使用 Bearer API Key。"}, status_code=401,
+                return JSONResponse({"detail": "请先登录应用；外部调用请使用独立的 API Key。"}, status_code=401,
                                     headers={"X-Colab-Login-Required": "1"})
-            if browser_session and not explicit_key and request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(request):
+            if browser_session and not (is_api and auth.has_api_key(request)) and request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(request):
                 return JSONResponse({"detail": "不允许跨站操作。"}, status_code=403)
         return await call_next(request)
 
     @app.get("/auth/login", include_in_schema=False)
     async def get_login(request: Request):
-        if not api_key or valid_session(request.cookies.get(SESSION_COOKIE, ""), api_key):
+        if not auth.access_password or auth.browser_authenticated(request):
             return RedirectResponse("/", status_code=303)
         return login_page()
 
@@ -54,17 +60,27 @@ def install_web_access(app: FastAPI, api_key: str) -> None:
     async def post_login(request: Request):
         if not same_origin(request):
             return JSONResponse({"detail": "不允许跨站登录。"}, status_code=403)
-        if not api_key:
+        if not auth.access_password:
             return RedirectResponse("/", status_code=303)
         form = await request.form()
         password = form.get("password", "")
-        if not isinstance(password, str) or len(password) > 4096 or not matches_key(password, api_key):
+        if not isinstance(password, str) or len(password) > 4096 or not matches_key(password, auth.access_password):
             await asyncio.sleep(0.25)
             return login_page("密码不正确，请重试。")
         response = RedirectResponse("/", status_code=303)
-        response.set_cookie(SESSION_COOKIE, create_session(api_key), max_age=SESSION_TTL,
+        response.set_cookie(SESSION_COOKIE, create_session(auth.access_password), max_age=SESSION_TTL,
                             httponly=True, secure=request.url.scheme == "https", samesite="strict")
         return response
+
+    @app.post("/auth/api-key", include_in_schema=False)
+    async def set_api_key(payload: ApiKeyUpdate, request: Request):
+        if not auth.browser_authenticated(request):
+            raise HTTPException(status_code=401, detail="请先使用应用访问密码登录。")
+        try:
+            auth.set_api_key(payload.api_key)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"configured": True}
 
     @app.post("/auth/logout", include_in_schema=False)
     async def logout(request: Request):

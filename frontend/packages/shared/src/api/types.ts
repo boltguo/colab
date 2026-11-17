@@ -49,6 +49,8 @@ export interface SystemStatus {
   version: string;
   engine: string;
   auth_required: boolean;
+  web_auth_required?: boolean;
+  api_key_configured?: boolean;
   browser_authenticated?: boolean;
   mock_mode: boolean;
   public_url?: string;

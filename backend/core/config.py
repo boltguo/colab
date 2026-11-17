@@ -40,6 +40,7 @@ class AppSettings:
     api_key: str
     mock_inference: bool
     repo_root: Path
+    access_password: str = ""
 
     @classmethod
     def from_env(cls, feature_override: Optional[str] = None) -> "AppSettings":
@@ -62,4 +63,5 @@ class AppSettings:
             api_key=api_key,
             mock_inference=mock_inference,
             repo_root=repo_root,
+            access_password=os.environ.get("COLAB_ACCESS_PASSWORD", "").strip(),
         )

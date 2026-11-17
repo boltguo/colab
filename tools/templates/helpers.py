@@ -100,6 +100,26 @@ def start_cf_tunnel(token=""):
     print(f"[WARN] Cloudflare Tunnel 30 秒内未确认连接，仍在后台运行，详见 {CF_LOG}。")
     return "https://<你的CF域名>"
 
+def verify_web_password(base_url, process_pattern):
+    from urllib.error import HTTPError
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    try:
+        with opener.open(base_url + "/", timeout=10):
+            pass
+    except HTTPError as error:
+        if error.code == 303 and error.headers.get("Location") == "/auth/login":
+            print("[OK] 应用访问密码已生效。")
+            return
+    except Exception:
+        pass
+    stop_processes(process_pattern, 30)
+    raise RuntimeError("应用访问密码未生效，已停止 Web 服务。请更新笔记本并重新运行第 2、4 步。")
+
 def check_public_url(url, route):
     if "<" in url:
         return

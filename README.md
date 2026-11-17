@@ -32,7 +32,7 @@ import requests
 from urllib.parse import urljoin
 
 BASE_URL = "https://YOUR_TUNNEL_DOMAIN"
-API_KEY = "YOUR_ACCESS_PASSWORD"  # 第 4 步设置的访问密码
+API_KEY = "YOUR_API_KEY"  # 登录网页后，在右上角 API Key 中设置
 headers = {"Authorization": f"Bearer {API_KEY}"} if API_KEY else {}
 
 response = requests.post(
@@ -64,17 +64,17 @@ Qwen3.8-27B 提供 OpenAI 兼容的 `/v1/chat/completions` 和 Anthropic 兼容�
 ```bash
 curl "https://YOUR_TUNNEL_DOMAIN/v1/chat/completions" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_PASSWORD" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"model":"qwen3.8-27b","messages":[{"role":"user","content":"你好"}]}'
 ```
 
-API Key 即第 4 步设置的访问密码。高级参数仍可通过 API 使用。
+应用访问密码与 API Key 独立。API Key 在网页右上角设置，更新后立即生效；高级参数仍可通过 API 使用。
 
 ## 使用说明
 
 1. 从上方选择模型，连接符合要求的 Colab GPU。
-2. 依次运行笔记本的四步；第 4 步在 `ACCESS_PASSWORD` 填写访问密码，也可在 Colab Secrets 配置 `APP_API_KEY`。
-3. 打开最后一步输出的链接，输入密码后上传自己的素材或填写文本。API 使用同一密码作为 Bearer Key。
+2. 依次运行笔记本的四步；第 4 步在 `ACCESS_PASSWORD` 填写应用访问密码，也可在 Colab Secrets 配置同名项。
+3. 打开最后一步输出的链接，输入密码后上传素材或填写文本。需要外部调用时，再在网页右上角设置 API Key。
 4. 使用默认设置先生成一次，再按需要调整尺寸、时长、步数或种子。
 
 Quick Tunnel 的临时地址随实例停止而失效。需要固定域名时，在第 4 步选择自有 Cloudflare Tunnel，并配置 `CF_TUNNEL_TOKEN`。

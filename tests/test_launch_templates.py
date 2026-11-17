@@ -9,6 +9,9 @@ import subprocess
 import textwrap
 from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
+import urllib.request
+from urllib.error import HTTPError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,8 +30,8 @@ def fingerprint(name, *, release="v0.1.1:abc", key="key-one", environment=None):
         "json": json, "hashlib": hashlib, "APP_DIR": Path("/content/app"),
         "cmd": ["python", "backend/run_server.py"],
         "app_cmd": ["python", "backend/run_server.py"],
-        "app_api_key": key,
-        "env_overrides": {"COLAB_API_KEY": key, "COLAB_FEATURE": "feature", **(environment or {})},
+        "access_password": key,
+        "env_overrides": {"COLAB_ACCESS_PASSWORD": key, "COLAB_API_KEY": "", "COLAB_FEATURE": "feature", **(environment or {})},
         "read_text": lambda _: release,
     }
     assignment = next(
@@ -41,25 +44,35 @@ def fingerprint(name, *, release="v0.1.1:abc", key="key-one", environment=None):
 
 
 class NotebookRestartTests(unittest.TestCase):
-    def test_password_is_enabled_by_default_and_explicit_input_needs_no_vault(self):
+    def test_web_password_is_required_without_an_api_toggle(self):
         for template in TEMPLATES:
             tree = template_ast(template)
             defaults = {node.targets[0].id: ast.literal_eval(node.value) for node in tree.body
                         if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
                         and node.targets[0].id in {"REQUIRE_API_KEY", "ACCESS_PASSWORD"}}
-            self.assertTrue(defaults["REQUIRE_API_KEY"])
+            self.assertNotIn("REQUIRE_API_KEY", defaults)
             self.assertEqual(defaults["ACCESS_PASSWORD"], "")
-            resolver = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "resolve_app_api_key")
+            resolver = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "resolve_access_password")
             namespace = {"ACCESS_PASSWORD": "test-access-password"}
             exec(compile(ast.Module(body=[resolver], type_ignores=[]), template, "exec"), namespace)
-            self.assertEqual(namespace["resolve_app_api_key"](), "test-access-password")
+            self.assertEqual(namespace["resolve_access_password"](), "test-access-password")
+            guard = next(node for node in tree.body if isinstance(node, ast.If) and ast.unparse(node.test) == "not access_password")
+            with self.assertRaisesRegex(RuntimeError, "ACCESS_PASSWORD"):
+                exec(compile(ast.Module(body=[guard], type_ignores=[]), template, "exec"), {"access_password": ""})
+            # The web password is passed only as its own environment variable.
+            assignment = next(node for node in tree.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "env_overrides")
+            namespace.update(FEATURE_NAME="test", PORT=8188, DATA_DIR=Path("/data"), APP_DIR=Path("/app"),
+                             access_password="test-access-password", COMFY_BASE="http://127.0.0.1:8189", COMFY_DIR=Path("/engine"), VLLM_BASE="http://127.0.0.1:8189")
+            exec(compile(ast.Module(body=[assignment], type_ignores=[]), template, "exec"), namespace)
+            self.assertEqual(namespace["env_overrides"]["COLAB_ACCESS_PASSWORD"], "test-access-password")
+            self.assertEqual(namespace["env_overrides"]["COLAB_API_KEY"], "")
 
     def test_updated_bundle_changes_the_restart_fingerprint(self):
         for template in TEMPLATES:
             with self.subTest(template=template):
                 self.assertNotEqual(fingerprint(template), fingerprint(template, release="v0.1.2:def"))
 
-    def test_rotating_enabled_api_key_restarts_without_storing_the_key(self):
+    def test_rotating_web_password_restarts_without_storing_the_password(self):
         for template in TEMPLATES:
             with self.subTest(template=template):
                 first = fingerprint(template, key="private-key-one")
@@ -68,6 +81,7 @@ class NotebookRestartTests(unittest.TestCase):
                 self.assertNotIn("private-key", first)
                 self.assertNotIn("private-key", second)
                 self.assertNotIn("COLAB_API_KEY", first)
+                self.assertNotIn("COLAB_ACCESS_PASSWORD", first)
 
     def test_engine_environment_changes_restart_the_gateway(self):
         for template in TEMPLATES:
@@ -107,6 +121,35 @@ class MediaPrerequisiteTests(unittest.TestCase):
 
     def test_image_studio_does_not_require_video_tools(self):
         self.run_guard("step4_comfy_app", "qwen-image-2.1", {"ffmpeg", "ffprobe"})
+
+
+class PasswordLaunchVerificationTests(unittest.TestCase):
+    def run_verification(self, opener, stop=None):
+        tree = ast.parse((ROOT / "tools/templates/helpers.py").read_text())
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "verify_web_password")
+        stop = stop or Mock()
+        namespace = {"urllib": __import__("urllib"), "stop_processes": stop, "print": lambda *args: None}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), "helper", "exec"), namespace)
+        with patch("urllib.request.build_opener", return_value=opener):
+            namespace["verify_web_password"]("http://127.0.0.1:8188", "app-pattern")
+        return stop
+
+    def test_login_redirect_is_verified_before_exposing_the_tunnel(self):
+        opener = Mock()
+        opener.open.side_effect = HTTPError("http://127.0.0.1:8188/", 303, "Redirect", {"Location": "/auth/login"}, None)
+        self.run_verification(opener).assert_not_called()
+        for template in TEMPLATES:
+            source = (ROOT / "tools/templates" / f"{template}.py").read_text()
+            self.assertLess(source.index("verify_web_password(BASE,"), source.index("host_url = start_cf_tunnel"))
+
+    def test_unprotected_service_is_stopped_even_when_health_would_succeed(self):
+        opener = Mock()
+        opener.open.return_value.__enter__ = Mock(return_value=Mock(status=200))
+        opener.open.return_value.__exit__ = Mock(return_value=False)
+        stop = Mock()
+        with self.assertRaisesRegex(RuntimeError, "已停止 Web 服务"):
+            self.run_verification(opener, stop)
+        stop.assert_called_once_with("app-pattern", 30)
 
 
 class ReleaseGuardTests(unittest.TestCase):

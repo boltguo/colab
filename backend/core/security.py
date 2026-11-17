@@ -1,7 +1,10 @@
 """Path symlink safety checks and optional Bearer/Header API Key auth."""
 import hmac
 import hashlib
+import json
+import os
 import secrets
+import tempfile
 import time
 from pathlib import Path
 import sys
@@ -18,28 +21,23 @@ def matches_key(provided: str, expected: str) -> bool:
     return bool(provided and expected) and hmac.compare_digest(provided.encode(), expected.encode())
 
 
-def create_session(api_key: str) -> str:
+def create_session(access_password: str) -> str:
     payload = f"{int(time.time()) + SESSION_TTL}.{secrets.token_urlsafe(24)}"
-    signature = hmac.new(api_key.encode(), b"colab-session:" + payload.encode(), hashlib.sha256).hexdigest()
+    signature = hmac.new(access_password.encode(), b"colab-session:" + payload.encode(), hashlib.sha256).hexdigest()
     return f"{payload}.{signature}"
 
 
-def valid_session(cookie: str, api_key: str) -> bool:
-    if not cookie or not api_key or len(cookie) > 256:
+def valid_session(cookie: str, access_password: str) -> bool:
+    if not cookie or not access_password or len(cookie) > 256:
         return False
     try:
         expires, nonce, signature = cookie.split(".")
         if not nonce or not time.time() < int(expires) <= time.time() + SESSION_TTL:
             return False
-        expected = hmac.new(api_key.encode(), f"colab-session:{expires}.{nonce}".encode(), hashlib.sha256).hexdigest()
+        expected = hmac.new(access_password.encode(), f"colab-session:{expires}.{nonce}".encode(), hashlib.sha256).hexdigest()
         return hmac.compare_digest(signature, expected)
     except (ValueError, TypeError):
         return False
-
-
-def request_has_key(request, api_key: str) -> bool:
-    provided = extract_token(request.headers.get("authorization"), request.headers.get("x-api-key"))
-    return matches_key(provided or request.query_params.get("api_key", "").strip(), api_key)
 
 
 def same_origin(request) -> bool:
@@ -90,17 +88,67 @@ def extract_token(authorization: Optional[str], x_api_key: Optional[str]) -> str
     return ""
 
 
-def make_auth_dependency(expected_api_key: str):
+class AuthState:
+    """Separate browser access from the API key configured inside the application."""
+
+    def __init__(self, access_password: str, data_dir: Path, api_key: str = ""):
+        self.access_password = access_password
+        self.key_path = ensure_safe_path(data_dir / "api_key.json", stop_at=data_dir)
+        self.key_digest = hashlib.sha256(api_key.encode()).hexdigest() if api_key else ""
+        if self.key_path.exists():
+            data = json.loads(self.key_path.read_text(encoding="utf-8"))
+            digest = data.get("sha256", "")
+            if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise RuntimeError("API Key 配置损坏，请检查 api_key.json。")
+            self.key_digest = digest
+
+    @property
+    def api_key_configured(self) -> bool:
+        return bool(self.key_digest)
+
+    @property
+    def api_required(self) -> bool:
+        # A protected application remains private until its owner configures an external API key.
+        return bool(self.access_password or self.key_digest)
+
+    def browser_authenticated(self, request) -> bool:
+        return valid_session(request.cookies.get(SESSION_COOKIE, ""), self.access_password)
+
+    def has_api_key(self, request) -> bool:
+        provided = extract_token(request.headers.get("authorization"), request.headers.get("x-api-key"))
+        provided = provided or request.query_params.get("api_key", "").strip()
+        return bool(provided and self.key_digest) and hmac.compare_digest(
+            hashlib.sha256(provided.encode()).hexdigest(), self.key_digest
+        )
+
+    def allows_api(self, request) -> bool:
+        return not self.api_required or self.browser_authenticated(request) or self.has_api_key(request)
+
+    def set_api_key(self, key: str) -> None:
+        if not 8 <= len(key) <= 512 or not key.isascii() or any(c.isspace() or not c.isprintable() for c in key):
+            raise ValueError("API Key 请使用 8～512 位字母、数字或符号，不含空格。")
+        digest = hashlib.sha256(key.encode()).hexdigest()
+        ensure_safe_path(self.key_path, stop_at=self.key_path.parent)
+        with tempfile.NamedTemporaryFile(mode="w", dir=self.key_path.parent, encoding="utf-8", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            try:
+                os.chmod(tmp_path, 0o600)
+                json.dump({"sha256": digest}, tmp)
+                tmp.close()
+                tmp_path.replace(self.key_path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+        self.key_digest = digest
+
+
+def make_auth_dependency(auth: AuthState):
     async def verify_request_auth(
         request: Request,
         authorization: Optional[str] = Header(default=None),
         x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
         api_key_query: Optional[str] = Query(default=None, alias="api_key"),
     ) -> None:
-        if not expected_api_key:
-            return
-        provided = extract_token(authorization, x_api_key) or (api_key_query or "").strip()
-        if not matches_key(provided, expected_api_key) and not valid_session(request.cookies.get(SESSION_COOKIE, ""), expected_api_key):
+        if not auth.allows_api(request):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="API Key 无效或缺失，请在 Authorization: Bearer <API_KEY> 或 X-API-Key 请求头中提供。",
@@ -109,13 +157,9 @@ def make_auth_dependency(expected_api_key: str):
     return verify_request_auth
 
 
-def verify_ws_auth(websocket: WebSocket, expected_api_key: str) -> bool:
-    if not expected_api_key:
+def verify_ws_auth(websocket: WebSocket, auth: AuthState) -> bool:
+    if not auth.api_required:
         return True
-    auth_header = websocket.headers.get("authorization")
-    x_key = websocket.headers.get("x-api-key")
-    q_key = websocket.query_params.get("api_key", "")
-    provided = extract_token(auth_header, x_key) or q_key.strip()
-    return matches_key(provided, expected_api_key) or (
-        same_origin(websocket) and valid_session(websocket.cookies.get(SESSION_COOKIE, ""), expected_api_key)
+    return auth.has_api_key(websocket) or (
+        same_origin(websocket) and auth.browser_authenticated(websocket)
     )

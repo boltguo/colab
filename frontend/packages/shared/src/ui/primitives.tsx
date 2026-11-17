@@ -232,10 +232,10 @@ export function Popconfirm({ children, title, onConfirm, okText = "确定", canc
       <Button type="primary" danger onClick={() => { onConfirm(); setOpen(false); }}>{okText}</Button>
     </>} />;
 }
-export function Modal({ title, children, open, onCancel, onOk, okText = "确定", cancelText = "取消" }:
-  { title: React.ReactNode; children: React.ReactNode; open: boolean; onCancel: () => void; onOk: () => void; okText?: string; cancelText?: string }) {
+export function Modal({ title, children, open, onCancel, onOk, okText = "确定", cancelText = "取消", confirmLoading = false }:
+  { title: React.ReactNode; children: React.ReactNode; open: boolean; onCancel: () => void; onOk: () => void; okText?: string; cancelText?: string; confirmLoading?: boolean }) {
   return <Dialog title={title} open={open} onOpenChange={(next) => { if (!next) onCancel(); }}
-    actions={<><Button onClick={onCancel}>{cancelText}</Button><Button type="primary" onClick={onOk}>{okText}</Button></>}>
+    actions={<><Button onClick={onCancel}>{cancelText}</Button><Button type="primary" disabled={confirmLoading} onClick={onOk}>{confirmLoading ? "保存中…" : okText}</Button></>}>
     {children}
   </Dialog>;
 }
