@@ -1,0 +1,81 @@
+/* The default m3eui expressiveViolet light palette; no runtime assets needed. */
+:root {
+  color-scheme: light;
+  --m3e-color-surface: #fff7ff;
+  --m3e-color-surface-container-low: #fbf0ff;
+  --m3e-color-surface-container: #f7e9ff;
+  --m3e-color-on-surface: #3d2a51;
+  --m3e-color-primary: #6850a5;
+  --m3e-color-on-primary: #fdf7ff;
+  --m3e-color-outline: #88729e;
+  --m3e-color-error: #ac3149;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: var(--m3e-color-surface);
+  color: var(--m3e-color-on-surface);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+main {
+  width: min(100%, 900px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 16px;
+  border-radius: 32px;
+  background: var(--m3e-color-surface-container-low);
+}
+.artwork {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: var(--m3e-color-surface-container);
+  border-radius: 24px;
+}
+.artwork svg { display: block; width: 100%; height: 100%; }
+.access-form {
+  align-self: center;
+  padding: 40px;
+}
+h1 { margin: 0 0 32px; font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
+input {
+  display: block;
+  width: 100%;
+  height: 56px;
+  padding: 14px 18px;
+  border: 1px solid var(--m3e-color-outline);
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+input:focus-visible, button:focus-visible {
+  outline: 3px solid var(--m3e-color-primary);
+  outline-offset: 3px;
+}
+button {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 24px;
+  padding: 10px 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--m3e-color-primary);
+  color: var(--m3e-color-on-primary);
+  font: 500 14px/20px system-ui, sans-serif;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+.error { color: var(--m3e-color-error); margin: 12px 0 0; font-size: 14px; }
+@media (max-width: 680px) {
+  body { padding: 20px; }
+  main { max-width: 400px; grid-template-columns: 1fr; }
+  .artwork { aspect-ratio: auto; height: 160px; }
+  .artwork svg { width: 180px; }
+  .access-form { padding: 28px 16px 24px; }
+  h1 { margin-bottom: 24px; font-size: 24px; }
+}
