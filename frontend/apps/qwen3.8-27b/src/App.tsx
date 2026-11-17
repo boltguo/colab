@@ -26,7 +26,6 @@ Tag,
 Text,
 TextArea,
 VideoCameraOutlined,
-loadApiKey,
 resolveApiUrl,
 uploadMediaFile,
 useStudioFeedback
@@ -317,14 +316,10 @@ export function QwenChatStudioApp() {
       abortControllerRef.current = controller;
 
       try {
-        const apiKey = loadApiKey();
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         };
-        if (apiKey) {
-          headers["Authorization"] = `Bearer ${apiKey}`;
-        }
 
         const reqBody = buildApiPayloadFromHistory(historyWithUser, toolsCheck.tools);
         const resp = await fetch(resolveApiUrl("/api/v1/chat/stream"), {
