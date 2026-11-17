@@ -28,7 +28,7 @@ def login_page(error: str = "") -> HTMLResponse:
 
 
 class ApiKeyUpdate(BaseModel):
-    api_key: str = Field(min_length=8, max_length=512)
+    api_key: str = Field(max_length=512)
 
 
 def install_web_access(app: FastAPI, auth: AuthState) -> None:
@@ -44,7 +44,8 @@ def install_web_access(app: FastAPI, auth: AuthState) -> None:
             if not allowed:
                 if request.method in {"GET", "HEAD"} and not is_api:
                     return RedirectResponse("/auth/login", status_code=303)
-                return JSONResponse({"detail": "请先登录应用；外部调用请使用独立的 API Key。"}, status_code=401,
+                detail = "API Key 无效或缺失，请提供配置的 API Key。" if is_api else "请先输入应用访问密码。"
+                return JSONResponse({"detail": detail}, status_code=401,
                                     headers={"X-Colab-Login-Required": "1"})
             if browser_session and not (is_api and auth.has_api_key(request)) and request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(request):
                 return JSONResponse({"detail": "不允许跨站操作。"}, status_code=403)
@@ -80,7 +81,7 @@ def install_web_access(app: FastAPI, auth: AuthState) -> None:
             auth.set_api_key(payload.api_key)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return {"configured": True}
+        return {"configured": auth.api_key_configured}
 
     @app.post("/auth/logout", include_in_schema=False)
     async def logout(request: Request):

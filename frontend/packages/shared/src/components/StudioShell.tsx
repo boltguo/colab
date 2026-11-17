@@ -309,7 +309,7 @@ while True:
       saveApiKey(clean);
       setSavedKey(clean);
       setKeyModalOpen(false);
-      message.success("API Key 已生效");
+      message.success(clean ? "API Key 已生效" : "API 鉴权已关闭");
       onAuthChanged?.();
       await refreshSystem(false);
     } catch (error) {
@@ -602,7 +602,7 @@ while True:
         cancelText="取消"
       >
         <Space direction="vertical" size={14} style={{ inlineSize: "100%", paddingBlock: 8 }}>
-          <Text>仅用于外部程序调用，与应用访问密码独立。</Text>
+          <Text>仅用于外部程序调用。留空保存后，API 可免鉴权调用。</Text>
 
           <div className="studio-field-group">
             <label htmlFor="studio-api-key" className="studio-field-label">

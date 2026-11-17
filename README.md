@@ -68,7 +68,7 @@ curl "https://YOUR_TUNNEL_DOMAIN/v1/chat/completions" \
   -d '{"model":"qwen3.8-27b","messages":[{"role":"user","content":"你好"}]}'
 ```
 
-应用访问密码与 API Key 独立。API Key 在网页右上角设置，更新后立即生效；高级参数仍可通过 API 使用。
+应用访问密码与 API Key 独立。API 默认免鉴权；在网页右上角设置 API Key 后，外部调用才需要携带它。留空保存可关闭 API 鉴权，修改立即生效。高级参数仍可通过 API 使用。
 
 ## 使用说明
 

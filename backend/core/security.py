@@ -98,7 +98,7 @@ class AuthState:
         if self.key_path.exists():
             data = json.loads(self.key_path.read_text(encoding="utf-8"))
             digest = data.get("sha256", "")
-            if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            if not isinstance(digest, str) or (digest and (len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest))):
                 raise RuntimeError("API Key 配置损坏，请检查 api_key.json。")
             self.key_digest = digest
 
@@ -108,8 +108,7 @@ class AuthState:
 
     @property
     def api_required(self) -> bool:
-        # A protected application remains private until its owner configures an external API key.
-        return bool(self.access_password or self.key_digest)
+        return self.api_key_configured
 
     def browser_authenticated(self, request) -> bool:
         return valid_session(request.cookies.get(SESSION_COOKIE, ""), self.access_password)
@@ -125,9 +124,9 @@ class AuthState:
         return not self.api_required or self.browser_authenticated(request) or self.has_api_key(request)
 
     def set_api_key(self, key: str) -> None:
-        if not 8 <= len(key) <= 512 or not key.isascii() or any(c.isspace() or not c.isprintable() for c in key):
+        if key and (not 8 <= len(key) <= 512 or not key.isascii() or any(c.isspace() or not c.isprintable() for c in key)):
             raise ValueError("API Key 请使用 8～512 位字母、数字或符号，不含空格。")
-        digest = hashlib.sha256(key.encode()).hexdigest()
+        digest = hashlib.sha256(key.encode()).hexdigest() if key else ""
         ensure_safe_path(self.key_path, stop_at=self.key_path.parent)
         with tempfile.NamedTemporaryFile(mode="w", dir=self.key_path.parent, encoding="utf-8", delete=False) as tmp:
             tmp_path = Path(tmp.name)

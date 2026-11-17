@@ -97,7 +97,7 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
     @app.middleware("http")
     async def cloudflare_safe_headers(request: Request, call_next):
         response = await call_next(request)
-        if auth.api_required:
+        if auth.access_password or auth.api_required:
             response.headers["Cache-Control"] = "private, no-store, no-transform"
             return response
         path = request.url.path
