@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (/\/(?:@shikijs|shiki|oniguruma[^/]*|regex[^/]*)\//.test(id)) return undefined;
           if (id.includes("node_modules")) {
             return "vendor";
           }

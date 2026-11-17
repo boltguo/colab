@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRecentTasks } from "../api/client";
+import { isGenerationTask } from "./history";
 
 export interface HistoryEntry<TResult = Record<string, unknown>, TParams = Record<string, unknown>> {
   id: string;
@@ -44,7 +45,7 @@ export function useHistoryStore<
         const tasks = await fetchRecentTasks<TResult, TParams>(100);
         if (cancelled) return;
         const recovered: HistoryEntry<TResult, TParams>[] = tasks
-          .filter((task) => task.feature === feature && task.status === "succeeded" && task.result)
+          .filter((task) => task.feature === feature && task.status === "succeeded" && task.result && isGenerationTask(task))
           .map((task) => ({
             id: task.task_id,
             feature,

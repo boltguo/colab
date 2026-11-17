@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, CopyOutlined, useStudioFeedback } from "@colab/shared";
+import { CodeBlock } from "@colab/shared";
 
 interface Segment {
   kind: "text" | "code";
@@ -92,39 +92,14 @@ function renderProseBlock(block: string, keyPrefix: string): React.ReactNode {
 }
 
 export function MarkdownBody({ text }: { text: string }) {
-  const { message } = useStudioFeedback();
   const segments = splitCodeFences(text);
-
-  const handleCopyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      message.success("代码已复制");
-    } catch {
-      message.warning("复制失败，请手动选中复制");
-    }
-  };
 
   return (
     <div className="studio-md-content">
       {segments.map((seg, idx) => {
         if (seg.kind === "code") {
           return (
-            <div key={idx} className="studio-md-codeblock">
-              <div className="studio-md-codeheader">
-                <span>{seg.lang || "code"}</span>
-                <Button
-                  htmlType="button"
-                  size="small"
-                  type="text"
-                  icon={<CopyOutlined />}
-                  style={{ blockSize: 22, paddingInline: 6, fontSize: 11.5 }}
-                  onClick={() => void handleCopyCode(seg.value)}
-                >
-                  复制
-                </Button>
-              </div>
-              <pre className="studio-md-codepre">{seg.value}</pre>
-            </div>
+            <CodeBlock key={idx} code={seg.value} language={seg.lang} />
           );
         }
         return <React.Fragment key={idx}>{renderProseBlock(seg.value, `prose-${idx}`)}</React.Fragment>;

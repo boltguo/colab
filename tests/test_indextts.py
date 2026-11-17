@@ -1,6 +1,7 @@
 """IndexTTS adapter regressions that run without GPU weights."""
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
+import os
 import random
 from pathlib import Path
 import shutil
@@ -121,6 +122,20 @@ class IndexTTSEngineTests(unittest.TestCase):
 
 
 class IndexTTSOutputTests(unittest.TestCase):
+    def test_preset_audio_cache_key_tracks_content_across_reproducible_archives(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            storage = MediaStorage(root / "media")
+            reference = root / "reference.mp3"
+            reference.write_bytes(b"first voice")
+            os.utime(reference, (0, 0))
+            storage.register_preset("ref_audio", reference, "Reference")
+            first = storage.list_presets()[0].url
+            reference.write_bytes(b"other voice")
+            os.utime(reference, (0, 0))
+            storage.register_preset("ref_audio", reference, "Reference")
+            self.assertNotEqual(first, storage.list_presets()[0].url)
+
     def test_subtitle_timestamp_carries_minutes_and_hours(self):
         self.assertEqual(runner._format_clock(59.9996, "srt"), "00:01:00,000")
         self.assertEqual(runner._format_clock(3599.9996, "vtt"), "01:00:00.000")

@@ -29,8 +29,8 @@ def _register_presets(storage: MediaStorage) -> None:
         storage.register_preset(
             preset_id="ref_audio",
             file_path=sample_mp3,
-            label="内置示例参考音色 (ref_audio.mp3)",
-            description="官方预置清晰普通话示例人声，可直接用于测试克隆或跨语种合成",
+            label="Sage · 内置参考音色",
+            description="Sage 示例人声，约 8.9 秒，可用于音色克隆或跨语种合成",
             kind="audio",
         )
 
@@ -81,7 +81,7 @@ def _build_router(
 INDEXTTS_2_5_PLUGIN = FeaturePlugin(
     name="indextts-2.5",
     title="IndexTTS 2.5 语音合成工作台",
-    subtitle="多语种音色克隆 · 情绪控制 · 音频与字幕导出",
+    subtitle="选择音色 · 输入文本 · 生成试听",
     engine="Native IndexTTS-2.5 (PyTorch)",
     version="0.1.0",
     validate_params=_validate_indextts_params,
