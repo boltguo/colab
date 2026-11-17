@@ -1,21 +1,24 @@
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 import {
   fetchSystemStatus,
   getEffectiveOrigin,
   loadApiKey,
   saveApiKey,
 } from "../api/client";
+import { CodeBlock } from "./CodeBlock";
 import type { SystemStatus, TunnelMode } from "../api/types";
 import {
   Alert,
   ApiOutlined,
   Badge,
   Button,
+  BookOutlined,
   CheckCircleFilled,
   CloseOutlined,
   CloudServerOutlined,
   CodeOutlined,
   CopyOutlined,
+  Dialog,
   DashboardOutlined,
   Input,
   KeyOutlined,
@@ -23,6 +26,7 @@ import {
   Modal,
   Popover,
   ReloadOutlined,
+  ScrollArea,
   Space,
   Tabs,
   Tag,
@@ -76,12 +80,12 @@ function detectTunnelMode(sys: SystemStatus | null): TunnelMode {
 
 function meterState(pct: number): { color: string; statusLabel?: string; tagColor?: "warning" | "error" } {
   if (pct >= 92) {
-    return { color: "#dc2626", statusLabel: "告警", tagColor: "error" };
+    return { color: "var(--m3e-color-error)", statusLabel: "告警", tagColor: "error" };
   }
   if (pct >= 78) {
-    return { color: "#d97706", statusLabel: "偏高", tagColor: "warning" };
+    return { color: "var(--m3e-color-warning)", statusLabel: "偏高", tagColor: "warning" };
   }
-  return { color: "#2563eb" };
+  return { color: "var(--m3e-color-primary)" };
 }
 
 function shortGpuLabel(name: string): string {
@@ -157,61 +161,17 @@ export function StudioShell({
   const cpuBarId = useId();
   const ramBarId = useId();
   const diskBarId = useId();
-  const apiDialogTitleId = useId();
   const controlsId = useId();
   const resultsId = useId();
 
-  const apiDialogRef = useRef<HTMLDialogElement | null>(null);
-  const copyTimerRef = useRef<number | null>(null);
 
   const [sys, setSys] = useState<SystemStatus | null>(null);
   const [refreshingSys, setRefreshingSys] = useState(false);
   const [keyModalOpen, setKeyModalOpen] = useState(false);
-  const [copiedNotice, setCopiedNotice] = useState<string | null>(null);
+  const [apiModalOpen, setApiModalOpen] = useState(false);
 
   const [savedKey, setSavedKey] = useState<string>(() => loadApiKey());
   const [apiKeyInput, setApiKeyInput] = useState<string>(() => loadApiKey());
-
-  // Fallback light-dismiss for browsers without HTMLDialogElement.prototype.closedBy (e.g. Safari)
-  useEffect(() => {
-    const dialog = apiDialogRef.current;
-    if (!dialog) return;
-    if ("closedBy" in HTMLDialogElement.prototype) return;
-
-    const isOutside = (e: PointerEvent) => {
-      const r = dialog.getBoundingClientRect();
-      return (
-        e.clientX < r.left ||
-        e.clientX > r.right ||
-        e.clientY < r.top ||
-        e.clientY > r.bottom
-      );
-    };
-    let pressedOutside = false;
-    const onPointerDown = (e: PointerEvent) => {
-      pressedOutside = isOutside(e);
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      if (pressedOutside && isOutside(e)) {
-        dialog.close();
-      }
-      pressedOutside = false;
-    };
-    dialog.addEventListener("pointerdown", onPointerDown);
-    dialog.addEventListener("pointerup", onPointerUp);
-    return () => {
-      dialog.removeEventListener("pointerdown", onPointerDown);
-      dialog.removeEventListener("pointerup", onPointerUp);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current !== null) {
-        window.clearTimeout(copyTimerRef.current);
-      }
-    };
-  }, []);
 
   const refreshSystem = useCallback(async (manual = false) => {
     if (manual) setRefreshingSys(true);
@@ -308,7 +268,7 @@ HEADERS = json.loads(${JSON.stringify(JSON.stringify(pythonHeaders))})
 # with open("${sampleUploadFile}", "rb") as f:
 #     file_id = requests.post(f"{BASE_URL}/api/v1/files", headers=HEADERS, files={"file": f}).json()["file_id"]
 
-# 2. 提交异步推理任务（包含当前工作台全部自定义控制参数）
+# 2. 提交异步推理任务（包含当前页面设置）
 payload = json.loads(${JSON.stringify(prettyJson)})
 resp = requests.post(f"{BASE_URL}${apiEndpointPath}", json=payload, headers=HEADERS, timeout=30)
 resp.raise_for_status()
@@ -333,17 +293,7 @@ while True:
   const copyText = async (text: string, tip: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      if (apiDialogRef.current?.open) {
-        setCopiedNotice(tip);
-        if (copyTimerRef.current !== null) {
-          window.clearTimeout(copyTimerRef.current);
-        }
-        copyTimerRef.current = window.setTimeout(() => {
-          setCopiedNotice(null);
-        }, 2200);
-      } else {
-        message.success(tip);
-      }
+      message.success(tip);
     } catch {
       message.warning("复制失败，请手动选中代码复制");
     }
@@ -366,7 +316,7 @@ while True:
   const ramPct = sys?.host?.ram_percent ?? 0;
   const diskPct = sys?.host?.disk_percent ?? 0;
   const peakPct = Math.max(vramPct, cpuPct, ramPct, diskPct);
-  const dotColor = peakPct >= 92 ? "#dc2626" : peakPct >= 78 ? "#d97706" : "#059669";
+  const dotColor = peakPct >= 92 ? "var(--m3e-color-error)" : peakPct >= 78 ? "var(--m3e-color-warning)" : "var(--m3e-color-success)";
 
   const telemetryPopoverContent = sys ? (
     <div className="studio-telemetry-panel">
@@ -514,14 +464,9 @@ while True:
           <div style={{ minInlineSize: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <h1 style={{ margin: 0, fontWeight: 700, fontSize: "1.02rem", color: "var(--studio-text)" }}>
-                {sys?.title || defaultTitle}
+                {defaultTitle}
               </h1>
               {sys?.mock_mode && <Tag color="warning">Mock 预览模式</Tag>}
-              {sys?.engine && (
-                <Tag color="processing" style={{ marginInlineEnd: 0 }}>
-                  {sys.engine}
-                </Tag>
-              )}
               {tunnelMode === "quick" && (
                 <Tooltip title="当前使用 Cloudflare Quick Tunnel 免费临时公网链接，Colab 机器关闭或重启隧道后此地址即失效；如需固定域名请在部署第 4 步选择「自有 Tunnel」">
                   <Tag color="warning" style={{ marginInlineEnd: 0 }}>
@@ -538,7 +483,7 @@ while True:
               )}
             </div>
             <div style={{ fontSize: "0.78rem", color: "var(--studio-text-muted)" }}>
-              {sys?.subtitle || defaultSubtitle}
+              {defaultSubtitle || sys?.subtitle}
             </div>
           </div>
         </div>
@@ -608,8 +553,7 @@ while True:
             type="primary"
             icon={<ApiOutlined />}
             onClick={() => {
-              setCopiedNotice(null);
-              apiDialogRef.current?.showModal();
+              setApiModalOpen(true);
             }}
           >
             API 调用代码
@@ -624,11 +568,13 @@ while True:
           <a href={`#${resultsId}`}>{layoutRatio === "chat" ? "参数设置" : "结果与历史"}</a>
         </nav>
         <div className="studio-grid" data-layout={layoutRatio}>
-          <section id={controlsId} className="studio-column" aria-label="模型创作与全参数控制区">
+          <section id={controlsId} className="studio-column" aria-label="创作与生成设置">
             {leftPane}
           </section>
-          <aside id={resultsId} className="studio-sticky-aside" aria-label="参数与预览面板">
-            {rightPane}
+          <aside id={resultsId} className="studio-sticky-aside" aria-label="结果与历史">
+            <ScrollArea className="studio-preview-scroll" maxHeight="var(--studio-preview-max-height)">
+              <div className="studio-preview-content">{rightPane}</div>
+            </ScrollArea>
           </aside>
         </div>
       </main>
@@ -667,7 +613,7 @@ while True:
               allowClear
               placeholder={sys?.auth_required ? "请输入 APP_API_KEY" : "未开启鉴权时留空即可"}
               value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
+              onValueChange={(value) => setApiKeyInput(value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -684,51 +630,15 @@ while True:
         </Space>
       </Modal>
 
-      <dialog
-        ref={apiDialogRef}
+      <Dialog
+        title={apiModalTitle || apiDrawerTitle || "标准 HTTP / WebSocket API 调用示例"}
+        open={apiModalOpen}
+        onOpenChange={setApiModalOpen}
+        showCloseButton
         className="studio-api-dialog"
-        aria-labelledby={apiDialogTitleId}
-        {...({ closedby: "any" } as Record<string, string>)}
+        style={{ width: "min(1000px, calc(100vw - 48px))", maxWidth: "none" }}
       >
-        <div className="studio-api-dialog-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minInlineSize: 0, flex: "1 1 auto" }}>
-            <ApiOutlined style={{ color: "var(--studio-accent)", fontSize: 16, flexShrink: 0 }} />
-            <h2 id={apiDialogTitleId} className="studio-api-dialog-title">
-              {apiModalTitle || apiDrawerTitle || "标准 HTTP / WebSocket API 调用示例"}
-            </h2>
-            {copiedNotice && (
-              <Tag color="success" icon={<CheckCircleFilled />} style={{ marginInlineEnd: 0, flexShrink: 0 }}>
-                {copiedNotice}
-              </Tag>
-            )}
-          </div>
-
-          <Space size={8} style={{ flexShrink: 0 }}>
-            <Button
-              htmlType="button"
-              size="small"
-              type="link"
-              icon={<LinkOutlined />}
-              href={`${origin}/docs`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              交互式 Swagger /docs
-            </Button>
-            <Button
-              htmlType="button"
-              size="small"
-              icon={<CloseOutlined />}
-              aria-label="关闭 API 调用代码弹窗"
-              onClick={() => apiDialogRef.current?.close()}
-            >
-              关闭
-            </Button>
-          </Space>
-        </div>
-
-        <div className="studio-api-dialog-body">
-          <Space direction="vertical" size={14} style={{ inlineSize: "100%" }}>
+        <div className="studio-api-content">
             {tunnelMode === "quick" && (
               <Alert
                 type="warning"
@@ -738,19 +648,7 @@ while True:
               />
             )}
 
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                padding: "0.6rem 0.85rem",
-                borderRadius: 8,
-                background: "var(--studio-surface-subtle)",
-                border: "1px solid var(--studio-border)",
-              }}
-            >
+            <div className="studio-api-address">
               <Space wrap size={6}>
                 <Text strong style={{ fontSize: 13 }}>
                   当前服务调用地址：
@@ -759,21 +657,22 @@ while True:
                 {tunnelMode === "quick" && <Tag color="warning">临时链接</Tag>}
                 {tunnelMode === "custom" && <Tag color="success">自有 Tunnel</Tag>}
               </Space>
-              <Button
-                htmlType="button"
-                size="small"
-                icon={<CopyOutlined />}
-                onClick={() => void copyText(origin, "已复制当前服务地址")}
-              >
-                复制链接
-              </Button>
+              <Space size={8}>
+                <Button type="link" size="small" icon={<BookOutlined />}
+                  href={`${origin}/docs`} target="_blank" rel="noreferrer">API 文档</Button>
+                <Tooltip title="复制服务地址">
+                  <Button htmlType="button" size="small" icon={<CopyOutlined />}
+                    aria-label="复制服务地址" onClick={() => void copyText(origin, "已复制当前服务地址")} />
+                </Tooltip>
+              </Space>
             </div>
 
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              下方代码已实时带入当前服务链接与你在工作台调节的全量模型参数，可直接复制运行：
+            <Text type="secondary" className="studio-api-guidance" style={{ fontSize: 13 }}>
+              下方代码已带入当前服务地址和页面设置，可直接复制运行：
             </Text>
 
             <Tabs
+              className="studio-api-tabs"
               items={
                 customApiTabs
                   ? customApiTabs({
@@ -787,54 +686,29 @@ while True:
                         key: "python",
                         label: (
                           <span>
-                            <CodeOutlined /> Python SDK / Requests 示例
+                            <CodeOutlined /> Python
                           </span>
                         ),
                         children: (
-                          <Space direction="vertical" size={8} style={{ inlineSize: "100%" }}>
-                            <Button
-                              htmlType="button"
-                              size="small"
-                              type="primary"
-                              ghost
-                              icon={<CopyOutlined />}
-                              onClick={() => void copyText(pythonSnippet, "已复制 Python 调用代码")}
-                            >
-                              一键复制 Python 代码
-                            </Button>
-                            <pre className="studio-code-block">{pythonSnippet}</pre>
-                          </Space>
+                          <CodeBlock code={pythonSnippet} language="python" />
                         ),
                       },
                       {
                         key: "curl",
                         label: (
                           <span>
-                            <CodeOutlined /> cURL 命令行示例
+                            <CodeOutlined /> cURL
                           </span>
                         ),
                         children: (
-                          <Space direction="vertical" size={8} style={{ inlineSize: "100%" }}>
-                            <Button
-                              htmlType="button"
-                              size="small"
-                              type="primary"
-                              ghost
-                              icon={<CopyOutlined />}
-                              onClick={() => void copyText(curlSnippet, "已复制 cURL 命令")}
-                            >
-                              一键复制 cURL 命令
-                            </Button>
-                            <pre className="studio-code-block">{curlSnippet}</pre>
-                          </Space>
+                          <CodeBlock code={curlSnippet} language="bash" />
                         ),
                       },
                     ]
               }
             />
-          </Space>
         </div>
-      </dialog>
+      </Dialog>
     </div>
   );
 }

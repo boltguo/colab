@@ -1,51 +1,45 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  Alert,
-  BulbOutlined,
-  Button,
-  Card,
-  ClearOutlined,
-  CloseOutlined,
-  CodeOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  Input,
-  InputNumber,
-  LoadingOutlined,
-  MessageOutlined,
-  PaperClipOutlined,
-  PictureOutlined,
-  Popconfirm,
-  ReloadOutlined,
-  Segmented,
-  Select,
-  SendOutlined,
-  Slider,
-  Space,
-  StopOutlined,
-  StudioCustomApiTabContext,
-  StudioShell,
-  Switch,
-  Tag,
-  Text,
-  TextArea,
-  Tooltip,
-  VideoCameraOutlined,
-  loadApiKey,
-  resolveApiUrl,
-  uploadMediaFile,
-  useStudioFeedback,
+Alert,
+BulbOutlined,
+Button,
+Card,
+CloseOutlined,
+CodeBlock,
+CodeOutlined,
+DeleteOutlined,
+SeedControl,
+LoadingOutlined,
+MessageOutlined,
+PaperClipOutlined,
+PictureOutlined,
+Popconfirm,
+ReloadOutlined,
+Select,
+SendOutlined,
+Slider,
+Space,
+StopOutlined,
+StudioCustomApiTabContext,
+StudioShell,
+Switch,
+Tag,
+Text,
+TextArea,
+VideoCameraOutlined,
+loadApiKey,
+resolveApiUrl,
+uploadMediaFile,
+useStudioFeedback
 } from "@colab/shared";
+import React,{ useCallback,useEffect,useId,useMemo,useRef,useState } from "react";
 import { MarkdownBody } from "./MarkdownBody";
-import { buildChatMessages, buildOpenAiPayload, parseStopWords, parseToolsJson, readChatEvents } from "./chat";
+import { buildChatMessages,buildOpenAiPayload,parseStopWords,parseToolsJson,readChatEvents } from "./chat";
 import {
-  ChatAttachmentItem,
-  ChatTurn,
-  DEFAULT_QWEN_SAMPLING,
-  QwenSamplingConfig,
-  ReasoningEffort,
-  ResponseFormatMode,
-  ToolCallItem,
+ChatAttachmentItem,
+ChatTurn,
+DEFAULT_QWEN_SAMPLING,
+QwenSamplingConfig,
+ToolCallItem
 } from "./types";
 
 function splitFilename(name: string): { stem: string; ext: string } {
@@ -481,10 +475,8 @@ export function QwenChatStudioApp() {
     setSampling((previous) => ({
       ...DEFAULT_QWEN_SAMPLING,
       system_prompt: previous.system_prompt,
-      tools_json: previous.tools_json,
-      tool_choice: previous.tool_choice,
     }));
-    message.success("已恢复推荐采样参数");
+    message.success("已恢复默认生成设置");
   };
 
   const copyPlainText = async (text: string, tip = "已复制到剪贴板") => {
@@ -591,19 +583,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             </span>
           ),
           children: (
-            <Space direction="vertical" size={8} style={{ inlineSize: "100%" }}>
-              <Button
-                htmlType="button"
-                size="small"
-                type="primary"
-                ghost
-                icon={<CopyOutlined />}
-                onClick={() => void copyText(claudeCodeSnippet, "已复制 Claude Code 配置命令")}
-              >
-                一键复制 Claude Code 环境变量
-              </Button>
-              <pre className="studio-code-block">{claudeCodeSnippet}</pre>
-            </Space>
+            <CodeBlock code={claudeCodeSnippet} language="bash" />
           ),
         },
         {
@@ -614,19 +594,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             </span>
           ),
           children: (
-            <Space direction="vertical" size={8} style={{ inlineSize: "100%" }}>
-              <Button
-                htmlType="button"
-                size="small"
-                type="primary"
-                ghost
-                icon={<CopyOutlined />}
-                onClick={() => void copyText(openaiPySnippet, "已复制 OpenAI Python 流式代码")}
-              >
-                一键复制 Python 代码（已同步右侧参数）
-              </Button>
-              <pre className="studio-code-block">{openaiPySnippet}</pre>
-            </Space>
+            <CodeBlock code={openaiPySnippet} language="python" />
           ),
         },
         {
@@ -637,19 +605,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             </span>
           ),
           children: (
-            <Space direction="vertical" size={8} style={{ inlineSize: "100%" }}>
-              <Button
-                htmlType="button"
-                size="small"
-                type="primary"
-                ghost
-                icon={<CopyOutlined />}
-                onClick={() => void copyText(curlSnippet, "已复制 cURL 命令")}
-              >
-                一键复制 cURL 命令
-              </Button>
-              <pre className="studio-code-block">{curlSnippet}</pre>
-            </Space>
+            <CodeBlock code={curlSnippet} language="bash" />
           ),
         },
       ];
@@ -736,11 +692,10 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               <BulbOutlined />
             </div>
             <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--studio-text)" }}>
-              Qwen3.8-27B 多模态深度思考工作台
+              Qwen3.8-27B
             </div>
             <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
-              直接输入问题开始对话，或拖拽 / <code>⌘+V</code> 粘贴你自己的图片与视频进行视觉理解。
-              同时对外开放标准 <code>/v1/chat/completions</code> 与 Claude Code <code>/v1/messages</code> 接口（点击右上角「API 调用代码」即可复制）。
+              输入问题，或添加图片、视频开始对话。
             </Text>
           </div>
         ) : (
@@ -805,15 +760,8 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                   {turn.toolCalls && turn.toolCalls.length > 0 && (
                     <div style={{ marginBlockStart: turn.content ? 8 : 0, display: "flex", flexDirection: "column", gap: 6 }}>
                       {turn.toolCalls.map((tc) => (
-                        <div key={tc.id || tc.function.name} className="studio-md-codeblock">
-                          <div className="studio-md-codeheader">
-                            <span>工具调用 · {tc.function.name}</span>
-                            <Tag color="processing" style={{ marginInlineEnd: 0, fontSize: 11 }}>
-                              tool_calls
-                            </Tag>
-                          </div>
-                          <pre className="studio-md-codepre">{tc.function.arguments}</pre>
-                        </div>
+                        <CodeBlock key={tc.id || tc.function.name} code={tc.function.arguments}
+                          language="json" title={`工具调用 · ${tc.function.name}`} />
                       ))}
                     </div>
                   )}
@@ -1078,367 +1026,39 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
   // ---------------------------------------------------------------------------
   // Right Sticky Column: Flat System Prompt, Thinking & Sampling Controls
   // ---------------------------------------------------------------------------
-  const rightPane = (
-    <>
-      {/* 1. System Prompt & Thinking Control */}
-      <Card className="studio-card" title="系统指令与思考模式">
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-          <div className="studio-field-group">
-            <div className="studio-field-label">
-              <label htmlFor={sysPromptId}>系统提示词 (System Prompt)</label>
-            </div>
-            <TextArea
-              id={sysPromptId}
-              rows={3}
-              maxLength={32000}
-              placeholder="可选：设定角色身份、输出语言、代码风格或格式规范（留空使用模型默认）..."
-              value={sampling.system_prompt}
-              onChange={(e) => updateSampling("system_prompt", e.target.value)}
-            />
-          </div>
-
-          <div
-            style={{
-              padding: "0.65rem 0.75rem",
-              borderRadius: "0.6rem",
-              background: "var(--studio-surface-subtle)",
-              border: "1px solid var(--studio-border)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.55rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <Space size={6}>
-                <BulbOutlined style={{ color: "var(--studio-accent)" }} />
-                <Text strong style={{ fontSize: 13 }}>
-                  深度思考链 (&lt;think&gt;)
-                </Text>
-              </Space>
-              <Switch
-                size="small"
-                checked={sampling.enable_thinking}
-                aria-label="开启深度思考"
-                onChange={handleToggleThinking}
-              />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>
-                思考强度
-              </Text>
-              <Segmented
-                size="small"
-                disabled={!sampling.enable_thinking}
-                value={sampling.reasoning_effort}
-                onChange={(val) => updateSampling("reasoning_effort", val as ReasoningEffort)}
-                options={[
-                  { label: "低 Low", value: "low" },
-                  { label: "中 Med", value: "medium" },
-                  { label: "高 XHigh", value: "xhigh" },
-                ]}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12.5 }}>保留历史思考（官方默认）</Text>
-              <Switch
-                size="small"
-                aria-label="保留历史思考"
-                checked={sampling.preserve_thinking}
-                onChange={(checked) => updateSampling("preserve_thinking", checked)}
-              />
-            </div>
-          </div>
+  const rightPane = <>
+    <Card className="studio-card" title="对话设置">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="studio-field-group">
+          <label htmlFor={sysPromptId}>系统提示词（可选）</label>
+          <TextArea id={sysPromptId} rows={3} maxLength={32000} value={sampling.system_prompt}
+            onValueChange={(value) => updateSampling("system_prompt", value)} placeholder="例如：用简洁的中文回答，给出可直接运行的代码。" />
         </div>
-      </Card>
-
-      {/* 2. Flat Core Sampling Hyperparameters */}
-      <Card
-        className="studio-card"
-        title="核心采样参数"
-        extra={
-          <Button
-            htmlType="button"
-            size="small"
-            type="text"
-            icon={<ClearOutlined />}
-            onClick={handleResetSampling}
-          >
-            恢复默认
-          </Button>
-        }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
-          {/* Max Tokens */}
-          <div className="studio-field-group">
-            <div className="studio-field-label">
-              <span>最大输出长度 (Max Tokens)</span>
-              <span className="studio-tabular" style={{ color: "var(--studio-accent)" }}>
-                {sampling.max_tokens}
-              </span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 98px", gap: 10, alignItems: "center" }}>
-              <Slider
-                min={256}
-                max={131072}
-                step={256}
-                value={sampling.max_tokens}
-                onChange={(v) => updateSampling("max_tokens", v)}
-              />
-              <InputNumber
-                size="small"
-                min={1}
-                max={131072}
-                step={256}
-                className="studio-tabular"
-                style={{ inlineSize: "100%" }}
-                value={sampling.max_tokens}
-                onChange={(v) => updateSampling("max_tokens", Number(v || 2048))}
-              />
-            </div>
-          </div>
-
-          {/* Temperature */}
-          <div className="studio-field-group">
-            <div className="studio-field-label">
-              <span>
-                采样温度 (Temperature){" "}
-                <Tooltip title="Qwen3.8 思考模式官方推荐温度 1.0；非思考模式推荐温度 0.7、Top-P 0.8、Presence Penalty 1.5。设为 0 为贪婪解码。">
-                  <span style={{ color: "var(--studio-text-muted)", cursor: "help" }}>ⓘ</span>
-                </Tooltip>
-              </span>
-              <span className="studio-tabular">{sampling.temperature.toFixed(2)}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 84px", gap: 10, alignItems: "center" }}>
-              <Slider
-                min={0}
-                max={2}
-                step={0.05}
-                value={sampling.temperature}
-                onChange={(v) => updateSampling("temperature", v)}
-              />
-              <InputNumber
-                size="small"
-                min={0}
-                max={2}
-                step={0.05}
-                className="studio-tabular"
-                style={{ inlineSize: "100%" }}
-                value={sampling.temperature}
-                onChange={(v) => updateSampling("temperature", Number(v ?? 1.0))}
-              />
-            </div>
-          </div>
-
-          {/* Top-P */}
-          <div className="studio-field-group">
-            <div className="studio-field-label">
-              <span>核采样阈值 (Top-P)</span>
-              <span className="studio-tabular">{sampling.top_p.toFixed(2)}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 84px", gap: 10, alignItems: "center" }}>
-              <Slider
-                min={0.01}
-                max={1}
-                step={0.01}
-                value={sampling.top_p}
-                onChange={(v) => updateSampling("top_p", v)}
-              />
-              <InputNumber
-                size="small"
-                min={0.01}
-                max={1}
-                step={0.05}
-                className="studio-tabular"
-                style={{ inlineSize: "100%" }}
-                value={sampling.top_p}
-                onChange={(v) => updateSampling("top_p", Number(v ?? 0.95))}
-              />
-            </div>
-          </div>
-
-          {/* Top-K */}
-          <div className="studio-field-group">
-            <div className="studio-field-label">
-              <span>候选词截断 (Top-K，0 / -1 为不限)</span>
-              <span className="studio-tabular">{sampling.top_k}</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 84px", gap: 10, alignItems: "center" }}>
-              <Slider
-                min={-1}
-                max={500}
-                step={1}
-                value={sampling.top_k}
-                onChange={(v) => updateSampling("top_k", v)}
-              />
-              <InputNumber
-                size="small"
-                min={-1}
-                max={500}
-                step={1}
-                className="studio-tabular"
-                style={{ inlineSize: "100%" }}
-                value={sampling.top_k}
-                onChange={(v) => updateSampling("top_k", Number(v ?? 20))}
-              />
-            </div>
-          </div>
-
-          {/* Presence & Repetition Penalty */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-            <div className="studio-field-group">
-              <div className="studio-field-label">
-                <span style={{ fontSize: 12 }}>存在惩罚 (Presence)</span>
-              </div>
-              <InputNumber
-                size="small"
-                min={-2}
-                max={2}
-                step={0.1}
-                className="studio-tabular"
-                style={{ inlineSize: "100%" }}
-                value={sampling.presence_penalty}
-                onChange={(v) => updateSampling("presence_penalty", Number(v ?? 0))}
-              />
-            </div>
-
-            <div className="studio-field-group">
-              <div className="studio-field-label">
-                <span style={{ fontSize: 12 }}>重复惩罚 (Repetition)</span>
-              </div>
-              <InputNumber
-                size="small"
-                min={0.5}
-                max={2}
-                step={0.05}
-                className="studio-tabular"
-                style={{ inlineSize: "100%" }}
-                value={sampling.repetition_penalty}
-                onChange={(v) => updateSampling("repetition_penalty", Number(v ?? 1.0))}
-              />
-            </div>
-          </div>
-
-          {/* 3. Progressive Disclosure: Low-Level Sampling, JSON Mode & Tool Calling */}
-          <details className="studio-native-details">
-            <summary>高级控制、JSON 模式与工具调用（可选）</summary>
-            <div className="studio-details-body" style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-                <div className="studio-field-group">
-                  <div className="studio-field-label">
-                    <span style={{ fontSize: 12 }}>Min-P 阈值</span>
-                  </div>
-                  <InputNumber
-                    size="small"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    className="studio-tabular"
-                    style={{ inlineSize: "100%" }}
-                    value={sampling.min_p}
-                    onChange={(v) => updateSampling("min_p", Number(v ?? 0))}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <div className="studio-field-label">
-                    <span style={{ fontSize: 12 }}>频率惩罚 (Frequency)</span>
-                  </div>
-                  <InputNumber
-                    size="small"
-                    min={-2}
-                    max={2}
-                    step={0.1}
-                    className="studio-tabular"
-                    style={{ inlineSize: "100%" }}
-                    value={sampling.frequency_penalty}
-                    onChange={(v) => updateSampling("frequency_penalty", Number(v ?? 0))}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-                <div className="studio-field-group">
-                  <div className="studio-field-label">
-                    <span style={{ fontSize: 12 }}>随机种子 (空 = 随机)</span>
-                  </div>
-                  <InputNumber
-                    size="small"
-                    min={0}
-                    max={9007199254740991}
-                    placeholder="随机"
-                    className="studio-tabular"
-                    style={{ inlineSize: "100%" }}
-                    value={sampling.seed}
-                    onChange={(v) => updateSampling("seed", v === null || v === undefined ? null : Number(v))}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <div className="studio-field-label">
-                    <span style={{ fontSize: 12 }}>输出格式</span>
-                  </div>
-                  <Select
-                    size="small"
-                    style={{ inlineSize: "100%" }}
-                    value={sampling.response_format}
-                    onChange={(v) => updateSampling("response_format", v as ResponseFormatMode)}
-                    options={[
-                      { label: "自由文本 / Markdown", value: "text" },
-                      { label: "严格 JSON 对象", value: "json_object" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="studio-field-group">
-                <div className="studio-field-label">
-                  <span style={{ fontSize: 12 }}>停止词 (Stop，逗号分隔)</span>
-                </div>
-                <Input
-                  size="small"
-                  placeholder="例如：<|endoftext|>, ###"
-                  value={sampling.stop_text}
-                  onChange={(e) => updateSampling("stop_text", e.target.value)}
-                />
-              </div>
-
-              <div className="studio-field-group">
-                <Text type="secondary" style={{ fontSize: 12 }}>工具调用仅用于预览与调试，不会自动执行。</Text>
-                <div className="studio-field-label">
-                  <span style={{ fontSize: 12 }}>工具定义 (Tools JSON，OpenAI 数组格式)</span>
-                  <Select
-                    size="small"
-                    style={{ inlineSize: 92 }}
-                    value={sampling.tool_choice}
-                    onChange={(v) => updateSampling("tool_choice", v as "auto" | "none" | "required")}
-                    options={[
-                      { label: "auto", value: "auto" },
-                      { label: "required", value: "required" },
-                      { label: "none", value: "none" },
-                    ]}
-                  />
-                </div>
-                <TextArea
-                  rows={3}
-                  style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 11.5 }}
-                  placeholder='[{"type":"function","function":{"name":"get_weather","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]'
-                  value={sampling.tools_json}
-                  onChange={(e) => updateSampling("tools_json", e.target.value)}
-                />
-              </div>
-            </div>
-          </details>
+        <Space size={12}><Switch checked={sampling.enable_thinking} onChange={handleToggleThinking} aria-label="深度思考" /><span>深度思考</span></Space>
+      </div>
+    </Card>
+    <Card className="studio-card" title="生成设置" extra={<Button type="text" size="small" onClick={handleResetSampling}>恢复默认</Button>}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="studio-field-group">
+          <span>回复长度上限</span>
+          <Select aria-label="回复长度上限" value={String(sampling.max_tokens)} onChange={(value) => updateSampling("max_tokens", Number(value))}
+            options={[{ label: "较短（2048）", value: "2048" }, { label: "标准（8192）", value: "8192" },
+              { label: "较长（16384）", value: "16384" }, { label: "长文（32768）", value: "32768" }]} />
         </div>
-      </Card>
-    </>
-  );
+        <div className="studio-field-group">
+          <div className="studio-field-label"><span>随机程度</span><span className="studio-tabular">{sampling.temperature.toFixed(2)}</span></div>
+          <Slider aria-label="随机程度" min={0} max={2} step={0.05} value={sampling.temperature} onChange={(value) => updateSampling("temperature", value)} />
+        </div>
+        <SeedControl value={sampling.seed || 0} onChange={(value) => updateSampling("seed", value > 0 ? value : null)} />
+      </div>
+    </Card>
+  </>;
 
   return (
     <StudioShell
       brandBadge="Q3"
-      defaultTitle="Qwen3.8-27B 多模态推理工作台"
-      defaultSubtitle="256K 上下文 · 图像/视频理解 · 深度思考流 · OpenAI & Claude Code 原生协议"
+      defaultTitle="Qwen3.8-27B"
+      defaultSubtitle="对话与深度思考 · 图片和视频理解"
       layoutRatio="chat"
       apiModalTitle="Claude Code / OpenAI SDK / HTTP 调用配置（实时同步参数）"
       customApiTabs={renderCustomApiTabs}

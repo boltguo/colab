@@ -5,5 +5,8 @@ packages:
 allowBuilds:
   esbuild: true
 
+minimumReleaseAgeExclude:
+  - m3eui@0.1.0
+
 onlyBuiltDependencies:
   - esbuild

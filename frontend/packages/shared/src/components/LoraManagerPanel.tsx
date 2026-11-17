@@ -65,9 +65,6 @@ export function LoraManagerPanel({
 
   const [catalog, setCatalog] = useState<LoraListResponse | null>(null);
   const [remoteSource, setRemoteSource] = useState("");
-  const [customFilename, setCustomFilename] = useState("");
-  const [authToken, setAuthToken] = useState("");
-  const [showAdvancedDl, setShowAdvancedDl] = useState(false);
 
   const [dlState, setDlState] = useState<{
     busy: boolean;
@@ -125,8 +122,7 @@ export function LoraManagerPanel({
   );
 
   const triggerDownloadAndAttach = async (
-    source: string,
-    opts?: { filename?: string; token?: string }
+    source: string
   ) => {
     const cleanSrc = source.trim();
     if (!cleanSrc) {
@@ -138,8 +134,6 @@ export function LoraManagerPanel({
     try {
       const task = await submitLoraDownloadTask({
         source: cleanSrc,
-        filename: opts?.filename?.trim() || undefined,
-        token: opts?.token?.trim() || undefined,
       });
 
       unsubRef.current = subscribeTaskProgress<{ kind: string; lora: LoraCatalogEntry }>(
@@ -153,7 +147,6 @@ export function LoraManagerPanel({
           if (snap.status === "succeeded" && snap.result?.lora) {
             const downloaded = snap.result.lora;
             setRemoteSource("");
-            setCustomFilename("");
             void refreshCatalog();
             attachLoraToStack(downloaded);
           } else if (snap.status === "failed") {
@@ -237,19 +230,6 @@ export function LoraManagerPanel({
                   </Space>
 
                   <Space size={6}>
-                    <Tooltip title="默认仅作用于 UNet 扩散主干；点击可切换是否同时作用于文本编码器">
-                      <Tag
-                        color={slot.apply_to_clip ? "processing" : "default"}
-                        style={{ cursor: "pointer", marginInlineEnd: 0 }}
-                        onClick={() => {
-                          const next = [...slots];
-                          next[idx] = { ...slot, apply_to_clip: !slot.apply_to_clip };
-                          onChange(next);
-                        }}
-                      >
-                        CLIP: {slot.apply_to_clip ? "开" : "仅 UNet"}
-                      </Tag>
-                    </Tooltip>
                     <Button
                       htmlType="button"
                       size="small"
@@ -295,13 +275,10 @@ export function LoraManagerPanel({
           id={sourceInputId}
           style={{ flex: "1 1 260px" }}
           value={remoteSource}
-          onChange={(e) => setRemoteSource(e.target.value)}
-          placeholder="粘贴 Hugging Face 仓库（owner/repo）或 Civitai .safetensors 直链自动后台下载挂载..."
+          onValueChange={(value) => setRemoteSource(value)}
+          placeholder="粘贴模型下载链接或 Hugging Face 仓库名"
           onPressEnter={() =>
-            void triggerDownloadAndAttach(remoteSource, {
-              filename: customFilename,
-              token: authToken,
-            })
+            void triggerDownloadAndAttach(remoteSource)
           }
         />
         <Button
@@ -311,13 +288,10 @@ export function LoraManagerPanel({
           icon={dlState.busy ? <LoadingOutlined /> : <DownloadOutlined />}
           loading={dlState.busy}
           onClick={() =>
-            void triggerDownloadAndAttach(remoteSource, {
-              filename: customFilename,
-              token: authToken,
-            })
+            void triggerDownloadAndAttach(remoteSource)
           }
         >
-          拉取挂载
+          添加模型
         </Button>
 
         <input
@@ -339,16 +313,16 @@ export function LoraManagerPanel({
           loading={uploadingLocal}
           onClick={() => uploadInputRef.current?.click()}
         >
-          本地上传
+          上传模型
         </Button>
       </div>
 
-      {/* Optional Token / Custom Filename Row + Disk Readout + Quick-Mount Chips */}
+      {/* Available models and download space. */}
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "6px 12px" }}>
         <Space size={[6, 6]} wrap>
           {catalog && catalog.items.some((it) => !excludeIds.includes(it.id)) && (
             <>
-              <Text type="secondary" style={{ fontSize: 12 }}>快速挂载：</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>可用模型：</Text>
               {catalog.items
                 .filter((it) => !excludeIds.includes(it.id))
                 .map((item) => {
@@ -364,7 +338,7 @@ export function LoraManagerPanel({
                           type={isMounted ? "default" : "dashed"}
                           icon={
                             isMounted ? (
-                              <CheckCircleFilled style={{ color: "#16a34a" }} />
+                              <CheckCircleFilled style={{ color: "var(--m3e-color-success)" }} />
                             ) : item.installed ? (
                               <PlusOutlined />
                             ) : (
@@ -412,34 +386,9 @@ export function LoraManagerPanel({
               可用磁盘 {catalog.free_disk_gb.toFixed(1)} GiB
             </span>
           )}
-          <Button
-            htmlType="button"
-            size="small"
-            type="link"
-            style={{ padding: 0, blockSize: "auto", fontSize: 12 }}
-            onClick={() => setShowAdvancedDl((v) => !v)}
-          >
-            {showAdvancedDl ? "收起鉴权/重命名" : "鉴权 Token / 重命名"}
-          </Button>
+
         </Space>
       </div>
-
-      {showAdvancedDl && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
-          <Input
-            size="small"
-            value={customFilename}
-            onChange={(e) => setCustomFilename(e.target.value)}
-            placeholder="可选：保存文件名（如 my_style.safetensors）"
-          />
-          <Input.Password
-            size="small"
-            value={authToken}
-            onChange={(e) => setAuthToken(e.target.value)}
-            placeholder="可选：HF_TOKEN 或 Civitai API Key（不落盘）"
-          />
-        </div>
-      )}
 
       {dlState.busy && (
         <div>

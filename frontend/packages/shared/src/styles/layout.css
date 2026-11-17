@@ -1,0 +1,67 @@
+/* Integration sizing only; m3eui owns component colors, shapes, and focus states. */
+.studio-header .m3e-chip-status { max-inline-size: 100%; }
+.studio-header .m3e-chip-status__label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.studio-segmented[data-block] > .m3e-button-group { inline-size: 100%; }
+.studio-segmented[data-block] .m3e-button-group__item { flex: 1 1 auto; }
+.studio-input > .m3e-field, .studio-select.m3e-select-field { min-inline-size: 0; inline-size: 100%; }
+.studio-number > .m3e-number-field { flex: 1; min-inline-size: 0; }
+.studio-number .m3e-number-field__input { flex: 1; min-inline-size: 3.5ch; inline-size: 0; }
+.studio-number .m3e-number-field__group { min-inline-size: 0; inline-size: 100%; }
+.studio-number-plain .m3e-number-field__step { display: none; }
+.studio-seed-input { min-inline-size: 20ch; max-inline-size: 100%; }
+
+/* Keep numeric steppers inside their allocated column, clear of the swap action. */
+.studio-dimension-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.studio-dimension-fields > .studio-field-group { inline-size: 176px; min-inline-size: 176px; }
+
+/* One inset scroll area owns long API content; the rounded popup never scrolls. */
+.studio-api-dialog.m3e-dialog__popup { block-size: min(85dvh, 680px); overflow: hidden; --studio-code-max-height: 100%; }
+.studio-api-dialog > .m3e-dialog__header { flex-shrink: 0; }
+.studio-api-dialog > .m3e-dialog__body { flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
+.studio-api-content { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; gap: 16px; }
+.studio-api-content > :not(.studio-api-tabs) { flex-shrink: 0; }
+.studio-api-address { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.studio-api-tabs { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; }
+.studio-api-tabs > .m3e-tabs__list { flex-shrink: 0; }
+.studio-api-tabs > .m3e-tabs__panel:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
+.studio-api-tabs .m3e-tabs__panel-content { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
+.studio-api-dialog .studio-syntax-block { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; }
+.studio-api-dialog .studio-syntax-header { flex-shrink: 0; }
+.studio-api-dialog .studio-code-scroll { flex: 1 1 auto; min-block-size: 0; }
+.studio-sampling-control { display: grid; grid-template-columns: minmax(0, 1fr) 176px; align-items: center; gap: 16px; }
+.studio-preset-field { display: flex; flex-direction: column; gap: 12px; }
+.studio-compact-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 176px), 1fr)); gap: 12px; }
+.studio-param-grid-number { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.studio-preview-content { display: flex; flex-direction: column; gap: 20px; padding-inline-end: 12px; padding-block: 2px; }
+.studio-card > .m3e-card__body { gap: 20px; padding: 24px !important; }
+.studio-reference-group { display: flex; flex-direction: column; gap: 16px; }
+.studio-generate-dock { align-items: center; gap: 16px; }
+.studio-generate-dock__outputs { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.studio-generate-dock__field { display: flex; align-items: center; gap: 10px; min-inline-size: 0; }
+.studio-generate-dock__field > .studio-select { inline-size: 110px; }
+.studio-generate-dock__field > label { flex-shrink: 0; font-size: 13px; color: var(--m3e-color-on-surface-variant); }
+/* The output toolbar uses capsule selectors, matching the native round action. */
+.studio-generate-dock .m3e-select__shell, .studio-generate-dock .m3e-select__trigger { border-radius: var(--m3e-shape-corner-full) !important; }
+.studio-generate-dock .m3e-field__label-row { display: none; }
+.studio-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; align-items: start; }
+.studio-settings-grid > .studio-field-group > .studio-field-label { min-block-size: 32px; align-items: center; }
+.studio-settings-grid > .studio-field-group > .studio-slider { display: flex; align-items: center; min-block-size: 56px; }
+.studio-settings-grid > .studio-field-group > .studio-slider > .m3e-slider { inline-size: 100%; }
+.studio-seed-setting__controls { display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: center; gap: 8px; min-block-size: 56px; }
+.studio-seed-setting__controls .studio-seed-input { min-inline-size: 0; }
+.studio-seed-input .m3e-field__label-row { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 600px) {
+  .studio-card > .m3e-card__body { padding: 20px !important; }
+  .studio-aspect-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .studio-settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .studio-generate-dock__outputs { gap: 12px; }
+  .studio-generate-dock[data-has-quantity] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .studio-generate-dock[data-has-quantity] > .m3e-button { inline-size: 100%; }
+  .studio-generate-dock[data-has-quantity] .studio-generate-dock__outputs { justify-content: space-between; }
+}
+@media (max-width: 360px) {
+  .studio-generate-dock__field > label { display: none; }
+  .studio-generate-dock__field > .studio-select { inline-size: 96px; }
+  .studio-generate-dock > .m3e-button { min-inline-size: 0 !important; }
+}
+@media (max-height: 640px) { .studio-api-guidance { display: none; } }

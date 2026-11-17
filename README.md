@@ -1,91 +1,127 @@
-# AI 模型一键 Colab 工作台与标准 API
+# Colab
 
-提供统一的**现代亮色 Web 工作台 + 全参数标准 API**（无需导入或切换任何 `.json` 工作流文件）。笔记本按以下显卡与显存门槛选择运行配置：
+在 Colab 运行图像、视频、语音和对话模型。选择对应笔记本，启动后打开页面即可使用。
 
-- **MiniMax H3**、**Qwen-Image 2.1** 与 **Qwen3.8-27B（BF16）**：需 **80GB 及以上显存**（A100 80GB / H100 80GB / RTX 6000 96GB）。
-- **SeedVR2（FP16）**、**IndexTTS 2.5** 与 **Qwen3.8-27B（FP8）**：配置门槛为 **40GB 及以上显存**（A100 40GB / 80GB、H100 80GB、RTX 6000 96GB）。实际可运行的上下文长度、分辨率与视频时长需在目标 GPU 上验证。
+| 模型 | 建议显存 | 简介 | 一键打开 |
+| --- | --- | --- | --- |
+| [Qwen-Image 2.1](notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) | 80GB+ | 文生图、图像编辑、多图参考 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) |
+| [MiniMax-H3](notebooks/minimax-h3/MiniMaxH3.ipynb) | 80GB+ | 有声视频、首尾帧、多模态参考 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/minimax-h3/MiniMaxH3.ipynb) |
+| [SeedVR2](notebooks/seedvr2/SeedVR2.ipynb) | 40GB+ | 视频和图片放大、细节修复 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/seedvr2/SeedVR2.ipynb) |
+| [IndexTTS 2.5](notebooks/indextts-2.5/IndexTTS_2.5.ipynb) | 40GB+ | 音色克隆、语速和情绪控制 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/indextts-2.5/IndexTTS_2.5.ipynb) |
+| [Qwen3.8-27B](notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) | 40GB+（FP8）/ 80GB+（BF16） | 对话、深度思考、图片与视频理解 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) |
 
-| 模型 | 笔记本 | Colab |
-| --- | --- | --- |
-| MiniMax H3（现代 Web + 音画视频 API） | [MiniMaxH3.ipynb](notebooks/minimax-h3/MiniMaxH3.ipynb) | [![在 Colab 打开](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/minimax-h3/MiniMaxH3.ipynb) |
-| Qwen-Image 2.1（现代 Web + API） | [Qwen_Image_2.1.ipynb](notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) | [![在 Colab 打开](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) |
-| SeedVR2（现代 Web + 视频/图片 4K 超分 API） | [SeedVR2.ipynb](notebooks/seedvr2/SeedVR2.ipynb) | [![在 Colab 打开](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/seedvr2/SeedVR2.ipynb) |
-| IndexTTS 2.5（现代 Web + API） | [IndexTTS_2.5.ipynb](notebooks/indextts-2.5/IndexTTS_2.5.ipynb) | [![在 Colab 打开](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/indextts-2.5/IndexTTS_2.5.ipynb) |
-| Qwen3.8-27B（现代 Web + Claude Code/OpenAI API） | [Qwen3.8_27B.ipynb](notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) | [![在 Colab 打开](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) |
+以上按本仓库的笔记本配置选择 GPU，实际显存用量随分辨率、视频长度和上下文长度变化。每个笔记本独立运行一个模型。
 
-## MiniMax H3（现代 Web 音画视频工作台 + 全参数 API）
+## Web 页面
 
-[MiniMax-H3 笔记本](notebooks/minimax-h3/MiniMaxH3.ipynb) 提供统一的**现代亮色前端工作台 + 标准全参数 REST/WebSocket API**：
-- **单页全能音画同生**：在一个页面无缝切换文生音画视频（`t2v`）、首帧/首尾帧图生视频（`fl2v`）与多模态参考生视频（`r2v`，最多 9 张 `<Picture>`、3 段 `<Video>` 与 3 段独立 `<Audio>`，混合输入合计最多 12 个文件，视频原声不另计），自动同步合成 32kHz 立体声对白与环境音效。
-- **独立画幅时长与 Turbo 加速**：当前接入 **H3-Base 原生 768p**，另提供 `540p` 低清试跑、独立宽高比、32px 对齐的实验性自定义画布与 `17k+5` 时间帧网格实时换算；当前未接入官方 `H3-Regenerate-2K`，自定义尺寸不代表已支持原生 1080p / 2K 或超分。支持一键切换官方 **8 步 FL2V Turbo** / **4 步 Ref2V Turbo** 蒸馏加速，以及在线热挂载自定义 `.safetensors` LoRA。模型规格见 [官方说明](https://github.com/MiniMax-AI/MiniMax-H3#system-overview)。
-- 有声输出使用模型原生 **24 FPS**；静音输出可调整播放帧率，时长随之变化。参考视频会先统一为 24 FPS，保持参考动作与音轨的时间对应。
+上传素材、填写文本或提示词，再调整尺寸、步数、种子等常用设置。底部选择输出格式和数量，点击生成；结果可以预览、下载，也可以从本次历史中再次使用。
 
-## Qwen-Image 2.1（现代 Web 工作台 + 全参数 API + 动态 LoRA）
+专业采样、缓存、推理精度和编码细节使用默认值。页面右上角可查看机器资源、设置 API Key 和复制调用代码。
 
-[Qwen-Image 2.1 笔记本](notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) 提供统一的**现代亮色前端工作台 + 标准全参数 API**：
-- **单页全能图像创作与编辑**：在同一工作台内切换 2K/1K 文生图、单图编辑、双图融合及最多 10 图参考组合，保留透明参考图的 Alpha 通道，常用 2K 画幅对齐官方推荐尺寸，配备原图与成片 **A/B 卷帘对比**及一键继续精修。
-- **在线动态 LoRA 热加载**：支持一键挂载精选 `Anime Consistency` LoRA，或直接输入任意 Hugging Face 仓库、Civitai / HTTPS `.safetensors` 下载链接与本地文件上传，后台自动完成二进制安全头校验并热挂载（最多 6 层独立强度叠加）。
+<!-- 页面定稿后在此补充截图。 -->
 
-## SeedVR2（现代 Web 视频/图片 4K 超分工作台 + 全参数 API）
+## API 调用
 
-[SeedVR2 笔记本](notebooks/seedvr2/SeedVR2.ipynb) 已将原先拆散的 3 套超分 `.json` 工作流（`7B Sharp` 视频超分、`3B Fast` 视频超分与 `7B Sharp` 图片 4K 超分）融合为单页双模态超分工作台：
-- **双规格 1 步对抗超分与精准追色**：在同一界面自由切换 **7B Sharp 旗舰细节版**与 **3B Fast 长视频极速版**，提供按倍数、固定短边档位（`1080P` / `2K` / `4K`）、固定长边与自定义宽高 4 种独立放大策略，内置 **CIELAB / Wavelet / AdaIN** 色彩对齐校正。
-- **长视频省显存与同屏 A/B 对比**：内置 **Split Latent** 时间分块（支持单帧及 `4n+1` 帧分块、Hann 窗融合）与 **Tiled VAE** 空间瓦片控制。保持原速时可保留原声内容，音轨随成片重新编码，不保证位流无损。支持**视频同步播放 A/B 卷帘同屏对比**与图片原寸放大检视。4K 需按实际源尺寸或目标宽高设置，4 倍放大不等于固定 4K。
-- 播放帧率填 `0` 保持原速；指定其他帧率会改变播放速度，需关闭原声音轨。该控制不进行补帧；A/B 对比会按裁剪起点及播放速度对齐。
+使用对应笔记本启动后生成的服务地址。页面右上角「API 调用代码」可直接复制当前设置，`/docs` 可查看完整接口和参数。
 
-## IndexTTS 2.5（现代 Web 工作台 + 标准 API）
+图像、视频、语音和超分通过 `POST /api/v1/generate` 提交任务，返回 `task_id` 后查询结果。以 IndexTTS 为例：
 
-[IndexTTS 2.5 笔记本](notebooks/indextts-2.5/IndexTTS_2.5.ipynb) 采用**零 ComfyUI 依赖**的独立现代前端 + FastAPI 架构，运行时直接拉取 GitHub Releases 中的 `app-indextts-2.5.tar.gz` 应用包：
-- **单页多合一操作**：在网页中直接完成零样本多语种音色克隆（`zh / en / ja / es / ar`）、8 维情绪滑块控制、双参考音频音色/情绪分离、自然语言情感控制（QwenEmotion）、麦克风在线录音与 `.srt` 时间轴字幕导出。
-- **同源 REST / WebSocket API**：对外同时提供 `POST /api/v1/generate`、`POST /api/v1/files`、`GET /api/v1/tasks/{id}`、`WS /api/v1/tasks/{id}/ws` 与 `/docs` Swagger 在线接口文档（网页右上角弹窗可一键复制当前机器的 `curl` / Python 调用代码）。
-- 字幕时间轴按文本长度估算，导出后可按实际音频校准。
+```python
+import time
+import requests
+from urllib.parse import urljoin
 
-## Qwen3.8-27B（现代多模态 Web 工作台 + Claude Code / OpenAI API）
+BASE_URL = "https://YOUR_TUNNEL_DOMAIN"
+API_KEY = ""  # 启动时开启鉴权则填写
+headers = {"Authorization": f"Bearer {API_KEY}"} if API_KEY else {}
 
-[Qwen3.8-27B 笔记本](notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) 基于原生 `vLLM 0.32.0`，启用 MTP 投机采样；80GB 显卡选择 BF16，40GB 显卡选择 FP8。256K 是笔记本的上下文配置上限，本轮未验证 40GB 显卡可用的最大长度。
+response = requests.post(
+    f"{BASE_URL}/api/v1/generate",
+    headers=headers,
+    json={"text": "你好，欢迎收听。", "speaker_audio": "preset:ref_audio"},
+    timeout=30,
+)
+response.raise_for_status()
+task = response.json()
 
-- **多模态对话与深度思考工作台**：支持多轮图文/视频理解、可折叠思考流、`low / medium / xhigh` 思考强度、可选保留历史思考、常用采样超参与 Function Calling 调试；默认思考温度按官方设置为 `1.0`。更多 vLLM 参数可通过 `/v1/chat/completions` 透传，工作台不自动执行工具调用。
-- **双协议原生兼容**：同一端口同时提供 Anthropic `/v1/messages`（支持 **Claude Code** 直连）与 OpenAI `/v1/chat/completions` 接口。
+while task["status"] not in {"succeeded", "failed", "cancelled"}:
+    time.sleep(1)
+    response = requests.get(
+        f"{BASE_URL}/api/v1/tasks/{task['task_id']}", headers=headers, timeout=30
+    )
+    response.raise_for_status()
+    task = response.json()
 
-## 统一运行流程
-
-1. **环境检测**：检测 GPU 型号（A100 / H100 / RTX 6000）、显存容量、BF16 与 CUDA 状态。
-2. **安装服务环境**：安装底层推理引擎（原生推理库 / ComfyUI `v0.43.2` / vLLM `0.32.0`）、拉取对应 Release 应用包与 `cloudflared` `2026.10.6`。
-3. **下载模型权重**：高速下载并校验模型权重完整性。
-4. **启动并挂载服务**：启动 `8188` 端口服务，默认通过 Cloudflare Quick Tunnel 生成临时公网域名（用完即关）；亦可在第 4 步切换「自有 Tunnel」从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
-
-## 开发与检查
-
-使用 Python 3.12、Node.js 22.18+ 和 pnpm 11。媒体回归用例需要系统安装 `ffmpeg`、`ffprobe`。
-
-```bash
-python3 -m pip install -r tests/requirements.txt
-python3 -m unittest discover -s tests -p 'test_*.py' -v
-pnpm -C frontend install --frozen-lockfile
-pnpm -C frontend test
-pnpm -C frontend typecheck
-pnpm -C frontend build:all
-python3 tools/build_notebooks.py
+if task["status"] != "succeeded":
+    raise RuntimeError(task.get("error") or task["status"])
+print(urljoin(BASE_URL, task["result"]["audio_url"]))
 ```
 
-构建后可运行单个工作台的预览服务：
+自定义素材先上传到 `POST /api/v1/files`，再将返回的 `file_id` 填入对应输入字段。需要实时进度时连接 `WS /api/v1/tasks/{task_id}/ws`。
+
+Qwen3.8-27B 提供 OpenAI 兼容的 `/v1/chat/completions` 和 Anthropic 兼容的 `/v1/messages`。例如：
 
 ```bash
+curl "https://YOUR_TUNNEL_DOMAIN/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"qwen3.8-27b","messages":[{"role":"user","content":"你好"}]}'
+```
+
+开启鉴权时，为请求附加 `Authorization: Bearer YOUR_API_KEY`。高级参数仍可通过 API 使用。
+
+## 使用说明
+
+1. 从上方选择模型，连接符合要求的 Colab GPU。
+2. 依次运行笔记本的四步：环境检查、安装服务、下载权重、启动服务。
+3. 打开最后一步输出的链接，上传自己的素材或填写文本。
+4. 使用默认设置先生成一次，再按需要调整尺寸、时长、步数或种子。
+
+Quick Tunnel 的临时地址随实例停止而失效。需要固定域名时，在第 4 步选择自有 Cloudflare Tunnel，并配置 `CF_TUNNEL_TOKEN`。
+
+## 模型与功能
+
+### Qwen-Image 2.1
+
+支持文生图和图像编辑，最多使用 10 张参考图。可以选择 1K / 2K、画幅比例或自定义尺寸，一次生成 1～4 张；编辑结果支持与原图对比、继续精修。
+
+### MiniMax-H3
+
+支持文生视频、首尾帧和图片/视频/音频参考，最多 9 张参考图，混合素材合计最多 12 份。当前提供 540p / 768p；极速模式会自动选择推荐步数。
+
+### SeedVR2
+
+上传视频或图片，选择按倍数或目标尺寸放大。7B Sharp 偏重清晰度，3B Fast 偏重速度；视频可保留原声，结果支持放大前后对比。
+
+### IndexTTS 2.5
+
+使用内置 Sage 音色，或上传、录制自己的参考人声。支持中文、英语、日语、西班牙语和阿拉伯语，可调整语速、描述语气或使用情绪参考音频。
+
+### Qwen3.8-27B
+
+支持文字、图片和视频对话，可开关深度思考、设置回复长度和随机程度。也可接入兼容 OpenAI / Anthropic 接口的客户端。
+
+### 挂载 LoRA
+
+在 Qwen-Image 或 MiniMax 中展开「风格模型（LoRA，可选）」：选择已有模型、粘贴模型链接，或上传本地 `.safetensors` 文件。启用后调整强度，再正常生成即可；多个模型可以叠加使用。
+
+<details>
+<summary>本地开发与更新</summary>
+
+本地开发使用 Python 3.12、Node.js 22.18+、pnpm 11；媒体处理需要 FFmpeg。
+
+```bash
+pnpm -C frontend install --frozen-lockfile
+pnpm -C frontend build:all
+python3 -m pip install -r backend/requirements.txt
 python3 backend/run_server.py --feature indextts-2.5 --mock
 ```
 
-Mock 模式用于检查界面和 API 流程；真实模型效果与显存需求需在目标 GPU 上验证。
+`--mock` 用于检查界面和调用流程。真实推理需要对应权重和 GPU。
 
-## 更新 Colab 应用
+Colab 从 GitHub Releases 安装预构建应用。源码更新后，运行 GitHub Actions 的 **Build & Publish Feature App Releases** 发布新版本并同步笔记本，再使用最新笔记本运行安装与启动步骤。
 
-笔记本第 2 步使用由 `tools/release_manifest.json` 写入的固定 Release 地址和哈希。源码改动合并后，在 GitHub Actions 手动运行 **Build & Publish Feature App Releases**，填写未使用的新版本号；工作流会构建五个应用包并同步笔记本哈希。已存在的版本禁止覆盖，以保证旧笔记本仍能通过校验。
-
-发布后请重新打开仓库中的最新笔记本。若要继续使用已有 Colab 运行时，先将第 2、4 步更新为最新内容，再运行这两步；仅重跑旧单元格仍会安装旧版本。第 4 步会根据应用包、API Key 和服务配置的变化重启对应服务。若新版本同时变更模型或引擎依赖，请按最新笔记本完整运行四步。
-
-本轮逐项审查记录见 [工作台审查与改进](docs/studio-review-2026-11-15.md)。
-官方能力、参数映射、尚未集成的扩展能力与验证范围见 [四模型官方核对](docs/model-capability-audit-2026-11-15.md)。
+</details>
 
 ## 许可
 
-- 代码：[Apache-2.0](LICENSE)
-- 模型权重：[MiniMax H3](https://huggingface.co/Comfy-Org/MiniMax-H3) · [Turbo LoRA](https://huggingface.co/lightx2v/Minimax-h3-Turbo) · [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE) · [SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2) · [IndexTTS-2.5](https://huggingface.co/IndexTeam/IndexTTS-2.5) · [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B)
+代码采用 [Apache-2.0](LICENSE)。模型权重请遵循各项目许可证：[Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE)、[MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)、[SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2)、[IndexTTS](https://huggingface.co/IndexTeam/IndexTTS-2.5)、[Qwen3.8](https://huggingface.co/Qwen/Qwen3.8-27B)。

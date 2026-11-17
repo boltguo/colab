@@ -22,26 +22,35 @@ This document is the authoritative source of truth for the `boltguo/colab` repos
 
 Every model application must be designed simultaneously from the perspective of a **Senior AI Product Manager** and a **Staff UI/UX Designer** — never ship a raw parameter dump or a stripped-down toy demo.
 
-### 2.1 Visual Language: Unified Light Studio Theme
+### 2.1 Visual Language: Default m3eui Theme
 - **Clean Daylight Aesthetic**:
-  - Default exclusively to a **Modern Light Theme** with crisp hierarchy and low visual fatigue (inspired by Linear, ElevenLabs Studio, and Figma light workbenches).
+  - Use the **default m3eui theme** in light mode with Chinese localization. Do not override the palette or reproduce the previous Studio appearance. Import `normalize.css` in a lower-priority CSS layer, and keep application CSS below m3eui components so native focus states remain intact.
   - **Surface & Contrast Hierarchy**:
-    - App canvas background: soft neutral cool-gray (`#F4F6FA`) rather than harsh pure white.
-    - Cards, sticky header, and sticky action dock: pure white (`#FFFFFF`) with subtle `1px solid #E2E8F0` borders and restrained elevation shadows.
-    - Secondary wells (upload dropzones, segment previews, subtitle timelines, code blocks): subtle mist-gray (`#F8FAFC`).
+    - Use m3eui surface, text, outline, shape, and elevation tokens for app-owned surfaces. Let the library own component appearance and focus states; retain only necessary layout and sizing rules.
+    - Follow the library Overview's composition: quiet `surface-container-low` workbench sections with 24px padding and clear gaps; avoid nested decorative panels. Reserve filled buttons for primary actions and use outlined/text buttons for secondary actions. Allocate numeric controls their full intrinsic width rather than clipping overflow.
+    - Render API examples and chat code blocks with Shiki, wrapping long lines without changing copied source text. Keep the copy control as a compact icon in the code header.
     - Meet WCAG AA contrast across all text (≥ 4.5:1) and interactive control boundaries (≥ 3:1). Never convey status, warnings, or errors by color alone — always pair color with icons, numeric readouts, and explicit text badges.
   - **Zero-Jitter Numeric Typography**: Apply `font-variant-numeric: tabular-nums` to all slider readouts, durations, VRAM/CPU/RAM telemetry, sample rates, seeds, and timestamps so values never cause layout shift while dragging or polling.
 
-### 2.2 Maximal Model Controllability (100% Capability Exposure)
+### 2.2 Everyday Studio UI & Full-Parameter API
+- **Everyday Studio Policy (User-Directed Simplification)**:
+  - All five Studios prioritize common tasks. Keep primary creative inputs, media size/duration, and familiar generation controls (steps, CFG where useful, seed). Use server defaults for professional sampler/scheduler, cache, precision, tile, codec, and mastering knobs; do not present them as large panels.
+  - Qwen Image and MiniMax may offer optional LoRA styling in a compact, initially collapsed section. Do not add separate quick/pro modes. Preserve the existing default m3eui theme and make selection states consistent.
+  - Use one shared media generation dock containing only format, quantity when supported, and the generate action. Seed controls belong in generation settings, not in the dock.
+  - Use only the model name for page/header titles. Render seeds with standalone rounded text fields, not a number stepper with its buttons hidden. Keep output selectors and the primary action capsule-shaped and vertically aligned.
+  - Keep README concise: a one-click model/configuration table first, followed by Web UI, API calls, usage, and short feature/LoRA guidance. Add screenshots after the UI is finalized.
+  - The IndexTTS Studio prioritizes everyday voice cloning: reference voice, text, language, speaking speed, simple emotion description/reference, audio format, playback/download, and session history.
+  - Remove professional sampling, emotion-vector editors, text segmentation previews, estimated subtitle timelines, mastering and engine panels from the UI and client state. Use server defaults instead of submitting hidden advanced values. Keep existing backend API compatibility.
+  - Show speaking speed as a direct multiplier (larger means faster); convert it to the native inverse duration factor only when submitting. Keep labels short and numeric/reset controls in a stable aligned row.
 - **Source-Level Parameter Audit**:
   - Before integrating any model, inspect its official inference source code and configuration files to catalog **every controllable dimension**: core conditioning inputs, fine-grained control vectors / reference guidance, text or image preprocessing toggles, chunking/segmentation thresholds, autoregressive/diffusion sampling hyperparameters (`temperature`, `top_p`, `top_k`, `num_beams`, `cfg`, `steps`, `seed`, penalties), vocoder/decoder knobs, mastering/post-processing (`loudness_norm`, silence trimming, tail fade-out, output codec/format), and hardware runtime flags (`bf16`, `torch.compile`, custom CUDA kernels, VRAM offload/release).
 - **Full-Parameter API + Flat-First Progressive Disclosure UI**:
   - Expose 100% of tunable parameters in the backend Pydantic schema with validated bounds and battle-tested defaults.
-  - **Never omit advanced controls in the UI, and never hide first-class controls behind multi-tab drawers**. Lay out primary creative & output controls **flat and scannable** on the workbench: mode toggle (`文生图` vs `图生图`, with optional multi-image slots rather than fragmented sub-modes), prompt, **independent Resolution (`1K` / `2K`) + Aspect Ratio (`1:1`, `16:9`, `9:16`, etc.) + editable `Width × Height` pixel inputs + Batch count**, flat LoRA mounting, and core sampling parameters (`steps`, `cfg`, `sampler`, `scheduler`). Tuck only low-level engine/VRAM flags (KV cache quantization, precision overrides, VRAM release) into a lightweight collapsible `<details>` disclosure with a one-click "Reset to Recommended Defaults" action.
+  - **The everyday Studio policy above takes precedence for UI scope.** Lay out primary creative & output controls **flat and scannable** on the workbench: mode toggle (`文生图` vs `图生图`, with optional multi-image slots), prompt, resolution/aspect ratio, editable dimensions, and basic generation settings. Let the server supply validated defaults for removed controls; retain their API compatibility.
 
 ### 2.3 Core PM Workflow & Interaction Principles
 1. **Sticky Primary Action Dock**:
-   - Keep the primary generate button (supporting `⌘/Ctrl + Enter` with IME composition safety), seed lock/randomize controls, and output format selector anchored in a **Sticky Action Dock** so scrolling or expanding engine flags never pushes the primary CTA off-screen.
+   - Keep the primary generate button (supporting `⌘/Ctrl + Enter` with IME composition safety), output format, and supported quantity selector anchored in a **Sticky Action Dock**; place seed lock/randomize controls in generation settings so scrolling or expanding engine flags never pushes the primary CTA off-screen.
 2. **No Persistent User Preset Saving & Minimalist Input Hygiene**:
    - Because Colab VMs are ephemeral and discarded after shutdown, **do not include custom preset save/load modals or persistent preset dropdowns**.
    - **Modality-Appropriate Samples Only**: For audio/TTS studios where recording a clean voice sample requires hardware, provide a built-in reference voice clip and curated prosody recipes. For **image/video studios**, keep the workspace distraction-free: **do not ship synthetic built-in test images or noisy prompt-recipe banners** — let users upload, drag-drop, or paste their own reference images directly (`<image1>`, with optional `+ Add Reference Image` slots for `<image2>`..`<image4>`).
@@ -62,10 +71,11 @@ Every model application must be designed simultaneously from the perspective of 
 ## 3. Tech Stack & Directory Layout
 
 ### 3.1 Frontend Monorepo (`pnpm workspace`, Per-Feature Static `dist`)
-- **Stack**: `pnpm workspace` + `React 19` + `TypeScript` + `Vite` (pure static SPA) + `Ant Design v5 (antd)`.
-  - Isolate all `antd` imports inside `frontend/packages/shared/src/ui/primitives.tsx` so migrating to an internal custom component library later requires only adapter changes.
+- **Stack**: `pnpm workspace` + `React 19` + `TypeScript` + `Vite` (pure static SPA) + `m3eui` (Material 3 Expressive, built on Base UI).
+  - Isolate component-library imports inside `frontend/packages/shared/src/ui/primitives.tsx` and icon imports inside `ui/icons.tsx`. Use native m3eui shapes, states, motion, and accessible interactions; keep light mode, Chinese labels, and feature behavior.
+  - Use the library's default CSS theme without generating custom theme files. `styles/index.css` declares the cascade layers for normalization, app layout, and m3eui. Colab consumes the prebuilt assets without Node.js.
 - **Structure**:
-  - `frontend/packages/shared`: Shared Light Studio theme (`primitives.tsx`, `studio.css`), `StudioShell` (header, live machine telemetry, tunnel badges, API Key modal, centered live `Python`/`cURL` API code modal), media upload/mic-record/preview components (`AudioSourceField`), WebSocket + polling task runner hook (`useTaskRunner`), and session history store (`useHistoryStore`).
+  - `frontend/packages/shared`: Shared m3eui adapters and layout (`primitives.tsx`, `styles/`), `StudioShell` (header, live machine telemetry, tunnel badges, API Key modal, centered live `Python`/`cURL` API code modal), media upload/mic-record/preview components (`AudioSourceField`), WebSocket + polling task runner hook (`useTaskRunner`), and session history store (`useHistoryStore`).
   - `frontend/apps/<feature>`: Dedicated workbench per model feature, independently compiled into `frontend/dist/<feature>/`.
 
 ### 3.2 Backend Service Layer (`FastAPI` + Plugin Architecture)

@@ -1,5 +1,6 @@
 """Media upload, preset registration, and generated output storage."""
 from datetime import datetime, timezone
+import hashlib
 import mimetypes
 from pathlib import Path
 import re
@@ -45,7 +46,7 @@ class MediaStorage:
             label=label,
             description=description,
             kind=kind,  # type: ignore[arg-type]
-            url=f"/api/v1/presets/{preset_id}",
+            url=f"/api/v1/presets/{preset_id}?v={hashlib.sha256(file_path.read_bytes()).hexdigest()[:12]}",
             filename=file_path.name,
         )
         self._presets[preset_id] = (item, file_path)

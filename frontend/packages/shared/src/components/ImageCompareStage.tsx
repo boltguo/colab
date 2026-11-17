@@ -237,7 +237,7 @@ export function ImageCompareStage({
                 padding: 2,
                 borderRadius: 8,
                 border: idx === safeIdx ? "2px solid var(--studio-accent)" : "1px solid var(--studio-border)",
-                background: "#ffffff",
+                background: "var(--m3e-color-surface-container-lowest)",
                 cursor: "pointer",
               }}
             >

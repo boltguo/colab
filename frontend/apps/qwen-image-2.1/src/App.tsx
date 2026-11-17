@@ -1,71 +1,59 @@
-import React, { useCallback, useId, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  ClearOutlined,
-  ControlOutlined,
-  DeleteOutlined,
-  ExperimentOutlined,
-  HistoryOutlined,
-  ImageCompareStage,
-  ImageSourceField,
-  InfoCircleOutlined,
-  Input,
-  InputNumber,
-  LockOutlined,
-  LoraManagerPanel,
-  PictureOutlined,
-  PlusOutlined,
-  Popconfirm,
-  Progress,
-  QuestionCircleOutlined,
-  ReloadOutlined,
-  RocketOutlined,
-  Segmented,
-  Select,
-  Slider,
-  Space,
-  StudioShell,
-  SwapOutlined,
-  Switch,
-  Tag,
-  Text,
-  TextArea,
-  Tooltip,
-  UnlockOutlined,
-  resolveApiUrl,
-  triggerModelRelease,
-  useHistoryStore,
-  useStudioFeedback,
-  useTaskRunner,
-} from "@colab/shared";
 import type { StageImageEntry } from "@colab/shared";
 import {
-  ASPECT_RATIO_OPTIONS,
-  DEFAULT_QWEN_IMAGE_PARAMS,
-  MAX_REFERENCE_IMAGES,
-  SYMMETRIC_RATIO_SWAP,
-  calcPresetDimensions,
-  calcRefMatchedDimensions,
-  editImageGeometry,
-  snap32,
-} from "./types";
+Alert,
+Button,
+Card,
+ChoiceButton,
+ClearOutlined,
+DeleteOutlined,
+ExperimentOutlined,
+GenerateDock,
+HistoryOutlined,
+ImageCompareStage,
+ImageSourceField,
+InfoCircleOutlined,
+Input,
+InputNumber,
+LockOutlined,
+LoraManagerPanel,
+PictureOutlined,
+PlusOutlined,
+Popconfirm,
+Progress,
+QuestionCircleOutlined,
+SeedControl,
+Segmented,
+Slider,
+Space,
+StudioShell,
+SwapOutlined,
+Tag,
+Text,
+TextArea,
+Tooltip,
+resolveApiUrl,
+useHistoryStore,
+useStudioFeedback,
+useTaskRunner
+} from "@colab/shared";
+import { useCallback,useId,useMemo,useRef,useState } from "react";
+import { buildStudioImageRequest,type QwenImageStudioRequest } from "./request";
 import type {
-  AspectRatioChoice,
-  ClipDevice,
-  ImageOutputFormat,
-  KvCacheDevice,
-  KvCacheDtype,
-  QwenImageParams,
-  QwenImageResult,
-  ReferenceConditioningMode,
-  ResolutionTier,
-  SamplerName,
-  SchedulerName,
-  StandardAspectRatio,
-  UnetWeightDtype,
+AspectRatioChoice,
+ImageOutputFormat,
+QwenImageParams,
+QwenImageResult,
+ResolutionTier
+} from "./types";
+import {
+ASPECT_RATIO_OPTIONS,
+DEFAULT_QWEN_IMAGE_PARAMS,
+MAX_REFERENCE_IMAGES,
+SYMMETRIC_RATIO_SWAP,
+calcPresetDimensions,
+calcRefMatchedDimensions,
+editImageGeometry,
+snap32,
 } from "./types";
 
 function FieldLabel({ label, tooltip }: { label: string; tooltip?: string }) {
@@ -114,7 +102,7 @@ export function QwenImageStudioApp() {
 
   const { activeTask, isBusy, runTask, cancelActive } = useTaskRunner<
     QwenImageResult,
-    QwenImageParams
+    QwenImageStudioRequest
   >({
     endpointPath: "/api/v1/generate",
     onSuccess: (finishedTask) => {
@@ -124,7 +112,7 @@ export function QwenImageStudioApp() {
           feature: "qwen-image-2.1",
           createdAt: finishedTask.finished_at || new Date().toISOString(),
           elapsedSec: finishedTask.elapsed_sec,
-          params: finishedTask.params,
+          params: { ...DEFAULT_QWEN_IMAGE_PARAMS, ...finishedTask.params },
           result: finishedTask.result,
         });
         setSelectedTakeId(finishedTask.task_id);
@@ -311,15 +299,8 @@ export function QwenImageStudioApp() {
     [refSlots]
   );
 
-  const buildCleanedPayload = useCallback((): QwenImageParams => {
-    return {
-      ...params,
-      mode: isImg2Img ? "img2img" : "t2i",
-      reference_images: isImg2Img ? cleanUploadedRefs : [],
-      width: snap32(params.width),
-      height: snap32(params.height),
-    };
-  }, [cleanUploadedRefs, isImg2Img, params]);
+  const buildCleanedPayload = useCallback((): QwenImageStudioRequest =>
+    buildStudioImageRequest(params, isImg2Img ? cleanUploadedRefs : []), [cleanUploadedRefs, isImg2Img, params]);
 
   const handleGenerate = useCallback(async () => {
     if (isBusy) return;
@@ -334,7 +315,7 @@ export function QwenImageStudioApp() {
     if (isImg2Img) {
       if (params.resolution_tier === "original" && primaryRefDims &&
         (primaryRefDims.w > 4096 || primaryRefDims.h > 4096)) {
-        message.warning("主参考图超过工作台单边 4096 像素上限，请改选 1K / 2K；原图模式不会静默缩小图片。");
+        message.warning("主参考图超过单边 4096 像素上限，请改选 1K / 2K；原图模式不会静默缩小图片。");
         return;
       }
       const firstEmpty = refSlots.findIndex((slot) => !slot.fileRef.trim());
@@ -357,7 +338,7 @@ export function QwenImageStudioApp() {
         feature: "qwen-image-2.1",
         createdAt: activeTask.finished_at || activeTask.created_at,
         elapsedSec: activeTask.elapsed_sec,
-        params: activeTask.params,
+        params: { ...DEFAULT_QWEN_IMAGE_PARAMS, ...activeTask.params },
         result: activeTask.result,
       };
     }
@@ -398,7 +379,6 @@ export function QwenImageStudioApp() {
     [buildCleanedPayload]
   );
 
-  const enabledLoraCount = params.loras.filter((l) => l.enabled && l.lora.trim()).length;
   const negPromptNeedsCfgHint = Boolean(params.negative_prompt.trim()) && params.cfg <= 1.01;
   const megapixels = ((snap32(params.width) * snap32(params.height)) / (1024 * 1024)).toFixed(2);
 
@@ -439,17 +419,7 @@ export function QwenImageStudioApp() {
         <div style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
           {/* Official multi-reference editing supports up to ten images. */}
           {isImg2Img && (
-            <div
-              style={{
-                padding: "0.75rem 0.85rem",
-                borderRadius: "0.65rem",
-                background: "var(--studio-surface-subtle)",
-                border: "1px solid var(--studio-border)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.65rem",
-              }}
-            >
+            <div className="studio-reference-group">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minBlockSize: 24 }}>
                 <Text strong style={{ fontSize: 13 }}>
                   参考图片（已上传 <span className="studio-tabular">{cleanUploadedRefs.length}</span> / {MAX_REFERENCE_IMAGES} 张）
@@ -548,7 +518,7 @@ export function QwenImageStudioApp() {
               rows={4}
               maxLength={8000}
               value={params.prompt}
-              onChange={(e) => updateParam("prompt", e.target.value)}
+              onValueChange={(value) => updateParam("prompt", value)}
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !e.nativeEvent.isComposing) {
                   e.preventDefault();
@@ -576,7 +546,7 @@ export function QwenImageStudioApp() {
               <Input
                 id={negPromptInputId}
                 value={params.negative_prompt}
-                onChange={(e) => updateParam("negative_prompt", e.target.value)}
+                onValueChange={(value) => updateParam("negative_prompt", value)}
                 placeholder="排除不需要的元素，例如：模糊、低画质、多余手指、水印..."
               />
               {negPromptNeedsCfgHint && (
@@ -641,23 +611,7 @@ export function QwenImageStudioApp() {
               />
             </div>
 
-            <div className="studio-field-group" style={{ flex: "0 1 220px" }}>
-              <FieldLabel
-                label="生成张数 (Batch)"
-                tooltip="单次并行生成的图片数量（2K 下建议 1~2 张）"
-              />
-              <Segmented
-                block
-                value={params.batch_size}
-                onChange={(val) => updateParam("batch_size", Number(val))}
-                options={[
-                  { label: "1 张", value: 1 },
-                  { label: "2 张", value: 2 },
-                  { label: "3 张", value: 3 },
-                  { label: "4 张", value: 4 },
-                ]}
-              />
-            </div>
+
           </div>
 
           {/* Row 2: Independent Visual Aspect Ratio Selector */}
@@ -668,10 +622,10 @@ export function QwenImageStudioApp() {
             />
             <div className="studio-aspect-grid">
               {isImg2Img && (
-                <button
+                <ChoiceButton
                   type="button"
                   className="studio-aspect-pill"
-                  data-active={params.aspect_ratio === "match_input" ? "true" : "false"}
+                  active={params.aspect_ratio === "match_input"}
                   onClick={() => handleAspectChange("match_input")}
                 >
                   <span
@@ -682,7 +636,7 @@ export function QwenImageStudioApp() {
                   <span style={{ fontSize: 10.5, opacity: 0.75 }}>
                     {primaryRefDims ? `${primaryRefDims.w}:${primaryRefDims.h}` : "保持比例"}
                   </span>
-                </button>
+                </ChoiceButton>
               )}
 
               {ASPECT_RATIO_OPTIONS.map((opt) => {
@@ -696,11 +650,11 @@ export function QwenImageStudioApp() {
                     ? maxSide
                     : Math.max(9, Math.round((maxSide * opt.rh) / opt.rw));
                 return (
-                  <button
+                  <ChoiceButton
                     key={opt.value}
                     type="button"
                     className="studio-aspect-pill"
-                    data-active={params.aspect_ratio === opt.value ? "true" : "false"}
+                    active={params.aspect_ratio === opt.value}
                     onClick={() => handleAspectChange(opt.value)}
                   >
                     <span
@@ -709,14 +663,14 @@ export function QwenImageStudioApp() {
                     />
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{opt.label}</span>
                     <span style={{ fontSize: 10.5, opacity: 0.75 }}>{opt.sub}</span>
-                  </button>
+                  </ChoiceButton>
                 );
               })}
 
-              <button
+              <ChoiceButton
                 type="button"
                 className="studio-aspect-pill"
-                data-active={params.aspect_ratio === "custom" ? "true" : "false"}
+                active={params.aspect_ratio === "custom"}
                 onClick={() => handleAspectChange("custom")}
               >
                 <span
@@ -725,14 +679,14 @@ export function QwenImageStudioApp() {
                 />
                 <span style={{ fontSize: 12, fontWeight: 600 }}>自定义</span>
                 <span style={{ fontSize: 10.5, opacity: 0.75 }}>自由宽高</span>
-              </button>
+              </ChoiceButton>
             </div>
           </div>
 
           {/* Row 3: Independent Editable Width x Height Inputs */}
           <div className="studio-dim-bar">
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 8 }}>
-              <div className="studio-field-group" style={{ inlineSize: 136 }}>
+            <div className="studio-dimension-fields">
+              <div className="studio-field-group">
                 <label htmlFor={widthInputId} style={{ fontSize: 12, fontWeight: 600, color: "var(--studio-text-secondary)" }}>
                   宽度 W (px)
                 </label>
@@ -760,7 +714,7 @@ export function QwenImageStudioApp() {
                 />
               </Tooltip>
 
-              <div className="studio-field-group" style={{ inlineSize: 136 }}>
+              <div className="studio-field-group">
                 <label htmlFor={heightInputId} style={{ fontSize: 12, fontWeight: 600, color: "var(--studio-text-secondary)" }}>
                   高度 H (px)
                 </label>
@@ -789,341 +743,37 @@ export function QwenImageStudioApp() {
         </div>
       </Card>
 
-      {/* 3. Flat LoRA Mounting & Online Downloader */}
-      <Card
-        className="studio-card"
-        title={
-          <Space size={8}>
-            <span>LoRA 模型挂载（可选）</span>
-            {enabledLoraCount > 0 && <Badge count={enabledLoraCount} color="#2563eb" />}
-          </Space>
-        }
-      >
-        <LoraManagerPanel
+      <details className="studio-native-details">
+        <summary>风格模型（LoRA，可选）</summary>
+        <div className="studio-details-body"><LoraManagerPanel
           slots={params.loras}
           onChange={(nextSlots) => updateParam("loras", nextSlots)}
-        />
-      </Card>
+        /></div>
+      </details>
 
-      {/* 4. Flat Sampling Controls + Collapsible Low-Level Engine Flags */}
-      <Card
-        className="studio-card"
-        title={
-          <Space size={8}>
-            <ControlOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>采样与引擎参数</span>
-          </Space>
-        }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
-          <div className="studio-param-grid">
-            <div className="studio-field-group">
-              <div className="studio-field-label">
-                <span>采样步数 (Steps)</span>
-                <span className="studio-tabular">{params.steps} 步</span>
-              </div>
-              <Slider
-                min={8}
-                max={80}
-                step={1}
-                value={params.steps}
-                onChange={(v) => updateParam("steps", Number(v))}
-              />
-            </div>
-
-            <div className="studio-field-group">
-              <div className="studio-field-label">
-                <span>引导系数 (CFG)</span>
-                <span className="studio-tabular">{params.cfg.toFixed(1)}</span>
-              </div>
-              <Slider
-                min={1.0}
-                max={10.0}
-                step={0.1}
-                value={params.cfg}
-                onChange={(v) => updateParam("cfg", Number(v))}
-              />
-            </div>
-
-            <div className="studio-field-group">
-              <FieldLabel label="采样器 (Sampler)" />
-              <Select
-                value={params.sampler_name}
-                onChange={(v) => updateParam("sampler_name", v as SamplerName)}
-                options={[
-                  { label: "euler（默认推荐）", value: "euler" },
-                  { label: "euler_ancestral", value: "euler_ancestral" },
-                  { label: "uni_pc", value: "uni_pc" },
-                  { label: "dpmpp_2m", value: "dpmpp_2m" },
-                  { label: "dpmpp_2m_sde", value: "dpmpp_2m_sde" },
-                  { label: "dpmpp_3m_sde", value: "dpmpp_3m_sde" },
-                  { label: "heun", value: "heun" },
-                  { label: "res_multistep", value: "res_multistep" },
-                  { label: "lms", value: "lms" },
-                ]}
-              />
-            </div>
-
-            <div className="studio-field-group">
-              <FieldLabel label="调度器 (Scheduler)" />
-              <Select
-                value={params.scheduler}
-                onChange={(v) => updateParam("scheduler", v as SchedulerName)}
-                options={[
-                  { label: "simple（默认推荐）", value: "simple" },
-                  { label: "normal", value: "normal" },
-                  { label: "beta", value: "beta" },
-                  { label: "sgm_uniform", value: "sgm_uniform" },
-                  { label: "karras", value: "karras" },
-                  { label: "exponential", value: "exponential" },
-                  { label: "ddim_uniform", value: "ddim_uniform" },
-                ]}
-              />
-            </div>
-
-            <div className="studio-field-group">
-              <div className="studio-field-label">
-                <span>重绘去噪幅度 (Denoise)</span>
-                <span className="studio-tabular">{params.denoise.toFixed(2)}</span>
-              </div>
-              <Slider
-                min={0.1}
-                max={1.0}
-                step={0.01}
-                value={params.denoise}
-                onChange={(v) => updateParam("denoise", Number(v))}
-              />
-            </div>
+      <Card className="studio-card" title="生成设置">
+        <div className="studio-settings-grid">
+          <div className="studio-field-group">
+            <div className="studio-field-label"><span>步数</span><span className="studio-tabular">{params.steps} 步</span></div>
+            <Slider aria-label="生成步数" min={8} max={80} step={1} value={params.steps} onChange={(value) => updateParam("steps", value)} />
           </div>
-
-          {/* Native <details> Disclosure for Low-Level Engine / Precision / VRAM Flags */}
-          <details className="studio-native-details">
-            <summary>高级引擎与显存控制（KV 缓存 / 推理精度 / 参考特征注入 / 显存释放）</summary>
-            <div className="studio-details-body">
-              <div className="studio-param-grid">
-                {isImg2Img && (
-                  <div className="studio-field-group">
-                    <FieldLabel
-                      label="参考图特征注入方式"
-                      tooltip="VAE + 视觉双注入适合保主体精修；仅视觉语义适合提取画风自由重绘"
-                    />
-                    <Select
-                      value={params.reference_conditioning_mode}
-                      onChange={(val) =>
-                        updateParam("reference_conditioning_mode", val as ReferenceConditioningMode)
-                      }
-                      options={[
-                        { label: "VAE 潜空间 + 视觉双注入（保主体推荐）", value: "vae_and_vision" },
-                        { label: "仅 Qwen3-VL 视觉语义参考", value: "vision_only" },
-                      ]}
-                    />
-                  </div>
-                )}
-
-                <div className="studio-field-group">
-                  <FieldLabel
-                    label="时间步偏移 (AuraFlow Shift)"
-                    tooltip="留空使用模型默认动态 Shift"
-                  />
-                  <InputNumber
-                    style={{ inlineSize: "100%" }}
-                    min={0.5}
-                    max={10.0}
-                    step={0.25}
-                    placeholder="默认自动"
-                    value={params.auraflow_shift}
-                    onChange={(v) =>
-                      updateParam("auraflow_shift", v === null || v === undefined ? null : Number(v))
-                    }
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <FieldLabel
-                    label="KV 缓存位置 (QwenImage21Cache)"
-                    tooltip="smart 模式在文生图使用 auto，图生图自动切 cpu 异步预取省显存"
-                  />
-                  <Select
-                    value={params.kv_cache_device}
-                    onChange={(v) => updateParam("kv_cache_device", v as KvCacheDevice)}
-                    options={[
-                      { label: "smart（智能自动）", value: "smart" },
-                      { label: "auto（优先空闲显存）", value: "auto" },
-                      { label: "cpu（主机内存预取省显存）", value: "cpu" },
-                      { label: "gpu（常驻显存）", value: "gpu" },
-                      { label: "off（关闭缓存）", value: "off" },
-                    ]}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <FieldLabel label="KV 缓存量化精度" />
-                  <Select
-                    value={params.kv_cache_dtype}
-                    onChange={(v) => updateParam("kv_cache_dtype", v as KvCacheDtype)}
-                    options={[
-                      { label: "default（BF16 无损）", value: "default" },
-                      { label: "int8（体积减半）", value: "int8" },
-                      { label: "int4（体积降至 1/4）", value: "int4" },
-                    ]}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <FieldLabel label="UNet 权重推理精度" />
-                  <Select
-                    value={params.unet_weight_dtype}
-                    onChange={(v) => updateParam("unet_weight_dtype", v as UnetWeightDtype)}
-                    options={[
-                      { label: "default（原生 BF16）", value: "default" },
-                      { label: "fp8_e4m3fn（FP8 省显存）", value: "fp8_e4m3fn" },
-                      { label: "fp8_e4m3fn_fast", value: "fp8_e4m3fn_fast" },
-                      { label: "fp8_e5m2", value: "fp8_e5m2" },
-                    ]}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <FieldLabel label="Qwen3-VL 编码器设备" />
-                  <Select
-                    value={params.clip_device}
-                    onChange={(v) => updateParam("clip_device", v as ClipDevice)}
-                    options={[
-                      { label: "default（GPU 加速）", value: "default" },
-                      { label: "cpu（省显存模式）", value: "cpu" },
-                    ]}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <div className="studio-field-label">
-                    <span>WebP / JPEG 压缩品质</span>
-                    <span className="studio-tabular">{params.output_quality}</span>
-                  </div>
-                  <Slider
-                    min={60}
-                    max={100}
-                    step={1}
-                    disabled={params.output_format === "png"}
-                    value={params.output_quality}
-                    onChange={(v) => updateParam("output_quality", Number(v))}
-                  />
-                </div>
-
-                <div className="studio-field-group">
-                  <FieldLabel label="显存回收管理" />
-                  <Space size={10} style={{ minBlockSize: 34 }}>
-                    <Switch
-                      size="small"
-                      checked={params.release_vram_after}
-                      onChange={(v) => updateParam("release_vram_after", v)}
-                    />
-                    <Text type="secondary" style={{ fontSize: 12 }}>任务后自动卸载</Text>
-                    <Button
-                      htmlType="button"
-                      size="small"
-                      onClick={async () => {
-                        try {
-                          await triggerModelRelease();
-                          message.success("已发送显存释放指令");
-                        } catch (err) {
-                          message.error(err instanceof Error ? err.message : "释放显存失败");
-                        }
-                      }}
-                    >
-                      立即释放显存
-                    </Button>
-                  </Space>
-                </div>
-              </div>
-            </div>
-          </details>
+          <div className="studio-field-group">
+            <div className="studio-field-label"><span>引导强度（CFG）</span><span className="studio-tabular">{params.cfg.toFixed(1)}</span></div>
+            <Slider aria-label="引导强度" min={1} max={10} step={0.1} value={params.cfg} onChange={(value) => updateParam("cfg", value)} />
+          </div>
+          {isImg2Img && <div className="studio-field-group">
+            <div className="studio-field-label"><span>重绘强度</span><span className="studio-tabular">{params.denoise.toFixed(2)}</span></div>
+            <Slider aria-label="重绘强度" min={0.1} max={1} step={0.01} value={params.denoise} onChange={(value) => updateParam("denoise", value)} />
+          </div>}
+          <SeedControl value={params.seed}
+            onChange={(value) => updateParam("seed", value)} onLockedChange={setSeedLocked} />
         </div>
       </Card>
 
-      {/* Sticky Primary Action Dock */}
-      <div className="studio-action-dock">
-        <Space wrap size={[10, 8]}>
-          <Space size={6}>
-            <Text style={{ fontSize: 13, fontWeight: 600 }}>种子：</Text>
-            <InputNumber
-              size="small"
-              style={{ inlineSize: 136 }}
-              min={0}
-              max={Number.MAX_SAFE_INTEGER}
-              step={1}
-              value={params.seed}
-              onChange={(v) => {
-                const nextSeed = Math.max(0, Math.floor(Number(v || 0)));
-                updateParam("seed", nextSeed);
-                setSeedLocked(nextSeed > 0);
-              }}
-              placeholder="0 = 随机"
-            />
-            <Tooltip title={seedLocked ? "已锁定种子" : "锁定当前种子"}>
-              <Button
-                htmlType="button"
-                size="small"
-                type={seedLocked ? "primary" : "default"}
-                ghost={seedLocked}
-                icon={seedLocked ? <LockOutlined /> : <UnlockOutlined />}
-                aria-label={seedLocked ? "取消锁定种子" : "锁定当前种子"}
-                onClick={() => {
-                  if (seedLocked) updateParam("seed", 0);
-                  else if (!params.seed && displayedEntry) updateParam("seed", displayedEntry.result.used_seed);
-                  setSeedLocked((v) => !v);
-                }}
-              />
-            </Tooltip>
-            <Tooltip title="重置为随机种子 (0)">
-              <Button
-                htmlType="button"
-                size="small"
-                icon={<ReloadOutlined />}
-                aria-label="重置为随机种子"
-                onClick={() => {
-                  setSeedLocked(false);
-                  updateParam("seed", 0);
-                }}
-              />
-            </Tooltip>
-          </Space>
-
-          <Select
-            size="small"
-            style={{ inlineSize: 112 }}
-            value={params.output_format}
-            onChange={(v) => updateParam("output_format", v as ImageOutputFormat)}
-            options={[
-              { label: "PNG 无损", value: "png" },
-              { label: "WebP 高清", value: "webp" },
-              { label: "JPEG（无透明通道）", value: "jpeg" },
-            ]}
-          />
-        </Space>
-
-        <Space size={8}>
-          {isBusy && activeTask?.status === "queued" && (
-            <Button htmlType="button" danger onClick={() => void cancelActive()}>
-              取消排队
-            </Button>
-          )}
-          <Button
-            htmlType="button"
-            type="primary"
-            size="large"
-            icon={<RocketOutlined />}
-            loading={isBusy}
-            onClick={() => void handleGenerate()}
-          >
-            {isBusy
-              ? `生成中 ${Math.round((activeTask?.progress || 0.04) * 100)}%`
-              : isImg2Img
-                ? "立即生成（图生图）"
-                : `立即生成（${snap32(params.width)}×${snap32(params.height)}）`}
-          </Button>
-        </Space>
-      </div>
+      <GenerateDock format={params.output_format} onFormatChange={(value) => updateParam("output_format", value as ImageOutputFormat)}
+        formats={[{ label: "PNG", value: "png" }, { label: "WebP", value: "webp" }, { label: "JPEG", value: "jpeg" }]}
+        quantity={params.batch_size} onQuantityChange={(value) => updateParam("batch_size", value)}
+        busy={isBusy} queued={activeTask?.status === "queued"} onCancel={() => void cancelActive()} onGenerate={() => void handleGenerate()} />
     </>
   );
 
@@ -1186,7 +836,7 @@ export function QwenImageStudioApp() {
               border: "1px dashed var(--studio-border-strong)",
             }}
           >
-            <PictureOutlined style={{ fontSize: 36, color: "#94a3b8", marginBlockEnd: 10 }} />
+            <PictureOutlined style={{ fontSize: 36, color: "var(--m3e-color-outline)", marginBlockEnd: 10 }} />
             <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--studio-text)", marginBlockEnd: 4 }}>
               等待图像生成
             </div>
@@ -1261,7 +911,7 @@ export function QwenImageStudioApp() {
                   message.success(`已锁定种子：${displayedEntry.result.used_seed}`);
                 }}
               >
-                锁定 Seed <span className="studio-tabular">{displayedEntry.result.used_seed}</span>
+                使用此种子
               </Button>
             </div>
           </div>
@@ -1297,7 +947,7 @@ export function QwenImageStudioApp() {
       >
         {historyItems.length === 0 ? (
           <Text type="secondary" style={{ fontSize: 12.5 }}>
-            当前会话生成的图片会自动保存在此，可点击切换预览或一键回填参数。
+            当前会话生成的图片会自动保存在此，可点击切换预览或一键再次使用。
           </Text>
         ) : (
           <div className="studio-scroll-panel">
@@ -1321,7 +971,7 @@ export function QwenImageStudioApp() {
                         inlineSize: "100%",
                         aspectRatio: "1 / 1",
                         objectFit: "cover",
-                        background: "#e2e8f0",
+                        background: "var(--m3e-color-outline-variant)",
                       }}
                     />
                     <div style={{ padding: "0.45rem 0.55rem", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1358,7 +1008,7 @@ export function QwenImageStudioApp() {
                             message.info("已回填该作品的生成参数");
                           }}
                         >
-                          回填参数
+                          再次使用
                         </Button>
                       </div>
                     </div>
@@ -1375,8 +1025,8 @@ export function QwenImageStudioApp() {
   return (
     <StudioShell
       brandBadge="QW"
-      defaultTitle="Qwen-Image 2.1 图像生成工作台"
-      defaultSubtitle="原生 2K 文生图 · 图生图（支持可选多图参考） · 在线 LoRA 挂载"
+      defaultTitle="Qwen-Image 2.1"
+      defaultSubtitle="文生图 · 图像编辑 · 多图参考"
       apiEndpointPath="/api/v1/generate"
       mediaKind="image"
       sampleRequestBody={sampleRequestBody}

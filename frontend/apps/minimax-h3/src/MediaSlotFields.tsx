@@ -195,7 +195,7 @@ export function VideoSlotCard({
               blockSize: 52,
               borderRadius: 6,
               objectFit: "cover",
-              background: "#0f172a",
+              background: "var(--m3e-color-on-surface)",
               flex: "0 0 auto",
             }}
             onLoadedMetadata={(e) => {
