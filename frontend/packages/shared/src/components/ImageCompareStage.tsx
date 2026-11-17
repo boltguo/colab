@@ -1,7 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
   Button,
-  CloseOutlined,
   ColumnWidthOutlined,
   DownloadOutlined,
   ExpandOutlined,
@@ -11,6 +10,8 @@ import {
   Tag,
   Text,
 } from "../ui/primitives";
+
+import { ImageLightbox, imageDownloadUrl } from "./ImageLightbox";
 
 export interface StageImageEntry {
   url: string;
@@ -39,9 +40,8 @@ export function ImageCompareStage({
   onUseAsReference,
 }: ImageCompareStageProps) {
   const sliderId = useId();
-  const dialogTitleId = useId();
   const sliderRef = useRef<HTMLInputElement | null>(null);
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [viewMode, setViewMode] = useState<"result" | "split" | "ref">("result");
@@ -64,29 +64,6 @@ export function ImageCompareStage({
     el.style.setProperty("--attr-max", el.max || "100");
     el.style.setProperty("--control-value", String(splitPct));
   }, [splitPct, viewMode]);
-
-  // Mandatory light-dismiss fallback for browsers without HTMLDialogElement.prototype.closedBy (e.g. Safari)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if ("closedBy" in HTMLDialogElement.prototype) return;
-
-    const handleBackdropClick = (event: MouseEvent) => {
-      if (event.target !== dialog) return;
-      const rect = dialog.getBoundingClientRect();
-      const isDialogContent =
-        rect.top <= event.clientY &&
-        event.clientY <= rect.top + rect.height &&
-        rect.left <= event.clientX &&
-        event.clientX <= rect.left + rect.width;
-      if (isDialogContent) return;
-      dialog.close();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => {
-      dialog.removeEventListener("click", handleBackdropClick);
-    };
-  }, [current]);
 
   if (!current) {
     return null;
@@ -129,11 +106,11 @@ export function ImageCompareStage({
             htmlType="button"
             size="small"
             icon={<ExpandOutlined />}
-            onClick={() => dialogRef.current?.showModal()}
+            onClick={() => setLightboxOpen(true)}
           >
             放大检视细节
           </Button>
-          <a href={current.url} download={current.filename}>
+          <a href={imageDownloadUrl(current.url)} download={current.filename}>
             <Button htmlType="button" size="small" type="primary" icon={<DownloadOutlined />}>
               下载原图
             </Button>
@@ -189,7 +166,7 @@ export function ImageCompareStage({
             alt={current.filename}
             className="studio-compare-img-full"
             style={{ cursor: "zoom-in" }}
-            onClick={() => dialogRef.current?.showModal()}
+            onClick={() => setLightboxOpen(true)}
             {...({ fetchpriority: "high" } as Record<string, string>)}
           />
         )}
@@ -244,48 +221,14 @@ export function ImageCompareStage({
               <img
                 src={item.url}
                 alt={`批次 #${idx + 1}`}
-                style={{ inlineSize: 54, blockSize: 54, objectFit: "cover", borderRadius: 5 }}
+                style={{ inlineSize: 54, blockSize: 54, objectFit: "contain", borderRadius: 5 }}
               />
             </button>
           ))}
         </div>
       )}
 
-      {/* Native Light-Dismiss Fullscreen Zoom Modal Dialog */}
-      <dialog
-        ref={dialogRef}
-        className="studio-lightbox-dialog"
-        aria-labelledby={dialogTitleId}
-        {...({ closedby: "any" } as Record<string, string>)}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBlockEnd: 10 }}>
-          <Text id={dialogTitleId} strong className="studio-tabular" style={{ fontSize: 14 }}>
-            原寸细节检视 · {current.width} × {current.height} ({current.format.toUpperCase()})
-          </Text>
-          <Space size={8}>
-            <a href={current.url} download={current.filename}>
-              <Button htmlType="button" size="small" type="primary" icon={<DownloadOutlined />}>
-                下载原文件
-              </Button>
-            </a>
-            <Button
-              htmlType="button"
-              size="small"
-              icon={<CloseOutlined />}
-              onClick={() => dialogRef.current?.close()}
-            >
-              关闭 (Esc)
-            </Button>
-          </Space>
-        </div>
-        <div style={{ maxBlockSize: "80dvh", overflow: "auto" }}>
-          <img
-            src={current.url}
-            alt={current.filename}
-            style={{ maxInlineSize: "100%", blockSize: "auto", marginInline: "auto", borderRadius: 8 }}
-          />
-        </div>
-      </dialog>
+      <ImageLightbox images={[current]} open={lightboxOpen} onClose={() => setLightboxOpen(false)} />
     </div>
   );
 }

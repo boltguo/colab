@@ -9,6 +9,7 @@ export * from "./components/AudioSourceField";
 export * from "./components/ImageSourceField";
 export * from "./components/LoraManagerPanel";
 export * from "./components/ImageCompareStage";
+export * from "./components/ImageLightbox";
 export * from "./components/StudioShell";
 export * from "./components/CodeBlock";
 export * from "./components/GenerateDock";

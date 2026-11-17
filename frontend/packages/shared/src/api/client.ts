@@ -82,6 +82,9 @@ function buildAuthHeaders(extra?: Record<string, string>): Record<string, string
 }
 
 async function parseJsonOrThrow<T>(resp: Response): Promise<T> {
+  if (resp.status === 401 && resp.headers.get("X-Colab-Login-Required") && typeof window !== "undefined") {
+    window.location.assign("/auth/login");
+  }
   if (!resp.ok) {
     let detail = `请求失败 (HTTP ${resp.status})`;
     try {

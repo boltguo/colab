@@ -10,6 +10,9 @@ ExperimentOutlined,
 GenerateDock,
 HistoryOutlined,
 ImageCompareStage,
+ImageLightbox,
+imageDownloadUrl,
+DownloadOutlined,
 ImageSourceField,
 InfoCircleOutlined,
 Input,
@@ -71,6 +74,29 @@ function FieldLabel({ label, tooltip }: { label: string; tooltip?: string }) {
   );
 }
 
+function resultImages(result: QwenImageResult): StageImageEntry[] {
+  const list = result.images?.length
+      ? result.images
+      : [
+          {
+            url: result.image_url,
+            filename: result.filename,
+            width: result.width,
+            height: result.height,
+            size_bytes: result.size_bytes,
+            format: result.format,
+          },
+        ];
+  return list.map((it) => ({
+      url: resolveApiUrl(it.url, true),
+      filename: it.filename,
+      width: it.width,
+      height: it.height,
+      sizeBytes: it.size_bytes,
+      format: it.format,
+    }));
+}
+
 export function QwenImageStudioApp() {
   const promptInputId = useId();
   const negPromptInputId = useId();
@@ -94,6 +120,7 @@ export function QwenImageStudioApp() {
   const [seedLocked, setSeedLocked] = useState(false);
   const [showNegPrompt, setShowNegPrompt] = useState(false);
   const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
+  const [historyPreview, setHistoryPreview] = useState<StageImageEntry[]>([]);
 
   const { items: historyItems, addEntry, clearAll } = useHistoryStore<
     QwenImageResult,
@@ -347,26 +374,7 @@ export function QwenImageStudioApp() {
 
   const stageImages: StageImageEntry[] = useMemo(() => {
     if (!displayedEntry?.result) return [];
-    const list = displayedEntry.result.images?.length
-      ? displayedEntry.result.images
-      : [
-          {
-            url: displayedEntry.result.image_url,
-            filename: displayedEntry.result.filename,
-            width: displayedEntry.result.width,
-            height: displayedEntry.result.height,
-            size_bytes: displayedEntry.result.size_bytes,
-            format: displayedEntry.result.format,
-          },
-        ];
-    return list.map((it) => ({
-      url: resolveApiUrl(it.url, true),
-      filename: it.filename,
-      width: it.width,
-      height: it.height,
-      sizeBytes: it.size_bytes,
-      format: it.format,
-    }));
+    return resultImages(displayedEntry.result);
   }, [displayedEntry]);
 
   const stagePrimaryRefUrl = useMemo(() => {
@@ -918,6 +926,8 @@ export function QwenImageStudioApp() {
         )}
       </Card>
 
+      <ImageLightbox images={historyPreview} open={historyPreview.length > 0} onClose={() => setHistoryPreview([])} />
+
       {/* Session Generation History Gallery */}
       <Card
         className="studio-card"
@@ -961,8 +971,9 @@ export function QwenImageStudioApp() {
                     key={item.id}
                     className="studio-gallery-card"
                     data-active={isSelected ? "true" : "false"}
-                    onClick={() => setSelectedTakeId(item.id)}
                   >
+                    <button type="button" className="studio-gallery-open" aria-label="查看历史图片"
+                      onClick={() => { setSelectedTakeId(item.id); setHistoryPreview(resultImages(item.result)); }}>
                     <img
                       src={thumbUrl}
                       alt={promptTitle}
@@ -970,10 +981,11 @@ export function QwenImageStudioApp() {
                       style={{
                         inlineSize: "100%",
                         aspectRatio: "1 / 1",
-                        objectFit: "cover",
+                        objectFit: "contain",
                         background: "var(--m3e-color-outline-variant)",
                       }}
                     />
+                    </button>
                     <div style={{ padding: "0.45rem 0.55rem", display: "flex", flexDirection: "column", gap: 4 }}>
                       <div
                         style={{
@@ -987,10 +999,11 @@ export function QwenImageStudioApp() {
                       >
                         {promptTitle}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                        <span className="studio-tabular" style={{ fontSize: 10.5, color: "var(--studio-text-muted)" }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span className="studio-tabular" style={{ flexBasis: "100%", fontSize: 10.5, color: "var(--studio-text-muted)" }}>
                           {item.result.width}×{item.result.height}
                         </span>
+                        <Button size="small" type="text" href={imageDownloadUrl(thumbUrl)} download={item.result.filename} icon={<DownloadOutlined />} aria-label="下载历史图片" />
                         <Button
                           htmlType="button"
                           size="small"

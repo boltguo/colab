@@ -1,0 +1,13 @@
+m3eui
+Copyright 2026 m3eui contributors
+
+This product includes software developed by Google LLC and The Android Open
+Source Project, licensed under the Apache License, Version 2.0:
+
+- material-color-utilities (https://github.com/material-foundation/material-color-utilities)
+  Copyright Google LLC. Ported in src/tokens/monet.
+
+- AndroidX Compose Material 3 and graphics-shapes (https://android.googlesource.com/platform/frameworks/support)
+  Copyright The Android Open Source Project. Component tokens, motion specs,
+  MaterialShapes polygon data and progress/loading indicator geometry in
+  src/tokens are derived from these sources.

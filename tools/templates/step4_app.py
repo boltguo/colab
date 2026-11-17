@@ -1,6 +1,7 @@
 # @title 4. 启动现代 Web 工作台与 API 服务 {display-mode: "form"}
 TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
-REQUIRE_API_KEY = False  # @param {type:"boolean"}
+REQUIRE_API_KEY = True  # @param {type:"boolean"}
+ACCESS_PASSWORD = ""  # @param {type:"string"}
 USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
 import hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
@@ -24,6 +25,8 @@ if FEATURE_NAME == "indextts-2.5":
         raise RuntimeError(f"缺少媒体处理工具：{', '.join(missing_media_tools)}。请先执行 !apt-get -qq update && apt-get -qq install -y ffmpeg，再运行第 4 步。")
 
 def resolve_app_api_key():
+    if ACCESS_PASSWORD.strip():
+        return ACCESS_PASSWORD.strip()
     key = ""
     try:
         from google.colab import userdata
@@ -37,7 +40,7 @@ def resolve_app_api_key():
 app_api_key = resolve_app_api_key() if REQUIRE_API_KEY else ""
 if REQUIRE_API_KEY and not app_api_key:
     raise RuntimeError(
-        "已勾选 REQUIRE_API_KEY，但未找到 APP_API_KEY。请在 Colab 左侧 🔑 Secrets 中配置 APP_API_KEY。"
+        "请在 ACCESS_PASSWORD 填写访问密码，或在 Colab 左侧 🔑 Secrets 配置 APP_API_KEY。"
     )
 
 def ready(timeout=5):
