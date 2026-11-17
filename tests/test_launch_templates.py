@@ -97,6 +97,50 @@ class NotebookRestartTests(unittest.TestCase):
                 self.assertEqual(fingerprint(template), fingerprint(template))
 
 
+class VllmSingleGpuLaunchTests(unittest.TestCase):
+    def launch_command(self, tree):
+        assignment = next(node for node in tree.body if isinstance(node, ast.Assign)
+                          and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "vllm_cmd")
+        namespace = {"model_dir": "/models/qwen", "VLLM_PORT": 8189, "UPLOADS_DIR": Path("/data/uploads")}
+        exec(compile(ast.Module(body=[assignment], type_ignores=[]), "vllm-command", "exec"), namespace)
+        return namespace["vllm_cmd"]
+
+    def test_template_and_generated_notebook_fit_reported_mamba_cache_limit(self):
+        notebook = json.loads((ROOT / "notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb").read_text())
+        code = next("".join(cell["source"]) for cell in notebook["cells"]
+                    if cell["cell_type"] == "code" and "vllm_cmd =" in "".join(cell["source"]))
+        commands = [self.launch_command(template_ast("step4_vllm")), self.launch_command(ast.parse(code))]
+        self.assertEqual(commands[0], commands[1])
+        for command in commands:
+            concurrency = int(command[command.index("--max-num-seqs") + 1])
+            self.assertTrue(1 <= concurrency <= 32)
+            self.assertLessEqual(concurrency, 612)  # Cache capacity in the reported startup failure.
+            self.assertEqual(command[command.index("--max-model-len") + 1], "262144")
+
+    def test_repeated_step4_restarts_only_when_engine_arguments_change(self):
+        tree = template_ast("step4_vllm")
+        command = self.launch_command(tree)
+        old_command = list(command)
+        index = old_command.index("--max-num-seqs")
+        del old_command[index:index + 2]
+        nodes = [next(node for node in tree.body if isinstance(node, ast.Assign)
+                      and isinstance(node.targets[0], ast.Name) and node.targets[0].id == name)
+                 for name in ["vllm_cfg_str", "vllm_is_up"]]
+        nodes.append(next(node for node in tree.body if isinstance(node, ast.If)
+                          and ast.unparse(node.test).startswith("vllm_is_up and")))
+        for prior, should_restart in [(old_command, True), (command, False)]:
+            stop = Mock()
+            namespace = {"vllm_cmd": command, "json": json, "vllm_ready": lambda: True,
+                         "read_text": lambda _: json.dumps(prior), "VLLM_LAUNCH_CONFIG": Path("/config"),
+                         "VLLM_PROCESS_PATTERN": "test-engine", "stop_processes": stop, "print": lambda *a: None}
+            exec(compile(ast.Module(body=nodes, type_ignores=[]), "vllm-restart", "exec"), namespace)
+            self.assertEqual(namespace["vllm_is_up"], not should_restart)
+            if should_restart:
+                stop.assert_called_once_with("test-engine", 120)
+            else:
+                stop.assert_not_called()
+
+
 class MediaPrerequisiteTests(unittest.TestCase):
     def run_guard(self, template, feature, missing):
         guard = next(

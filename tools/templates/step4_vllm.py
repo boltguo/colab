@@ -71,6 +71,8 @@ vllm_cmd = [
     "--host", "127.0.0.1",
     "--port", str(VLLM_PORT),
     "--max-model-len", "262144",
+    # Single-GPU interactive use: avoid the throughput default exceeding hybrid-model cache blocks.
+    "--max-num-seqs", "8",
     "--gpu-memory-utilization", "0.93",
     "--enable-prefix-caching",
     "--reasoning-parser", "qwen3",
@@ -102,7 +104,7 @@ else:
             start_new_session=True,
         )
     VLLM_LAUNCH_CONFIG.write_text(vllm_cfg_str, encoding="utf-8")
-    print("正在加载 27B 权重并初始化 256K KV Cache（约需 1~3 分钟）...")
+    print("正在加载 27B 权重并初始化推理引擎（256K 上下文，最多 8 路并发）...")
     deadline = time.time() + 900
     while time.time() < deadline:
         if vllm_proc.poll() is not None:
