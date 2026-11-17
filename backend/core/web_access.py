@@ -16,12 +16,12 @@ def login_page(error: str = "") -> HTMLResponse:
     return HTMLResponse("""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>访问验证</title>
 <style>""" + _LOGIN_STYLE + """</style></head>
-<body><main><div class="artwork" aria-hidden="true">""" + _LOGIN_ART + """</div>
-<section class="access-form" aria-labelledby="access-title"><h1 id="access-title">访问密码</h1>
+<body><main aria-labelledby="access-title"><div class="artwork" aria-hidden="true">""" + _LOGIN_ART + """</div>
+<h1 id="access-title">访问密码</h1>
 <form method="post" action="/auth/login">
 <input id="password" name="password" type="password" aria-label="访问密码" autocomplete="current-password" maxlength="4096" required autofocus>
 """ + (f'<p class="error" role="alert">{escape(error)}</p>' if error else "") + """
-<button type="submit">进入</button></form></section></main></body></html>""", status_code=401 if error else 200,
+<button type="submit">进入</button></form></main></body></html>""", status_code=401 if error else 200,
         headers={"Cache-Control": "no-store, no-transform", "X-Frame-Options": "DENY",
                  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"})
 
