@@ -21,7 +21,7 @@ from .models import (
     TunnelMode,
     UploadedFileResponse,
 )
-from .security import SESSION_COOKIE, ensure_safe_path, make_auth_dependency, valid_session, verify_ws_auth
+from .security import AuthState, ensure_safe_path, make_auth_dependency, verify_ws_auth
 from .web_access import install_web_access
 from .storage import MediaStorage
 from .task_manager import ProgressCallback, TaskManager
@@ -91,12 +91,13 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    install_web_access(app, cfg.api_key)
+    auth = AuthState(cfg.access_password, cfg.data_dir, cfg.api_key)
+    install_web_access(app, auth)
 
     @app.middleware("http")
     async def cloudflare_safe_headers(request: Request, call_next):
         response = await call_next(request)
-        if cfg.api_key:
+        if auth.api_required:
             response.headers["Cache-Control"] = "private, no-store, no-transform"
             return response
         path = request.url.path
@@ -110,7 +111,7 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
                 response.headers["Cache-Control"] = f"{cc}, no-transform" if cc else "no-transform"
         return response
 
-    auth_dep = make_auth_dependency(cfg.api_key)
+    auth_dep = make_auth_dependency(auth)
 
     core_router = APIRouter(prefix="/api/v1", tags=["Core"])
 
@@ -164,8 +165,10 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
             subtitle=plugin.subtitle,
             version=plugin.version,
             engine=plugin.engine,
-            auth_required=bool(cfg.api_key),
-            browser_authenticated=valid_session(request.cookies.get(SESSION_COOKIE, ""), cfg.api_key),
+            auth_required=auth.api_required,
+            web_auth_required=bool(cfg.access_password),
+            api_key_configured=auth.api_key_configured,
+            browser_authenticated=auth.browser_authenticated(request),
             mock_mode=cfg.mock_inference,
             public_url=public_url,
             tunnel_mode=tunnel_mode,
@@ -254,7 +257,7 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
 
     @app.websocket("/api/v1/tasks/{task_id}/ws")
     async def stream_task_ws(websocket: WebSocket, task_id: str) -> None:
-        if not verify_ws_auth(websocket, cfg.api_key):
+        if not verify_ws_auth(websocket, auth):
             await websocket.close(code=4401, reason="Unauthorized")
             return
         await websocket.accept()

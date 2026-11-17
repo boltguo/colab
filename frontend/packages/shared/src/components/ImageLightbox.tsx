@@ -26,11 +26,12 @@ export function ImageLightbox({ images, open, onClose }: {
   if (!image) return null;
   const width = natural?.url === image.url ? natural.width : image.width;
   const height = natural?.url === image.url ? natural.height : image.height;
-  const currentScale = scale ?? fitImageScale(width, height, bounds.width, bounds.height);
-  const zoom = (factor: number) => setScale(Math.max(0.05, Math.min(4, currentScale * factor)));
+  const fitScale = fitImageScale(width, height, bounds.width, bounds.height);
+  const currentScale = scale ?? fitScale;
+  const zoom = (factor: number) => setScale(Math.max(Math.min(0.01, fitScale / 16), Math.min(Math.max(4, fitScale * 8), currentScale * factor)));
   return <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }} showCloseButton
     title={`查看图片 · ${width} × ${height}`} className="studio-image-dialog"
-    style={{ width: "min(1200px, calc(100vw - 32px))", maxWidth: "none" }}>
+    style={{ width: "calc(100vw - 40px)", height: "calc(100dvh - 40px)", minWidth: 0, maxWidth: "none", maxHeight: "none" }}>
     <div className="studio-image-toolbar">
       {images.length > 1 && <><Button size="small" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}>上一张</Button>
         <span className="studio-tabular">{index + 1} / {images.length}</span>

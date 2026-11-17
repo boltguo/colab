@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useState } from "react";
 import {
   fetchSystemStatus,
+  configureApiKey,
   getEffectiveOrigin,
   loadApiKey,
   saveApiKey,
@@ -172,6 +173,7 @@ export function StudioShell({
 
   const [savedKey, setSavedKey] = useState<string>(() => loadApiKey());
   const [apiKeyInput, setApiKeyInput] = useState<string>(() => loadApiKey());
+  const [savingKey, setSavingKey] = useState(false);
 
   const refreshSystem = useCallback(async (manual = false) => {
     if (manual) setRefreshingSys(true);
@@ -207,7 +209,6 @@ export function StudioShell({
 
   const tunnelMode = detectTunnelMode(sys);
   const origin = getEffectiveOrigin(sys?.public_url);
-  const authMissing = Boolean(sys?.auth_required && !sys?.browser_authenticated && !savedKey);
 
   const authHeaderLine = savedKey
     ? `  -H "Authorization: Bearer ${savedKey}" \\\n`
@@ -299,13 +300,23 @@ while True:
     }
   };
 
-  const handleSaveKey = () => {
-    const clean = saveApiKey(apiKeyInput);
-    setSavedKey(clean);
-    setKeyModalOpen(false);
-    message.success(clean ? "API Key 已保存" : "已清除本地 API Key");
-    onAuthChanged?.();
-    void refreshSystem(false);
+  const handleSaveKey = async () => {
+    if (savingKey) return;
+    setSavingKey(true);
+    try {
+      const clean = apiKeyInput.trim();
+      await configureApiKey(clean);
+      saveApiKey(clean);
+      setSavedKey(clean);
+      setKeyModalOpen(false);
+      message.success("API Key 已生效");
+      onAuthChanged?.();
+      await refreshSystem(false);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "设置失败");
+    } finally {
+      setSavingKey(false);
+    }
   };
 
   const vramPct =
@@ -541,14 +552,13 @@ while True:
 
           <Button
             htmlType="button"
-            danger={authMissing}
             icon={<KeyOutlined />}
             onClick={() => {
               setApiKeyInput(loadApiKey());
               setKeyModalOpen(true);
             }}
           >
-            {authMissing ? "填写 API Key" : savedKey ? "API Key 已设" : "API Key"}
+            {sys?.api_key_configured ? "API Key 已设" : "API Key"}
           </Button>
 
           <Button
@@ -583,28 +593,16 @@ while True:
       </main>
 
       <Modal
-        title="设置访问 API Key"
+        title="设置 API Key"
         open={keyModalOpen}
         onCancel={() => setKeyModalOpen(false)}
         onOk={handleSaveKey}
+        confirmLoading={savingKey}
         okText="保存"
         cancelText="取消"
       >
         <Space direction="vertical" size={14} style={{ inlineSize: "100%", paddingBlock: 8 }}>
-          <Alert
-            type={sys?.auth_required ? "warning" : "info"}
-            showIcon
-            message={
-              sys?.auth_required
-                ? "当前实例已启用访问密码"
-                : "当前实例未开启访问密码"
-            }
-            description={
-              sys?.auth_required
-                ? "网页登录后可直接使用。调用 API 时，将第 4 步设置的访问密码作为 API Key；在此填写后，示例代码会自动附带密钥。"
-                : "如需保护页面，请在 Colab 第 4 步设置 ACCESS_PASSWORD，并保持 REQUIRE_API_KEY 开启。"
-            }
-          />
+          <Text>仅用于外部程序调用，与应用访问密码独立。</Text>
 
           <div className="studio-field-group">
             <label htmlFor="studio-api-key" className="studio-field-label">
@@ -614,7 +612,7 @@ while True:
               id="studio-api-key"
               name="api_key"
               allowClear
-              placeholder={sys?.auth_required ? "请输入 APP_API_KEY" : "未开启鉴权时留空即可"}
+              placeholder={sys?.api_key_configured ? "填写新的 API Key" : "至少 8 位字母、数字或符号"}
               value={apiKeyInput}
               onValueChange={(value) => setApiKeyInput(value)}
               onKeyDown={(e) => {
@@ -630,6 +628,14 @@ while True:
               spellCheck={false}
             />
           </div>
+          <Space wrap>
+            <Button icon={<ReloadOutlined />} onClick={() => {
+              const bytes = crypto.getRandomValues(new Uint8Array(24));
+              setApiKeyInput(`sk-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`);
+            }}>随机生成</Button>
+            <Button icon={<CopyOutlined />} disabled={!apiKeyInput} onClick={() => void copyText(apiKeyInput, "API Key 已复制")}>复制</Button>
+          </Space>
+          {sys?.api_key_configured && <Text type="secondary">保存新 Key 后，原 Key 立即失效。</Text>}
         </Space>
       </Modal>
 
