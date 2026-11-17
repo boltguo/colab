@@ -21,7 +21,8 @@ from .models import (
     TunnelMode,
     UploadedFileResponse,
 )
-from .security import ensure_safe_path, make_auth_dependency, verify_ws_auth
+from .security import SESSION_COOKIE, ensure_safe_path, make_auth_dependency, valid_session, verify_ws_auth
+from .web_access import install_web_access
 from .storage import MediaStorage
 from .task_manager import ProgressCallback, TaskManager
 
@@ -90,10 +91,14 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    install_web_access(app, cfg.api_key)
 
     @app.middleware("http")
     async def cloudflare_safe_headers(request: Request, call_next):
         response = await call_next(request)
+        if cfg.api_key:
+            response.headers["Cache-Control"] = "private, no-store, no-transform"
+            return response
         path = request.url.path
         if response.status_code == 200 and (
             path.startswith("/assets/") or path.endswith((".woff2", ".woff", ".ttf"))
@@ -160,6 +165,7 @@ def create_feature_app(plugin: FeaturePlugin, settings: Optional[AppSettings] = 
             version=plugin.version,
             engine=plugin.engine,
             auth_required=bool(cfg.api_key),
+            browser_authenticated=valid_session(request.cookies.get(SESSION_COOKIE, ""), cfg.api_key),
             mock_mode=cfg.mock_inference,
             public_url=public_url,
             tunnel_mode=tunnel_mode,

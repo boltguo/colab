@@ -207,7 +207,7 @@ export function StudioShell({
 
   const tunnelMode = detectTunnelMode(sys);
   const origin = getEffectiveOrigin(sys?.public_url);
-  const authMissing = Boolean(sys?.auth_required && !savedKey);
+  const authMissing = Boolean(sys?.auth_required && !sys?.browser_authenticated && !savedKey);
 
   const authHeaderLine = savedKey
     ? `  -H "Authorization: Bearer ${savedKey}" \\\n`
@@ -490,6 +490,9 @@ while True:
 
         <div className="studio-header-actions">
           {headerExtra}
+          {sys?.browser_authenticated && <form method="post" action="/auth/logout">
+            <Button htmlType="submit" type="text">退出</Button>
+          </form>}
 
           {sys ? (
             <Popover
@@ -593,13 +596,13 @@ while True:
             showIcon
             message={
               sys?.auth_required
-                ? "当前实例已启用 API Key 鉴权（REQUIRE_API_KEY = True）"
-                : "当前实例未开启鉴权（默认免密访问）"
+                ? "当前实例已启用访问密码"
+                : "当前实例未开启访问密码"
             }
             description={
               sys?.auth_required
-                ? "请输入部署时在 Colab Secrets 中配置的 APP_API_KEY，保存后页面操作与 API 调用代码弹窗均会自动附带该密钥。"
-                : "无需填写即可直接使用。若你在部署脚本勾选了 REQUIRE_API_KEY，可在此填入对应的 APP_API_KEY。"
+                ? "网页登录后可直接使用。调用 API 时，将第 4 步设置的访问密码作为 API Key；在此填写后，示例代码会自动附带密钥。"
+                : "如需保护页面，请在 Colab 第 4 步设置 ACCESS_PASSWORD，并保持 REQUIRE_API_KEY 开启。"
             }
           />
 

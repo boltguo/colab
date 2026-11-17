@@ -65,3 +65,17 @@
   .studio-generate-dock > .m3e-button { min-inline-size: 0 !important; }
 }
 @media (max-height: 640px) { .studio-api-guidance { display: none; } }
+
+/* Fit the entire image before offering pixel-level zoom. */
+.studio-compare-viewport { block-size: clamp(220px, 52dvh, 560px); }
+.studio-compare-img-full { position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; min-block-size: 0; max-block-size: none; object-fit: contain; }
+.studio-image-dialog.m3e-dialog__popup { block-size: min(88dvh, 900px); overflow: hidden; }
+.studio-image-dialog > .m3e-dialog__header { flex-shrink: 0; }
+.studio-image-dialog > .m3e-dialog__body { display: flex; flex-direction: column; gap: 12px; flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
+.studio-image-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex-shrink: 0; }
+.studio-image-toolbar > .studio-tabular { font-size: 13px; }
+.studio-image-canvas { flex: 1 1 auto; min-block-size: 0; border-radius: var(--m3e-shape-corner-medium); overflow: hidden; background: var(--m3e-color-surface-container); }
+.studio-image-canvas .m3e-scroll-area__viewport { block-size: 100%; }
+.studio-image-plane { display: grid; place-items: center; }
+.studio-image-plane img { display: block; max-inline-size: none; max-block-size: none; }
+.studio-gallery-open { display: block; padding: 0; border: 0; inline-size: 100%; background: transparent; cursor: zoom-in; }

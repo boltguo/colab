@@ -49,6 +49,7 @@ export interface SystemStatus {
   version: string;
   engine: string;
   auth_required: boolean;
+  browser_authenticated?: boolean;
   mock_mode: boolean;
   public_url?: string;
   tunnel_mode?: TunnelMode;

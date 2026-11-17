@@ -41,6 +41,19 @@ def fingerprint(name, *, release="v0.1.1:abc", key="key-one", environment=None):
 
 
 class NotebookRestartTests(unittest.TestCase):
+    def test_password_is_enabled_by_default_and_explicit_input_needs_no_vault(self):
+        for template in TEMPLATES:
+            tree = template_ast(template)
+            defaults = {node.targets[0].id: ast.literal_eval(node.value) for node in tree.body
+                        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+                        and node.targets[0].id in {"REQUIRE_API_KEY", "ACCESS_PASSWORD"}}
+            self.assertTrue(defaults["REQUIRE_API_KEY"])
+            self.assertEqual(defaults["ACCESS_PASSWORD"], "")
+            resolver = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "resolve_app_api_key")
+            namespace = {"ACCESS_PASSWORD": "test-access-password"}
+            exec(compile(ast.Module(body=[resolver], type_ignores=[]), template, "exec"), namespace)
+            self.assertEqual(namespace["resolve_app_api_key"](), "test-access-password")
+
     def test_updated_bundle_changes_the_restart_fingerprint(self):
         for template in TEMPLATES:
             with self.subTest(template=template):
