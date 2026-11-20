@@ -1,10 +1,9 @@
 .tts-form, .tts-stack { display: flex; flex-direction: column; gap: 20px; min-inline-size: 0; }
-.tts-main-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.tts-main-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
+.tts-speed-field { grid-column: 1 / -1; }
 .tts-control-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-block-size: 32px; font-weight: 500; color: var(--m3e-color-on-surface); }
 .tts-control-body { display: flex; align-items: center; min-block-size: 56px; }
 .tts-control-body > * { inline-size: 100%; }
-.tts-text-footer, .tts-history-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--m3e-color-on-surface-variant); font-size: 12px; font-variant-numeric: tabular-nums; }
-.tts-history-list { display: flex; flex-direction: column; gap: 16px; padding-inline-end: 10px; }
-.tts-history-entry { min-inline-size: 0; }
-.tts-history-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
+.tts-text-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--m3e-color-on-surface-variant); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tts-history-list { padding-inline-end: 10px; }
 @media (max-width: 600px) { .tts-main-settings { grid-template-columns: minmax(0, 1fr); gap: 20px; } }

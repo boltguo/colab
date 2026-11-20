@@ -2,6 +2,7 @@ import "./styles/index.css";
 
 export * from "./api/types";
 export * from "./api/client";
+export * from "./i18n";
 export * from "./ui/primitives";
 export * from "./hooks/useTaskRunner";
 export * from "./hooks/useHistoryStore";
@@ -12,5 +13,5 @@ export * from "./components/ImageCompareStage";
 export * from "./components/ImageLightbox";
 export * from "./components/StudioShell";
 export * from "./components/CodeBlock";
-export * from "./components/GenerateDock";
+export * from "./components/GenerateButton";
 export * from "./components/SeedControl";

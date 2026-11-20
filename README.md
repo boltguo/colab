@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | [Qwen-Image 2.1](notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) | 80GB+ | 文生图、图像编辑、多图参考 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/qwen-image-2.1/Qwen_Image_2.1.ipynb) |
 | [MiniMax-H3](notebooks/minimax-h3/MiniMaxH3.ipynb) | 80GB+ | 有声视频、首尾帧、多模态参考 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/minimax-h3/MiniMaxH3.ipynb) |
+| [H3 Character Swap](notebooks/h3-character-swap/H3_Character_Swap.ipynb) | 80GB+（推荐）/ 40GB+（480p） | 单人 / 多人视频人物替换，保留动作与原声 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/h3-character-swap/H3_Character_Swap.ipynb) |
 | [SeedVR2](notebooks/seedvr2/SeedVR2.ipynb) | 40GB+ | 视频和图片放大、细节修复 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/seedvr2/SeedVR2.ipynb) |
 | [IndexTTS 2.5](notebooks/indextts-2.5/IndexTTS_2.5.ipynb) | 40GB+ | 音色克隆、语速和情绪控制 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/indextts-2.5/IndexTTS_2.5.ipynb) |
 | [Qwen3.8-27B](notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) | 40GB+（FP8）/ 80GB+（BF16） | 对话、深度思考、图片与视频理解 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/boltguo/colab/blob/main/notebooks/qwen3.8-27b/Qwen3.8_27B.ipynb) |
@@ -89,6 +90,10 @@ Quick Tunnel 的临时地址随实例停止而失效。需要固定域名时，�
 
 支持文生视频、首尾帧和图片/视频/音频参考，最多 9 张参考图，混合素材合计最多 12 份。当前提供 540p / 768p；极速模式会自动选择推荐步数。
 
+### H3 Character Swap
+
+基于 Viggle Remake Swap (`MiniMax-H3 FL2VA`)，支持单人替换与多人同框分别替换（Web UI 支持 1–4 位角色，API 最多 9 位），在保持原视频动作、镜头运动、光影和原声的前提下替换人物外观，可选关键帧锚点引导与 A/B 卷帘视频对比（配套 Colab 笔记本为主英文带中文说明的双语版）。
+
 ### SeedVR2
 
 上传视频或图片，选择按倍数或目标尺寸放大。7B Sharp 偏重清晰度，3B Fast 偏重速度；视频可保留原声，结果支持放大前后对比。
@@ -125,4 +130,4 @@ Colab 从 GitHub Releases 安装预构建应用。源码更新后，运行 GitHu
 
 ## 许可
 
-代码采用 [Apache-2.0](LICENSE)。模型权重请遵循各项目许可证：[Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE)、[MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)、[SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2)、[IndexTTS](https://huggingface.co/IndexTeam/IndexTTS-2.5)、[Qwen3.8](https://huggingface.co/Qwen/Qwen3.8-27B)。
+代码采用 [Apache-2.0](LICENSE)。模型权重请遵循各项目许可证：[Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE)、[MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)、[Viggle Remake](https://huggingface.co/Viggle/Viggle-Remake)、[SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2)、[IndexTTS](https://huggingface.co/IndexTeam/IndexTTS-2.5)、[Qwen3.8](https://huggingface.co/Qwen/Qwen3.8-27B)。

@@ -1,4 +1,4 @@
-# @title 2. 安装 vLLM 推理引擎与应用服务包 {display-mode: "form"}
+# @title 2. Install vLLM Engine & App Bundle {display-mode: "form"}
 import hashlib, shutil, subprocess, sys, tarfile, tempfile, urllib.request
 from pathlib import Path
 
@@ -30,10 +30,10 @@ def ensure_not_symlink(path, label):
         if p == Path("/content"):
             break
         if p.is_symlink():
-            raise RuntimeError(f"{label} 路径包含软链接，请使用新的 runtime：{p}")
+            raise RuntimeError(f"{label} path contains a symlink; start a fresh runtime: {p}")
 
 def install_release_app():
-    ensure_not_symlink(APP_DIR, "应用目录")
+    ensure_not_symlink(APP_DIR, "App directory")
     stamp_file = APP_DIR / ".release_sha256"
     if (
         stamp_file.is_file()
@@ -41,7 +41,7 @@ def install_release_app():
         and stamp_file.read_text(encoding="utf-8").strip() == f"{RELEASE_TAG}:{APP_SHA256}"
         and (APP_DIR / "backend/run_server.py").is_file()
     ):
-        print(f"应用包已是最新：{APP_ARCHIVE} ({RELEASE_TAG})")
+        print(f"App bundle already up to date: {APP_ARCHIVE} ({RELEASE_TAG})")
         return
 
     local_archive = Path(f"/content/{APP_ARCHIVE}")
@@ -49,24 +49,24 @@ def install_release_app():
         tmp_path = Path(tmp.name)
     try:
         if local_archive.is_file() and not local_archive.is_symlink():
-            print(f"检测到本地预置应用包：{local_archive}")
+            print(f"Using pre-staged app archive: {local_archive}")
             payload = local_archive.read_bytes()
         else:
             url = f"https://github.com/{RELEASE_REPO}/releases/download/{RELEASE_TAG}/{APP_ARCHIVE}"
-            print(f"正在拉取应用包：{url}")
+            print(f"Downloading app bundle: {url}")
             req = urllib.request.Request(url, headers={"User-Agent": "colab-release-fetcher"})
             with urllib.request.urlopen(req, timeout=60) as resp:
                 payload = resp.read()
         actual_sha = hashlib.sha256(payload).hexdigest()
         if actual_sha != APP_SHA256:
             raise RuntimeError(
-                f"应用包 SHA256 校验失败！预期 {APP_SHA256}，实际 {actual_sha}"
+                f"App bundle SHA256 mismatch! Expected {APP_SHA256}, got {actual_sha}"
             )
         tmp_path.write_bytes(payload)
 
         staging = APP_DIR.with_name("app.staging")
         if staging.is_symlink():
-            raise RuntimeError("staging 目录为软链接，拒绝写入。")
+            raise RuntimeError("Staging directory is a symlink; aborting.")
         if staging.exists():
             shutil.rmtree(staging)
         staging.mkdir(parents=True, exist_ok=True)
@@ -75,10 +75,10 @@ def install_release_app():
         with tarfile.open(tmp_path, "r:gz") as tf:
             for member in tf.getmembers():
                 if member.issym() or member.islnk():
-                    raise RuntimeError(f"拒绝解压含链接的归档条目：{member.name}")
+                    raise RuntimeError(f"Refusing symlink/hardlink archive entry: {member.name}")
                 target = (staging / member.name).resolve()
                 if target != staging_root and not str(target).startswith(str(staging_root) + "/"):
-                    raise RuntimeError(f"归档路径越界：{member.name}")
+                    raise RuntimeError(f"Archive path escapes staging root: {member.name}")
             tf.extractall(staging)
 
         (staging / ".release_sha256").write_text(f"{RELEASE_TAG}:{APP_SHA256}\n", encoding="utf-8")
@@ -95,4 +95,4 @@ install_release_app()
 {{CLOUDFLARED}}
 vllm_ver = subprocess.check_output([sys.executable, "-c", "import vllm; print(vllm.__version__)"], text=True).strip()
 print(f"Engine: vLLM {vllm_ver} | app: {RELEASE_TAG} ({APP_SHA256[:12]}) | cloudflared: {CLOUDFLARED_VERSION}")
-print("[OK] vLLM 引擎与现代 Web/API 应用包安装完成。")
+print("[OK] vLLM engine and Web/API bundle installed.")

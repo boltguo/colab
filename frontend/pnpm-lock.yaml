@@ -27,6 +27,18 @@ importers:
         specifier: ^6.1.0
         version: 6.4.6(@types/node@22.20.5)
 
+  apps/h3-character-swap:
+    dependencies:
+      '@colab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: ^19.0.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.1(react@19.3.1)
+
   apps/indextts-2.5:
     dependencies:
       '@colab/shared':
@@ -93,8 +105,8 @@ importers:
         specifier: 1.73.0
         version: 1.73.0(@types/react@19.3.0)(react@19.3.1)
       m3eui:
-        specifier: 0.1.0
-        version: 0.1.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: 0.2.0
+        version: 0.2.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       normalize.css:
         specifier: 8.0.1
         version: 8.0.1
@@ -742,8 +754,8 @@ packages:
       '@types/react':
         optional: true
 
-  m3eui@0.1.0:
-    resolution: {integrity: sha512-O4U/Izy7cMXKSZqwXPsiY7UWpbeHzwH1h0b+thhiskDZSUnr5aMLN9u3EMs4J26CwW/AGjFzHLsjZmZAPjM+hQ==}
+  m3eui@0.2.0:
+    resolution: {integrity: sha512-adCKfvcCpxuy/vi3o74rCoGv65VwZbzCKYhwIT3XapGt9m5xiGkRlfoNbxqhPzI8WSw8fsx3A4ucQ+7ltG4Cmw==}
     hasBin: true
     peerDependencies:
       react: '>=18.0.0'
@@ -1490,7 +1502,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  m3eui@0.1.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  m3eui@0.2.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@base-ui/react': 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1

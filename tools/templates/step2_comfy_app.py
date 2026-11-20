@@ -1,4 +1,4 @@
-# @title 2. 安装推理引擎与应用服务包 {display-mode: "form"}
+# @title 2. Install Inference Engine & App Bundle {display-mode: "form"}
 import hashlib, re, shutil, subprocess, sys, tarfile, tempfile, urllib.request
 from pathlib import Path
 
@@ -12,6 +12,7 @@ RELEASE_REPO = "{{RELEASE_REPO}}"
 RELEASE_TAG = "{{RELEASE_TAG}}"
 APP_ARCHIVE = "{{APP_ARCHIVE}}"
 APP_SHA256 = "{{APP_SHA256}}"
+BUNDLED_NODES_REL = "{{BUNDLED_NODES_REL}}"
 CLOUDFLARED_VERSION = "2026.10.6"
 
 {{NODE_CONSTANTS}}EXTRA_PACKAGES = {{EXTRA_PACKAGES}}
@@ -35,7 +36,7 @@ def ensure_not_symlink(path, label):
         if p == Path("/content"):
             break
         if p.is_symlink():
-            raise RuntimeError(f"{label} 路径包含软链接，请使用新的 runtime：{p}")
+            raise RuntimeError(f"{label} path contains a symlink; start a fresh runtime: {p}")
 
 def checkout_repo(path, repo_url, revision, label, allow_local_changes=False):
     ensure_not_symlink(path, label)
@@ -44,17 +45,37 @@ def checkout_repo(path, repo_url, revision, label, allow_local_changes=False):
         path.parent.mkdir(parents=True, exist_ok=True)
         run(["git", "clone", "--depth", "1", "--no-checkout", repo_url + ".git", str(path)])
     if not (path / ".git").is_dir():
-        raise RuntimeError(f"{label} 目录不是 Git 仓库，请使用新的 runtime。")
+        raise RuntimeError(f"{label} is not a git repository; please use a clean runtime: {path}")
     if git(path, "remote", "get-url", "origin").rstrip("/").removesuffix(".git") != repo_url:
-        raise RuntimeError(f"现有 {label} 不是指定仓库，请使用新的 runtime。")
+        raise RuntimeError(f"Unexpected remote origin in {label}; please use a clean runtime.")
     if not fresh and not allow_local_changes and git(path, "status", "--porcelain"):
-        raise RuntimeError(f"现有 {label} 有未提交修改，请使用新的 runtime。")
+        raise RuntimeError(f"{label} has uncommitted local changes; please use a clean runtime.")
     if fresh or git(path, "rev-parse", "HEAD") != revision:
         run(["git", "fetch", "--depth", "1", "origin", revision], cwd=path)
         run(["git", "checkout", "--force", "--detach", revision], cwd=path)
 
+def sync_bundled_custom_nodes():
+    if not BUNDLED_NODES_REL:
+        return
+    src_root = APP_DIR / BUNDLED_NODES_REL
+    if not src_root.is_dir():
+        return
+    custom_nodes_dir = COMFY_DIR / "custom_nodes"
+    ensure_not_symlink(custom_nodes_dir, "ComfyUI custom_nodes")
+    custom_nodes_dir.mkdir(parents=True, exist_ok=True)
+    for node_dir in sorted(p for p in src_root.iterdir() if p.is_dir()):
+        if node_dir.is_symlink() or any(child.is_symlink() for child in node_dir.rglob("*")):
+            raise RuntimeError(f"Refusing symlink inside bundled custom nodes: {node_dir}")
+        dest = custom_nodes_dir / node_dir.name
+        if dest.is_symlink():
+            raise RuntimeError(f"Destination custom node path is a symlink: {dest}")
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(node_dir, dest, symlinks=False)
+        print(f"Synced bundled ComfyUI node pack: {node_dir.name}")
+
 def install_release_app():
-    ensure_not_symlink(APP_DIR, "应用目录")
+    ensure_not_symlink(APP_DIR, "App directory")
     stamp_file = APP_DIR / ".release_sha256"
     if (
         stamp_file.is_file()
@@ -62,7 +83,7 @@ def install_release_app():
         and stamp_file.read_text(encoding="utf-8").strip() == f"{RELEASE_TAG}:{APP_SHA256}"
         and (APP_DIR / "backend/run_server.py").is_file()
     ):
-        print(f"应用包已是最新：{APP_ARCHIVE} ({RELEASE_TAG})")
+        print(f"App bundle already up to date: {APP_ARCHIVE} ({RELEASE_TAG})")
         return
 
     local_archive = Path(f"/content/{APP_ARCHIVE}")
@@ -70,24 +91,24 @@ def install_release_app():
         tmp_path = Path(tmp.name)
     try:
         if local_archive.is_file() and not local_archive.is_symlink():
-            print(f"检测到本地预置应用包：{local_archive}")
+            print(f"Using pre-staged app archive: {local_archive}")
             payload = local_archive.read_bytes()
         else:
             url = f"https://github.com/{RELEASE_REPO}/releases/download/{RELEASE_TAG}/{APP_ARCHIVE}"
-            print(f"正在拉取应用包：{url}")
+            print(f"Downloading app bundle: {url}")
             req = urllib.request.Request(url, headers={"User-Agent": "colab-release-fetcher"})
             with urllib.request.urlopen(req, timeout=60) as resp:
                 payload = resp.read()
         actual_sha = hashlib.sha256(payload).hexdigest()
         if actual_sha != APP_SHA256:
             raise RuntimeError(
-                f"应用包 SHA256 校验失败！预期 {APP_SHA256}，实际 {actual_sha}"
+                f"App bundle SHA256 mismatch! Expected {APP_SHA256}, got {actual_sha}"
             )
         tmp_path.write_bytes(payload)
 
         staging = APP_DIR.with_name("app.staging")
         if staging.is_symlink():
-            raise RuntimeError("staging 目录为软链接，拒绝写入。")
+            raise RuntimeError("Staging directory is a symlink; aborting.")
         if staging.exists():
             shutil.rmtree(staging)
         staging.mkdir(parents=True, exist_ok=True)
@@ -96,10 +117,10 @@ def install_release_app():
         with tarfile.open(tmp_path, "r:gz") as tf:
             for member in tf.getmembers():
                 if member.issym() or member.islnk():
-                    raise RuntimeError(f"拒绝解压含链接的归档条目：{member.name}")
+                    raise RuntimeError(f"Refusing symlink/hardlink archive entry: {member.name}")
                 target = (staging / member.name).resolve()
                 if target != staging_root and not str(target).startswith(str(staging_root) + "/"):
-                    raise RuntimeError(f"归档路径越界：{member.name}")
+                    raise RuntimeError(f"Archive path escapes staging root: {member.name}")
             tf.extractall(staging)
 
         (staging / ".release_sha256").write_text(f"{RELEASE_TAG}:{APP_SHA256}\n", encoding="utf-8")
@@ -127,7 +148,8 @@ requirements.write_text("\n".join(lines) + "\n", encoding="utf-8")
 run([sys.executable, "-m", "pip", "install", "-q", "-r", str(requirements), *EXTRA_PACKAGES, *APP_SERVER_PACKAGES])
 
 install_release_app()
+sync_bundled_custom_nodes()
 
 {{CLOUDFLARED}}
 print(f"Engine: ComfyUI {COMFY_VERSION} ({COMFY_REVISION[:12]}){{NODE_SUMMARY}} | app: {RELEASE_TAG} ({APP_SHA256[:12]}) | cloudflared: {CLOUDFLARED_VERSION}")
-print("[OK] 内部推理引擎与现代 Web/API 应用包安装完成。")
+print("[OK] Internal inference engine and Web/API bundle installed.")

@@ -41,6 +41,10 @@ FEATURE_SPECS: Dict[str, Dict[str, str]] = {
         "npm_pkg": "@colab/app-seedvr2",
         "backend_module": "seedvr2",
     },
+    "h3-character-swap": {
+        "npm_pkg": "@colab/app-h3-character-swap",
+        "backend_module": "h3_character_swap",
+    },
 }
 
 SKIP_NAMES = {"__pycache__", ".DS_Store"}

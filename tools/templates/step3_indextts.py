@@ -1,4 +1,4 @@
-# @title 3. 下载 IndexTTS 2.5 模型权重 {display-mode: "form"}
+# @title 3. Download IndexTTS 2.5 Model Weights {display-mode: "form"}
 import os, shutil, sys, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -20,7 +20,7 @@ def local_directory(path):
         if parent == Path("/content"):
             break
         if parent.is_symlink():
-            raise RuntimeError(f"目录是软链接，请使用新的 runtime：{parent}")
+            raise RuntimeError(f"Directory is a symlink; please start a fresh runtime: {parent}")
     path.mkdir(parents=True, exist_ok=True)
 
 def model_ready(target, size):
@@ -41,8 +41,8 @@ def download_model(repo, revision, _folder, file, size):
         )
     )
     if result.resolve() != target.resolve() or not model_ready(target, size):
-        raise RuntimeError(f"模型下载不完整：{target}")
-    print(f"已下载：{file}（{size / 1024**3:.2f} GB，{time.time() - started:.0f} 秒）")
+        raise RuntimeError(f"Incomplete model download: {target}")
+    print(f"Downloaded: {file} ({size / 1024**3:.2f} GiB in {time.time() - started:.0f}s)")
 
 def download_models():
     local_directory(MODEL_DIR)
@@ -50,9 +50,9 @@ def download_models():
     for item in MODEL_FILES:
         target = MODEL_DIR / item[3]
         if target.is_symlink():
-            raise RuntimeError(f"模型文件是软链接：{target}")
+            raise RuntimeError(f"Refusing symlink model file: {target}")
         if model_ready(target, item[4]):
-            print("已存在：", item[3])
+            print("Verified:", item[3])
         else:
             pending.append(item)
     if pending:
@@ -60,7 +60,7 @@ def download_models():
         free = shutil.disk_usage(MODEL_DIR).free
         if free < missing + 2 * 1024**3:
             raise RuntimeError(
-                f"磁盘空间不足：还需 {missing / 1024**3:.1f} GB，可用 {free / 1024**3:.1f} GB。"
+                f"Insufficient disk space: need {missing / 1024**3:.1f} GiB more, free {free / 1024**3:.1f} GiB."
             )
         started = time.time()
         pool = ThreadPoolExecutor(max_workers=3)
@@ -72,7 +72,7 @@ def download_models():
             pool.shutdown(wait=False, cancel_futures=True)
         elapsed = time.time() - started
         print(
-            f"主权重下载完成：{missing / 1024**3:.1f} GB，用时 {elapsed:.0f} 秒（{missing / 1024**2 / max(elapsed, 1):.0f} MB/s）"
+            f"Primary weights ready: {missing / 1024**3:.1f} GiB in {elapsed:.0f}s ({missing / 1024**2 / max(elapsed, 1):.0f} MB/s)"
         )
 
     if str(INDEXTTS_DIR) not in sys.path:
@@ -81,4 +81,4 @@ def download_models():
     ensure_models_available(str(MODEL_DIR))
 
 download_models()
-print("[OK] IndexTTS 2.5 全部主模型与辅助声码器准备完成。")
+print("[OK] IndexTTS 2.5 weights and auxiliary vocoders ready.")

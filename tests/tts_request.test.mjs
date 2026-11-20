@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_FORM, buildTtsRequest, restoreTtsForm } from "../frontend/apps/indextts-2.5/src/request.ts";
+import { DEFAULT_FORM, DEFAULT_SPEAKER_PRESET, JA_SPEAKER_PRESET, buildTtsRequest, restoreTtsForm, switchTtsLanguage } from "../frontend/apps/indextts-2.5/src/request.ts";
 
 test("speaking speed increases while native duration decreases, including supported limits", () => {
   for (const [speed, duration] of [[0.5, 2], [1, 1], [1.25, 0.8], [2, 0.5]]) {
@@ -39,4 +39,20 @@ test("emotion modes only send active conditioning and empty descriptions use aut
   const reference = buildTtsRequest({ ...form, emotionMode: "reference" });
   assert.equal(reference.emotion_audio, "voice.mp3");
   assert.equal("emotion_text" in reference, false);
+});
+
+test("switching to Japanese selects the Japanese preset without overwriting custom or chosen voices", () => {
+  const toJa = switchTtsLanguage(DEFAULT_FORM, "ja");
+  assert.equal(toJa.language, "ja");
+  assert.equal(toJa.speakerAudio, JA_SPEAKER_PRESET);
+
+  const backToZh = switchTtsLanguage(toJa, "zh");
+  assert.equal(backToZh.language, "zh");
+  assert.equal(backToZh.speakerAudio, DEFAULT_SPEAKER_PRESET);
+
+  const customVoice = { ...DEFAULT_FORM, speakerAudio: "uploaded-voice.wav" };
+  assert.equal(switchTtsLanguage(customVoice, "ja").speakerAudio, "uploaded-voice.wav");
+
+  const crossLingualSage = { ...toJa, speakerAudio: DEFAULT_SPEAKER_PRESET };
+  assert.equal(switchTtsLanguage(crossLingualSage, "en").speakerAudio, DEFAULT_SPEAKER_PRESET);
 });

@@ -1,44 +1,48 @@
 import {
-Alert,
-BulbOutlined,
-Button,
-Card,
-CloseOutlined,
-CodeBlock,
-CodeOutlined,
-DeleteOutlined,
-SeedControl,
-LoadingOutlined,
-MessageOutlined,
-PaperClipOutlined,
-PictureOutlined,
-Popconfirm,
-ReloadOutlined,
-Select,
-SendOutlined,
-Slider,
-Space,
-StopOutlined,
-StudioCustomApiTabContext,
-StudioShell,
-Switch,
-Tag,
-Text,
-TextArea,
-VideoCameraOutlined,
-resolveApiUrl,
-uploadMediaFile,
-useStudioFeedback
+  Alert,
+  BulbOutlined,
+  Button,
+  Card,
+  CloseOutlined,
+  CodeBlock,
+  CodeOutlined,
+  DeleteOutlined,
+  Empty,
+  ImageLightbox,
+  Kbd,
+  LoadingOutlined,
+  MessageOutlined,
+  PaperClipOutlined,
+  Popconfirm,
+  ReloadOutlined,
+  SeedControl,
+  Select,
+  SendOutlined,
+  Slider,
+  Space,
+  StopOutlined,
+  StudioCustomApiTabContext,
+  StudioShell,
+  Switch,
+  Tag,
+  Text,
+  TextArea,
+  VideoCameraOutlined,
+  resolveApiUrl,
+  uploadMediaFile,
+  useStudioFeedback,
+  useStudioLocale,
+  type StageImageEntry,
 } from "@colab/shared";
-import React,{ useCallback,useEffect,useId,useMemo,useRef,useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { MarkdownBody } from "./MarkdownBody";
-import { buildChatMessages,buildOpenAiPayload,parseStopWords,parseToolsJson,readChatEvents } from "./chat";
+import { buildChatMessages, buildOpenAiPayload, parseStopWords, parseToolsJson, readChatEvents } from "./chat";
 import {
-ChatAttachmentItem,
-ChatTurn,
-DEFAULT_QWEN_SAMPLING,
-QwenSamplingConfig,
-ToolCallItem
+  ChatAttachmentItem,
+  ChatTurn,
+  DEFAULT_QWEN_SAMPLING,
+  QwenSamplingConfig,
+  ToolCallItem,
 } from "./types";
 
 function splitFilename(name: string): { stem: string; ext: string } {
@@ -61,6 +65,7 @@ function ThinkingDisclosure({
   thinkingActive?: boolean;
   thinkingSec?: number;
 }) {
+  const { t } = useStudioLocale();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const prevActiveRef = useRef<boolean>(Boolean(thinkingActive));
 
@@ -81,32 +86,31 @@ function ThinkingDisclosure({
         {thinkingActive ? (
           <Space size={6}>
             <LoadingOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>深度思考中…</span>
+            <span>{t("Thinking deeply…", "深度思考中…")}</span>
           </Space>
         ) : (
           <span className="studio-tabular">
-            思考过程
+            {t("Thought process", "思考过程")}
             {thinkingSec ? ` · ${thinkingSec}s` : ""}
-            {reasoning ? `（${reasoning.length} 字）` : ""}
+            {reasoning ? t(` (${reasoning.length} chars)`, `（${reasoning.length} 字）`) : ""}
           </span>
         )}
       </summary>
-      <div className="studio-think-body">{reasoning || "正在构建推理链..."}</div>
+      <div className="studio-think-body">{reasoning || t("Building reasoning chain...", "正在构建推理链...")}</div>
     </details>
   );
 }
 
 export function QwenChatStudioApp() {
+  const { t } = useStudioLocale();
   const composerInputId = useId();
   const sysPromptId = useId();
   const fileInputId = useId();
-  const lightboxTitleId = useId();
 
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const lightboxRef = useRef<HTMLDialogElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
   const uploadingRef = useRef(false);
@@ -124,7 +128,7 @@ export function QwenChatStudioApp() {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [draggingMedia, setDraggingMedia] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string } | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<StageImageEntry[]>([]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -147,7 +151,6 @@ export function QwenChatStudioApp() {
     setSampling((prev) => ({ ...prev, [key]: val }));
   };
 
-  // Toggle Thinking mode with smart Qwen official temperature/top_p recommendation
   const handleToggleThinking = (enabled: boolean) => {
     setSampling((prev) => {
       const next = { ...prev, enable_thinking: enabled };
@@ -164,27 +167,6 @@ export function QwenChatStudioApp() {
     });
   };
 
-  // Light-dismiss backdrop click fallback for Safari <dialog>
-  useEffect(() => {
-    const dialog = lightboxRef.current;
-    if (!dialog) return;
-    if ("closedBy" in HTMLDialogElement.prototype) return;
-
-    const onBackdropClick = (ev: MouseEvent) => {
-      if (ev.target !== dialog) return;
-      const rect = dialog.getBoundingClientRect();
-      const inside =
-        rect.top <= ev.clientY &&
-        ev.clientY <= rect.top + rect.height &&
-        rect.left <= ev.clientX &&
-        ev.clientX <= rect.left + rect.width;
-      if (!inside) dialog.close();
-    };
-    dialog.addEventListener("click", onBackdropClick);
-    return () => dialog.removeEventListener("click", onBackdropClick);
-  }, [lightboxImage]);
-
-  // Auto-scroll transcript only when user hasn't scrolled up to read earlier history
   useEffect(() => {
     const el = transcriptRef.current;
     if (!el || !shouldStickBottomRef.current) return;
@@ -202,15 +184,15 @@ export function QwenChatStudioApp() {
     const list = Array.from(files);
     if (!list.length || uploadingRef.current) return;
     if (list.some((file) => !/\.(png|jpe?g|webp|gif|mp4|webm|mov|mkv)$/i.test(file.name))) {
-      message.warning("请选择支持的图片或视频文件。");
+      message.warning(t("Please select supported image or video files.", "请选择支持的图片或视频文件。"));
       return;
     }
     if (list.some((file) => !file.size || file.size > 512 * 1024 * 1024)) {
-      message.warning("附件不能为空，单个文件需在 512 MB 以内。");
+      message.warning(t("Attachments cannot be empty and each file must be within 512 MB.", "附件不能为空，单个文件需在 512 MB 以内。"));
       return;
     }
     if (pendingAttachments.length + list.length > 12) {
-      message.warning("单轮最多附加 12 个图片或视频文件。");
+      message.warning(t("Up to 12 image or video attachments per turn.", "单轮最多附加 12 个图片或视频文件。"));
       return;
     }
 
@@ -236,7 +218,7 @@ export function QwenChatStudioApp() {
             },
           ]);
         } catch (err) {
-          message.error(err instanceof Error ? err.message : `上传失败：${file.name}`);
+          message.error(err instanceof Error ? err.message : t(`Upload failed: ${file.name}`, `上传失败：${file.name}`));
         }
       }
     } finally {
@@ -294,7 +276,7 @@ export function QwenChatStudioApp() {
       }
 
       if (parsedStops.length > 8) {
-        message.error("最多支持 8 个停止词，请删减后再发送。");
+        message.error(t("Up to 8 stop sequences are allowed.", "最多支持 8 个停止词，请删减后再发送。"));
         return;
       }
       streamingRef.current = true;
@@ -330,7 +312,7 @@ export function QwenChatStudioApp() {
         });
 
         if (!resp.ok || !resp.body) {
-          let errMsg = `请求失败 (HTTP ${resp.status})`;
+          let errMsg = t(`Request failed (HTTP ${resp.status})`, `请求失败 (HTTP ${resp.status})`);
           try {
             const errJson = await resp.json();
             if (typeof errJson?.detail === "string") errMsg = errJson.detail;
@@ -342,70 +324,94 @@ export function QwenChatStudioApp() {
 
         let completed = false;
         for await (const evt of readChatEvents(resp.body)) {
-          if (evt.type === "error") throw new Error(String(evt.error || "推理出错"));
+          if (evt.type === "error") throw new Error(String(evt.error || t("Inference error", "推理出错")));
           if (evt.type === "delta") {
             const rDelta = String(evt.reasoning || "");
             const cDelta = String(evt.content || "");
-            const tcDelta = Array.isArray(evt.tool_calls) ? evt.tool_calls as ToolCallItem[] : undefined;
-            setTurns((prev) => prev.map((turn) => {
-              if (turn.id !== assistantId) return turn;
-              const reasoningContent = (turn.reasoningContent || "") + rDelta;
-              const content = turn.content + cDelta;
-              return {
-                ...turn, reasoningContent, content,
-                toolCalls: tcDelta || turn.toolCalls,
-                thinkingActive: Boolean(reasoningContent && !content && !tcDelta),
-              };
-            }));
+            const tcDelta = Array.isArray(evt.tool_calls) ? (evt.tool_calls as ToolCallItem[]) : undefined;
+            setTurns((prev) =>
+              prev.map((turn) => {
+                if (turn.id !== assistantId) return turn;
+                const reasoningContent = (turn.reasoningContent || "") + rDelta;
+                const content = turn.content + cDelta;
+                return {
+                  ...turn,
+                  reasoningContent,
+                  content,
+                  toolCalls: tcDelta || turn.toolCalls,
+                  thinkingActive: Boolean(reasoningContent && !content && !tcDelta),
+                };
+              }),
+            );
           } else if (evt.type === "usage") {
-            setTurns((prev) => prev.map((turn) => turn.id === assistantId ? {
-              ...turn,
-              usage: {
-                promptTokens: Number(evt.prompt_tokens || 0),
-                completionTokens: Number(evt.completion_tokens || 0),
-                totalTokens: Number(evt.total_tokens || 0),
-                thinkingSec: Number(evt.thinking_sec || 0),
-                elapsedSec: Number(evt.elapsed_sec || 0),
-                tokensPerSec: Number(evt.tokens_per_sec || 0),
-                mock: Boolean(evt.mock),
-              },
-            } : turn));
+            setTurns((prev) =>
+              prev.map((turn) =>
+                turn.id === assistantId
+                  ? {
+                      ...turn,
+                      usage: {
+                        promptTokens: Number(evt.prompt_tokens || 0),
+                        completionTokens: Number(evt.completion_tokens || 0),
+                        totalTokens: Number(evt.total_tokens || 0),
+                        thinkingSec: Number(evt.thinking_sec || 0),
+                        elapsedSec: Number(evt.elapsed_sec || 0),
+                        tokensPerSec: Number(evt.tokens_per_sec || 0),
+                        mock: Boolean(evt.mock),
+                      },
+                    }
+                  : turn,
+              ),
+            );
           } else if (evt.type === "done") {
             completed = true;
-            setTurns((prev) => prev.map((turn) => turn.id === assistantId ? {
-              ...turn, finishReason: String(evt.finish_reason || "stop"),
-            } : turn));
+            setTurns((prev) =>
+              prev.map((turn) =>
+                turn.id === assistantId
+                  ? {
+                      ...turn,
+                      finishReason: String(evt.finish_reason || "stop"),
+                    }
+                  : turn,
+              ),
+            );
             break;
           }
         }
-        if (!completed) throw new Error("连接提前中断，回复可能不完整。可点击“重新生成”重试。");
+        if (!completed) {
+          throw new Error(
+            t(
+              "Stream disconnected early; response may be incomplete. Click Regenerate to retry.",
+              "连接提前中断，回复可能不完整。可点击“重新生成”重试。",
+            ),
+          );
+        }
 
         setTurns((prev) =>
-          prev.map((t) =>
-            t.id === assistantId ? { ...t, streaming: false, thinkingActive: false } : t
+          prev.map((item) =>
+            item.id === assistantId ? { ...item, streaming: false, thinkingActive: false } : item
           )
         );
       } catch (err) {
         if ((err as Error)?.name === "AbortError") {
           setTurns((prev) =>
-            prev.map((t) =>
-              t.id === assistantId
+            prev.map((item) =>
+              item.id === assistantId
                 ? {
-                    ...t,
+                    ...item,
                     streaming: false,
                     thinkingActive: false,
                     stopped: true,
                   }
-                : t
+                : item
             )
           );
         } else {
-          const errMsg = err instanceof Error ? err.message : "流式请求失败";
+          const errMsg = err instanceof Error ? err.message : t("Streaming request failed", "流式请求失败");
           setTurns((prev) =>
-            prev.map((t) =>
-              t.id === assistantId
-                ? { ...t, error: errMsg, streaming: false, thinkingActive: false }
-                : t
+            prev.map((item) =>
+              item.id === assistantId
+                ? { ...item, error: errMsg, streaming: false, thinkingActive: false }
+                : item
             )
           );
           if (mountedRef.current) message.error(errMsg);
@@ -416,7 +422,7 @@ export function QwenChatStudioApp() {
         if (mountedRef.current) setIsStreaming(false);
       }
     },
-    [buildApiPayloadFromHistory, message, parseToolsSafe, parsedStops.length, sampling.enable_thinking]
+    [buildApiPayloadFromHistory, message, parseToolsSafe, parsedStops.length, sampling.enable_thinking, t]
   );
 
   const handleSendSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -428,13 +434,13 @@ export function QwenChatStudioApp() {
       return;
     }
     if (parsedStops.length > 8) {
-      message.error("最多支持 8 个停止词，请删减后再发送。");
+      message.error(t("Up to 8 stop sequences are allowed.", "最多支持 8 个停止词，请删减后再发送。"));
       return;
     }
 
     const trimmed = inputText.trim();
     if (!trimmed && pendingAttachments.length === 0) {
-      message.warning("请输入对话内容或上传图片/视频。");
+      message.warning(t("Enter a message or attach an image/video.", "请输入对话内容或上传图片/视频。"));
       return;
     }
 
@@ -445,7 +451,7 @@ export function QwenChatStudioApp() {
       attachments: pendingAttachments.length ? [...pendingAttachments] : undefined,
     };
 
-    const nextHistory = [...turns.filter((t) => !t.error), userTurn];
+    const nextHistory = [...turns.filter((item) => !item.error), userTurn];
     setInputText("");
     setPendingAttachments([]);
     await streamConversation(nextHistory);
@@ -458,7 +464,7 @@ export function QwenChatStudioApp() {
       cutIdx = turns.length - 1;
     }
     const baseHistory = turns.slice(0, cutIdx);
-    if (!baseHistory.some((t) => t.role === "user")) return;
+    if (!baseHistory.some((item) => item.role === "user")) return;
     await streamConversation(baseHistory);
   };
 
@@ -471,15 +477,15 @@ export function QwenChatStudioApp() {
       ...DEFAULT_QWEN_SAMPLING,
       system_prompt: previous.system_prompt,
     }));
-    message.success("已恢复默认生成设置");
+    message.success(t("Restored default generation settings", "已恢复默认生成设置"));
   };
 
-  const copyPlainText = async (text: string, tip = "已复制到剪贴板") => {
+  const copyPlainText = async (text: string, tip?: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      message.success(tip);
+      message.success(tip ?? t("Copied to clipboard", "已复制到剪贴板"));
     } catch {
-      message.warning("复制失败，请手动选中复制");
+      message.warning(t("Copy failed; please select and copy manually", "复制失败，请手动选中复制"));
     }
   };
 
@@ -496,8 +502,10 @@ export function QwenChatStudioApp() {
       return [...turns, { id: "draft", role: "user", content: inputText.trim(), attachments: pendingAttachments }];
     }
     const requestTurns = turns.at(-1)?.role === "assistant" ? turns.slice(0, -1) : turns;
-    return requestTurns.length ? requestTurns : [{ id: "sample", role: "user", content: "你好，请简要介绍你自己。" }];
-  }, [inputText, pendingAttachments, turns]);
+    return requestTurns.length
+      ? requestTurns
+      : [{ id: "sample", role: "user", content: t("Hello, please briefly introduce yourself.", "你好，请简要介绍你自己。") }];
+  }, [inputText, pendingAttachments, t, turns]);
 
   const sampleRequestBody = useMemo(() => {
     const parsed = parseToolsSafe();
@@ -505,12 +513,15 @@ export function QwenChatStudioApp() {
   }, [buildApiPayloadFromHistory, parseToolsSafe, sampleTurns]);
 
   const renderCustomApiTabs = useCallback(
-    ({ origin, savedKey, authRequired, copyText }: StudioCustomApiTabContext) => {
+    ({ origin, savedKey, authRequired }: StudioCustomApiTabContext) => {
       const effectiveKey = savedKey || (authRequired ? "<YOUR_APP_API_KEY>" : "EMPTY");
       const authHeaderCurl =
         savedKey || authRequired ? `  -H "Authorization: Bearer ${effectiveKey}" \\\n` : "";
 
-      const claudeCodeSnippet = `# Qwen3.8-27B 原生兼容 Anthropic /v1/messages 协议，可直接驱动 Claude Code：
+      const claudeCodeSnippet = `# ${t(
+        "Qwen3.8-27B natively implements the Anthropic /v1/messages API for Claude Code:",
+        "Qwen3.8-27B 原生兼容 Anthropic /v1/messages 协议，可直接驱动 Claude Code：",
+      )}
 export ANTHROPIC_BASE_URL="${origin}"
 export ANTHROPIC_AUTH_TOKEN="${effectiveKey}"
 export ANTHROPIC_API_KEY="${effectiveKey}"
@@ -528,10 +539,13 @@ claude --model qwen3.8-27b`;
           stream_options: { include_usage: true },
         };
       } catch (err) {
-        return [{
-          key: "validation", label: "参数检查",
-          children: <Alert type="warning" showIcon message={err instanceof Error ? err.message : String(err)} />,
-        }];
+        return [
+          {
+            key: "validation",
+            label: t("Validation", "参数检查"),
+            children: <Alert type="warning" showIcon message={err instanceof Error ? err.message : String(err)} />,
+          },
+        ];
       }
       const payloadJson = JSON.stringify(requestPayload, null, 2);
       const openaiPySnippet = `import json
@@ -542,8 +556,14 @@ client = OpenAI(
     api_key=${JSON.stringify(effectiveKey)},
 )
 
-# 当前问题、附件、采样参数、JSON 模式和工具配置均已带入。
-# upload: 引用只在当前 Colab 实例中有效。
+# ${t(
+        "Includes current prompt, attachments, sampling, JSON mode, and tools.",
+        "当前问题、附件、采样参数、JSON 模式和工具配置均已带入。",
+      )}
+# ${t(
+        "upload: attachment refs are valid only on this active Colab instance.",
+        "upload: 引用只在当前 Colab 实例中有效。",
+      )}
 payload = json.loads(${JSON.stringify(payloadJson)})
 extra_keys = ("top_k", "min_p", "repetition_penalty", "chat_template_kwargs")
 extra_body = {key: payload.pop(key) for key in extra_keys if key in payload}
@@ -561,71 +581,55 @@ for chunk in stream:
     if delta.tool_calls:
         print(delta.tool_calls)`;
 
-      const curlSnippet = `# 流式调用；参数与当前工作台一致
+      const curlSnippet = `# ${t(
+        "Streaming request synced with your current playground settings",
+        "流式调用；参数与当前工作台一致",
+      )}
 curl -N -X POST "${origin}/v1/chat/completions" \\
   -H "Content-Type: application/json" \\
 ${authHeaderCurl}  -d '${payloadJson.replace(/'/g, "'\\''")}'
 
-# 查询在线模型
+# ${t("List available models", "查询在线模型")}
 curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bearer ${effectiveKey}"` : ""}`;
 
       return [
         {
           key: "claude-code",
-          label: (
-            <span>
-              <CodeOutlined /> Claude Code 直连 (/v1/messages)
-            </span>
-          ),
-          children: (
-            <CodeBlock code={claudeCodeSnippet} language="bash" />
-          ),
+          label: t("Claude Code (/v1/messages)", "Claude Code 直连 (/v1/messages)"),
+          icon: <CodeOutlined />,
+          children: <CodeBlock code={claudeCodeSnippet} language="bash" />,
         },
         {
           key: "openai-sdk",
-          label: (
-            <span>
-              <CodeOutlined /> OpenAI Python SDK (/v1/chat/completions)
-            </span>
-          ),
-          children: (
-            <CodeBlock code={openaiPySnippet} language="python" />
-          ),
+          label: "OpenAI Python SDK (/v1/chat/completions)",
+          icon: <CodeOutlined />,
+          children: <CodeBlock code={openaiPySnippet} language="python" />,
         },
         {
           key: "curl",
-          label: (
-            <span>
-              <CodeOutlined /> cURL 命令行示例
-            </span>
-          ),
-          children: (
-            <CodeBlock code={curlSnippet} language="bash" />
-          ),
+          label: t("cURL CLI", "cURL 命令行示例"),
+          icon: <CodeOutlined />,
+          children: <CodeBlock code={curlSnippet} language="bash" />,
         },
       ];
     },
-    [sampling, sampleTurns]
+    [sampling, sampleTurns, t]
   );
 
-  // ---------------------------------------------------------------------------
-  // Left Main Column: Multimodal Chat & Reasoning Transcript + Composer
-  // ---------------------------------------------------------------------------
   const leftPane = (
     <div className="studio-chat-stage">
-      {/* Stage Top Bar */}
       <div className="studio-chat-header">
         <Space size={8} wrap>
           <MessageOutlined style={{ color: "var(--studio-accent)" }} />
           <Text strong style={{ fontSize: 14 }}>
-            多模态对话与推理测试台
+            {t("Multimodal Chat & Reasoning Playground", "多模态对话与推理测试台")}
           </Text>
           <Tag color="blue" style={{ marginInlineEnd: 0 }}>
-            256K 上下文 · 图像/视频理解
+            {t("256K Context · Image / Video Vision", "256K 上下文 · 图像/视频理解")}
           </Tag>
           {latestSpeed && (
             <Tag className="studio-tabular" style={{ marginInlineEnd: 0 }}>
-              {latestSpeed.tokensPerSec.toFixed(1)} tok/s · 共 {latestSpeed.totalTokens} tokens
+              {latestSpeed.tokensPerSec.toFixed(1)} tok/s · {t(`${latestSpeed.totalTokens} tokens`, `共 ${latestSpeed.totalTokens} tokens`)}
             </Tag>
           )}
         </Space>
@@ -638,13 +642,13 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               icon={<ReloadOutlined />}
               onClick={() => void handleRegenerateLast()}
             >
-              重试上一轮
+              {t("Retry Last", "重试上一轮")}
             </Button>
           )}
           <Popconfirm
-            title="清空当前对话记录？"
-            okText="清空"
-            cancelText="取消"
+            title={t("Clear conversation history?", "清空当前对话记录？")}
+            okText={t("Clear", "清空")}
+            cancelText={t("Cancel", "取消")}
             disabled={turns.length === 0 || isStreaming}
             onConfirm={() => setTurns([])}
           >
@@ -656,42 +660,30 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               disabled={turns.length === 0 || isStreaming}
               icon={<DeleteOutlined />}
             >
-              清空对话
+              {t("Clear Chat", "清空对话")}
             </Button>
           </Popconfirm>
         </Space>
       </div>
 
-      {/* Scrollable Transcript */}
       <div
         ref={transcriptRef}
         className="studio-chat-transcript"
         onScroll={handleTranscriptScroll}
         aria-live="polite"
       >
+        <div className="studio-chat-transcript-inner">
         {turns.length === 0 ? (
           <div className="studio-chat-empty">
-            <div
-              style={{
-                inlineSize: 44,
-                blockSize: 44,
-                borderRadius: 12,
-                background: "var(--studio-accent-soft)",
-                border: "1px solid var(--studio-accent-border)",
-                display: "grid",
-                placeContent: "center",
-                color: "var(--studio-accent)",
-                fontSize: 20,
-              }}
-            >
-              <BulbOutlined />
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--studio-text)" }}>
-              Qwen3.8-27B
-            </div>
-            <Text type="secondary" style={{ fontSize: 13, lineHeight: 1.6 }}>
-              输入问题，或添加图片、视频开始对话。
-            </Text>
+            <Empty
+              title="Qwen3.8-27B"
+              description={t(
+                "Ask a question or drag/paste images & videos to start multimodal reasoning.",
+                "输入问题，或拖拽/粘贴图片与视频开始多模态对话与深度思考。",
+              )}
+              icon={<BulbOutlined />}
+              shape="softBurst"
+            />
           </div>
         ) : (
           turns.map((turn, idx) => {
@@ -699,7 +691,6 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             return (
               <div key={turn.id} className="studio-chat-turn" data-role={turn.role}>
                 <div className="studio-chat-bubble">
-                  {/* User Attached Images & Videos */}
                   {turn.attachments && turn.attachments.length > 0 && (
                     <div className="studio-chat-media-row">
                       {turn.attachments.map((att) =>
@@ -712,22 +703,35 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                             className="studio-chat-media-video"
                           />
                         ) : (
-                          <img
+                          <button
                             key={att.id}
-                            src={att.previewUrl}
-                            alt={att.filename}
-                            className="studio-chat-media-thumb"
-                            onClick={() => {
-                              setLightboxImage({ url: att.previewUrl, name: att.filename });
-                              requestAnimationFrame(() => lightboxRef.current?.showModal());
-                            }}
-                          />
+                            type="button"
+                            className="studio-chat-thumb-btn"
+                            aria-label={t(`Inspect image ${att.filename}`, `查看图片 ${att.filename}`)}
+                            onClick={() =>
+                              setLightboxImages([
+                                {
+                                  url: att.previewUrl,
+                                  filename: att.filename,
+                                  width: 1024,
+                                  height: 1024,
+                                  sizeBytes: att.sizeBytes,
+                                  format: "",
+                                },
+                              ])
+                            }
+                          >
+                            <img
+                              src={att.previewUrl}
+                              alt={att.filename}
+                              className="studio-chat-media-thumb"
+                            />
+                          </button>
                         )
                       )}
                     </div>
                   )}
 
-                  {/* Assistant Collapsible Reasoning (<think>) */}
                   {turn.role === "assistant" && (turn.reasoningContent || turn.thinkingActive) && (
                     <ThinkingDisclosure
                       reasoning={turn.reasoningContent}
@@ -736,7 +740,6 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                     />
                   )}
 
-                  {/* Error or Content */}
                   {turn.error && <Alert type="error" showIcon message={turn.error} />}
                   {turn.role === "assistant" ? (
                     turn.content ? (
@@ -744,80 +747,71 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                     ) : turn.streaming && !turn.thinkingActive ? (
                       <Space size={6} style={{ color: "var(--studio-text-muted)", fontSize: 13 }}>
                         <LoadingOutlined />
-                        <span>正在生成回复…</span>
+                        <span>{t("Generating response…", "正在生成回复…")}</span>
                       </Space>
                     ) : null
                   ) : (
                     <div style={{ whiteSpace: "pre-wrap" }}>{turn.content}</div>
                   )}
 
-                  {/* Assistant Tool Calls */}
                   {turn.toolCalls && turn.toolCalls.length > 0 && (
                     <div style={{ marginBlockStart: turn.content ? 8 : 0, display: "flex", flexDirection: "column", gap: 6 }}>
                       {turn.toolCalls.map((tc) => (
-                        <CodeBlock key={tc.id || tc.function.name} code={tc.function.arguments}
-                          language="json" title={`工具调用 · ${tc.function.name}`} />
+                        <CodeBlock
+                          key={tc.id || tc.function.name}
+                          code={tc.function.arguments}
+                          language="json"
+                          title={t(`Tool Call · ${tc.function.name}`, `工具调用 · ${tc.function.name}`)}
+                        />
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Subtle Per-Message Metadata & Actions */}
                 <div className="studio-chat-meta-row studio-tabular">
-                  {turn.stopped && <span>已停止生成</span>}
-                  {turn.finishReason === "length" && <span>已达输出长度上限，可增加 Max Tokens 后重新生成</span>}
+                  {turn.stopped && <span>{t("Stopped", "已停止生成")}</span>}
+                  {turn.finishReason === "length" && (
+                    <span>
+                      {t(
+                        "Hit max output length; raise Max Tokens and regenerate if needed",
+                        "已达输出长度上限，可增加 Max Tokens 后重新生成",
+                      )}
+                    </span>
+                  )}
                   {turn.usage && (
                     <span>
-                      输入 {turn.usage.promptTokens} · 输出 {turn.usage.completionTokens} tokens ·{" "}
-                      {turn.usage.tokensPerSec.toFixed(1)} tok/s · {turn.usage.elapsedSec}s
+                      {t(
+                        `In ${turn.usage.promptTokens} · Out ${turn.usage.completionTokens} tokens · ${turn.usage.tokensPerSec.toFixed(1)} tok/s · ${turn.usage.elapsedSec}s`,
+                        `输入 ${turn.usage.promptTokens} · 输出 ${turn.usage.completionTokens} tokens · ${turn.usage.tokensPerSec.toFixed(1)} tok/s · ${turn.usage.elapsedSec}s`,
+                      )}
                     </span>
                   )}
                   {turn.content && !turn.streaming && (
                     <button
                       type="button"
-                      onClick={() => void copyPlainText(turn.content, "已复制消息内容")}
-                      style={{
-                        border: 0,
-                        background: "none",
-                        padding: 0,
-                        color: "var(--studio-text-muted)",
-                        cursor: "pointer",
-                        fontSize: "0.75rem",
-                      }}
+                      className="studio-chat-action-btn"
+                      onClick={() => void copyPlainText(turn.content, t("Message copied", "已复制消息内容"))}
                     >
-                      复制
+                      {t("Copy", "复制")}
                     </button>
                   )}
                   {isLastAssistant && !turn.streaming && (
                     <button
                       type="button"
+                      className="studio-chat-action-btn"
+                      data-tone="primary"
                       onClick={() => void handleRegenerateLast()}
-                      style={{
-                        border: 0,
-                        background: "none",
-                        padding: 0,
-                        color: "var(--studio-accent)",
-                        cursor: "pointer",
-                        fontSize: "0.75rem",
-                      }}
                     >
-                      重新生成
+                      {t("Regenerate", "重新生成")}
                     </button>
                   )}
                   {!isStreaming && (
                     <button
                       type="button"
+                      className="studio-chat-action-btn"
                       onClick={() => setTurns((prev) => prev.filter((item) => item.id !== turn.id))}
-                      style={{
-                        border: 0,
-                        background: "none",
-                        padding: 0,
-                        color: "var(--studio-text-muted)",
-                        cursor: "pointer",
-                        fontSize: "0.75rem",
-                      }}
                     >
-                      删除
+                      {t("Delete", "删除")}
                     </button>
                   )}
                 </div>
@@ -825,13 +819,13 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
             );
           })
         )}
+        </div>
       </div>
 
-      {/* Composer Dock */}
       <form
         ref={formRef}
         onSubmit={(e) => void handleSendSubmit(e)}
-        className={`studio-chat-composer${draggingMedia ? " studio-chat-ComposerDragging" : ""}`}
+        className="studio-chat-composer"
         onDragOver={(e) => {
           e.preventDefault();
           setDraggingMedia(true);
@@ -845,6 +839,10 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
           }
         }}
       >
+        <Card
+          variant="outlined"
+          className={`studio-chat-composer-card${draggingMedia ? " studio-chat-ComposerDragging" : ""}`}
+        >
         <input
           ref={fileInputRef}
           id={fileInputId}
@@ -860,7 +858,6 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
           }}
         />
 
-        {/* Pending Multimodal Attachment Chips */}
         {pendingAttachments.length > 0 && (
           <div className="studio-chat-attachments">
             {pendingAttachments.map((att) => {
@@ -878,7 +875,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
                   </span>
                   <button
                     type="button"
-                    aria-label={`移除附件 ${att.filename}`}
+                    aria-label={t(`Remove attachment ${att.filename}`, `移除附件 ${att.filename}`)}
                     onClick={() =>
                       setPendingAttachments((prev) => prev.filter((item) => item.id !== att.id))
                     }
@@ -901,13 +898,16 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
         )}
 
         <label htmlFor={composerInputId} className="studio-visually-hidden">
-          输入消息（Enter 发送，Shift + Enter 换行）
+          {t("Type a message (Enter to send, Shift+Enter for new line)", "输入消息（Enter 发送，Shift + Enter 换行）")}
         </label>
         <textarea
           ref={textareaRef}
           id={composerInputId}
           className="studio-chat-textarea"
-          placeholder="输入消息（Enter 发送，Shift + Enter 换行；支持直接拖拽或 ⌘/Ctrl+V 粘贴图片与视频）..."
+          placeholder={t(
+            "Message Qwen3.8-27B (Enter to send, Shift+Enter for new line; drag & drop or paste images/videos)...",
+            "输入消息（Enter 发送，Shift + Enter 换行；支持直接拖拽或 ⌘/Ctrl+V 粘贴图片与视频）...",
+          )}
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onCompositionEnd={(e) => {
@@ -947,15 +947,24 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
         />
 
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <Button
-            htmlType="button"
-            size="small"
-            icon={uploadingCount > 0 ? <LoadingOutlined /> : <PaperClipOutlined />}
-            loading={uploadingCount > 0}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            上传图片 / 视频
-          </Button>
+          <Space size={10} wrap>
+            <Button
+              htmlType="button"
+              size="small"
+              icon={uploadingCount > 0 ? <LoadingOutlined /> : <PaperClipOutlined />}
+              loading={uploadingCount > 0}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {t("Attach Image / Video", "上传图片 / 视频")}
+            </Button>
+            <span className="studio-shortcut-hint">
+              <Kbd keys={["enter"]} size="sm" />
+              <span>{t("Send", "发送")}</span>
+              <span aria-hidden="true">·</span>
+              <Kbd keys={["shift", "enter"]} size="sm" />
+              <span>{t("New line", "换行")}</span>
+            </span>
+          </Space>
 
           {isStreaming ? (
             <Button
@@ -965,7 +974,7 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               icon={<StopOutlined />}
               onClick={handleStopStreaming}
             >
-              停止生成
+              {t("Stop", "停止生成")}
             </Button>
           ) : (
             <Button
@@ -974,88 +983,108 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
               icon={<SendOutlined />}
               disabled={uploadingCount > 0}
             >
-              发送 (Enter)
+              {t("Send", "发送")}
             </Button>
           )}
         </div>
+        </Card>
       </form>
 
-      {/* Native Light-Dismiss Image Zoom Dialog */}
-      <dialog
-        ref={lightboxRef}
-        className="studio-lightbox-dialog"
-        aria-labelledby={lightboxTitleId}
-        {...({ closedby: "any" } as Record<string, string>)}
-      >
-        {lightboxImage && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBlockEnd: 10 }}>
-              <Space size={6}>
-                <PictureOutlined style={{ color: "var(--studio-accent)" }} />
-                <Text id={lightboxTitleId} strong style={{ fontSize: 14 }}>
-                  {lightboxImage.name}
-                </Text>
-              </Space>
-              <Button
-                htmlType="button"
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={() => lightboxRef.current?.close()}
-              >
-                关闭 (Esc)
-              </Button>
-            </div>
-            <div style={{ maxBlockSize: "80dvh", overflow: "auto" }}>
-              <img
-                src={lightboxImage.url}
-                alt={lightboxImage.name}
-                style={{ maxInlineSize: "100%", blockSize: "auto", marginInline: "auto", borderRadius: 8 }}
-              />
-            </div>
-          </>
-        )}
-      </dialog>
+      <ImageLightbox
+        images={lightboxImages}
+        open={lightboxImages.length > 0}
+        onClose={() => setLightboxImages([])}
+      />
     </div>
   );
 
-  // ---------------------------------------------------------------------------
-  // Right Sticky Column: Flat System Prompt, Thinking & Sampling Controls
-  // ---------------------------------------------------------------------------
-  const rightPane = <>
-    <Card className="studio-card" title="对话设置">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div className="studio-field-group">
-          <label htmlFor={sysPromptId}>系统提示词（可选）</label>
-          <TextArea id={sysPromptId} rows={3} maxLength={32000} value={sampling.system_prompt}
-            onValueChange={(value) => updateSampling("system_prompt", value)} placeholder="例如：用简洁的中文回答，给出可直接运行的代码。" />
+  const rightPane = (
+    <>
+      <Card className="studio-card" title={t("Chat Settings", "对话设置")}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="studio-field-group">
+            <label htmlFor={sysPromptId}>{t("System Prompt (optional)", "系统提示词（可选）")}</label>
+            <TextArea
+              id={sysPromptId}
+              rows={3}
+              maxLength={32000}
+              value={sampling.system_prompt}
+              onValueChange={(value) => updateSampling("system_prompt", value)}
+              placeholder={t(
+                "e.g., Answer concisely with runnable code snippets.",
+                "例如：用简洁的中文回答，给出可直接运行的代码。",
+              )}
+            />
+          </div>
+          <Switch
+            label={t("Deep Thinking", "深度思考")}
+            description={t("Stream reasoning process before final answer", "先展示推理过程再输出最终回答")}
+            checked={sampling.enable_thinking}
+            onChange={handleToggleThinking}
+            aria-label={t("Deep Thinking", "深度思考")}
+          />
         </div>
-        <Space size={12}><Switch checked={sampling.enable_thinking} onChange={handleToggleThinking} aria-label="深度思考" /><span>深度思考</span></Space>
-      </div>
-    </Card>
-    <Card className="studio-card" title="生成设置" extra={<Button type="text" size="small" onClick={handleResetSampling}>恢复默认</Button>}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div className="studio-field-group">
-          <span>回复长度上限</span>
-          <Select aria-label="回复长度上限" value={String(sampling.max_tokens)} onChange={(value) => updateSampling("max_tokens", Number(value))}
-            options={[{ label: "较短（2048）", value: "2048" }, { label: "标准（8192）", value: "8192" },
-              { label: "较长（16384）", value: "16384" }, { label: "长文（32768）", value: "32768" }]} />
+      </Card>
+      <Card
+        className="studio-card"
+        title={t("Generation Settings", "生成设置")}
+        extra={
+          <Button type="text" size="small" onClick={handleResetSampling}>
+            {t("Reset", "恢复默认")}
+          </Button>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="studio-field-group">
+            <span>{t("Max Response Length", "回复长度上限")}</span>
+            <Select
+              aria-label={t("Max Response Length", "回复长度上限")}
+              value={String(sampling.max_tokens)}
+              onChange={(value) => updateSampling("max_tokens", Number(value))}
+              options={[
+                { label: t("Short (2048)", "较短（2048）"), value: "2048" },
+                { label: t("Standard (8192)", "标准（8192）"), value: "8192" },
+                { label: t("Long (16384)", "较长（16384）"), value: "16384" },
+                { label: t("Extended (32768)", "长文（32768）"), value: "32768" },
+              ]}
+            />
+          </div>
+          <div className="studio-field-group">
+            <div className="studio-field-label">
+              <span>{t("Temperature", "随机程度")}</span>
+              <span className="studio-tabular">{sampling.temperature.toFixed(2)}</span>
+            </div>
+            <Slider
+              aria-label={t("Temperature", "随机程度")}
+              min={0}
+              max={2}
+              step={0.05}
+              value={sampling.temperature}
+              onChange={(value) => updateSampling("temperature", value)}
+            />
+          </div>
+          <SeedControl
+            value={sampling.seed || 0}
+            onChange={(value) => updateSampling("seed", value > 0 ? value : null)}
+          />
         </div>
-        <div className="studio-field-group">
-          <div className="studio-field-label"><span>随机程度</span><span className="studio-tabular">{sampling.temperature.toFixed(2)}</span></div>
-          <Slider aria-label="随机程度" min={0} max={2} step={0.05} value={sampling.temperature} onChange={(value) => updateSampling("temperature", value)} />
-        </div>
-        <SeedControl value={sampling.seed || 0} onChange={(value) => updateSampling("seed", value > 0 ? value : null)} />
-      </div>
-    </Card>
-  </>;
+      </Card>
+    </>
+  );
 
   return (
     <StudioShell
       brandBadge="Q3"
       defaultTitle="Qwen3.8-27B"
-      defaultSubtitle="对话与深度思考 · 图片和视频理解"
+      defaultSubtitle={t(
+        "Multimodal Chat & Deep Thinking · Image & Video Understanding",
+        "对话与深度思考 · 图片和视频理解",
+      )}
       layoutRatio="chat"
-      apiModalTitle="Claude Code / OpenAI SDK / HTTP 调用配置（实时同步参数）"
+      apiModalTitle={t(
+        "Claude Code / OpenAI SDK / HTTP API Setup (live params)",
+        "Claude Code / OpenAI SDK / HTTP 调用配置（实时同步参数）",
+      )}
       customApiTabs={renderCustomApiTabs}
       sampleRequestBody={sampleRequestBody}
       leftPane={leftPane}

@@ -194,6 +194,33 @@ class WebAccessTests(unittest.TestCase):
         with patch("backend.core.security.time.time", return_value=10**12):
             self.assertFalse(valid_session(token, self.key))
 
+    def test_login_page_defaults_to_english_and_honors_accept_language(self):
+        default_page = self.client.get("/auth/login")
+        self.assertEqual(default_page.status_code, 200)
+        self.assertIn('<html lang="en">', default_page.text)
+        self.assertIn("Access Password", default_page.text)
+
+        zh_page = self.client.get("/auth/login", headers={"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"})
+        self.assertEqual(zh_page.status_code, 200)
+        self.assertIn('<html lang="zh-CN">', zh_page.text)
+        self.assertIn("访问密码", zh_page.text)
+
+        en_pref = self.client.get("/auth/login", headers={"Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8"})
+        self.assertEqual(en_pref.status_code, 200)
+        self.assertIn('<html lang="en">', en_pref.text)
+
+        bad_en = self.client.post("/auth/login", data={"password": "wrong"})
+        self.assertEqual(bad_en.status_code, 401)
+        self.assertIn("Incorrect password. Please try again.", bad_en.text)
+
+        bad_zh = self.client.post(
+            "/auth/login",
+            data={"password": "wrong"},
+            headers={"Accept-Language": "zh-CN,zh;q=0.9"},
+        )
+        self.assertEqual(bad_zh.status_code, 401)
+        self.assertIn("密码不正确，请重试。", bad_zh.text)
+
 
 if __name__ == "__main__":
     unittest.main()

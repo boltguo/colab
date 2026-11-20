@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cancelTaskById, submitFeatureTask, subscribeTaskProgress } from "../api/client";
+import { useStudioLocale } from "../i18n";
 import type { TaskRecord } from "../api/types";
 
 export interface UseTaskRunnerOptions<TResult, TParams> {
@@ -12,6 +13,7 @@ export function useTaskRunner<
   TResult = Record<string, unknown>,
   TParams = Record<string, unknown>
 >(options: UseTaskRunnerOptions<TResult, TParams> = {}) {
+  const { t } = useStudioLocale();
   const endpointPath = options.endpointPath || "/api/v1/generate";
   const [activeTask, setActiveTask] = useState<TaskRecord<TResult, TParams> | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -70,7 +72,7 @@ export function useTaskRunner<
               onSuccessRef.current?.(updated);
             } else if (!notified && updated.status === "failed") {
               notified = true;
-              onErrorRef.current?.(updated.error || "模型推理执行失败");
+              onErrorRef.current?.(updated.error || t("Model inference failed", "模型推理执行失败"));
             }
           },
           (err) => {

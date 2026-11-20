@@ -15,7 +15,7 @@ import numpy as np
 
 from backend.core.config import AppSettings
 from backend.core.storage import MediaStorage
-from backend.features.indextts_2_5 import runner
+from backend.features.indextts_2_5 import plugin, runner, schemas
 
 
 class FakeEngine:
@@ -179,6 +179,23 @@ class IndexTTSOutputTests(unittest.TestCase):
             ], text=True).strip()
             self.assertEqual(fmt, "flac")
             self.assertEqual(sample_rate, str(sr))
+
+    def test_builtin_presets_include_japanese_reference_and_schema_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = MediaStorage(Path(tmp))
+            plugin._register_presets(storage)
+            presets = {item.id: item for item in storage.list_presets()}
+            self.assertIn("preset:ref_audio", presets)
+            self.assertIn("preset:ref_audio_ja", presets)
+            ja_path = storage.resolve_input_ref("preset:ref_audio_ja")
+            self.assertTrue(ja_path.is_file())
+            self.assertFalse(ja_path.is_symlink())
+        ja_default = schemas.IndexTTSGenerateRequest(text="こんにちは", language="ja")
+        self.assertEqual(ja_default.speaker_audio, "preset:ref_audio_ja")
+        ja_explicit = schemas.IndexTTSGenerateRequest(text="こんにちは", language="ja", speaker_audio="preset:ref_audio")
+        self.assertEqual(ja_explicit.speaker_audio, "preset:ref_audio")
+        zh_default = schemas.IndexTTSGenerateRequest(text="你好", language="zh")
+        self.assertEqual(zh_default.speaker_audio, "preset:ref_audio")
 
 
 if __name__ == "__main__":

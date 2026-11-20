@@ -10,6 +10,7 @@ import {
   resolveApiUrl,
   uploadMediaFile,
   useStudioFeedback,
+  useStudioLocale,
 } from "@colab/shared";
 
 function splitFilename(name: string): { stem: string; ext: string } {
@@ -39,6 +40,7 @@ export function VideoInputCard({
   onChange,
   onMetadataChange,
 }: VideoInputCardProps) {
+  const { t } = useStudioLocale();
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { message } = useStudioFeedback();
@@ -58,11 +60,15 @@ export function VideoInputCard({
   const handleFileUpload = async (file: File) => {
     if (uploadInFlight.current) return;
     if (!/\.(mp4|webm|mov|mkv)$/i.test(file.name)) {
-      message.warning("请选择 MP4、WebM、MOV 或 MKV 视频文件。");
+      message.warning(t("Please select an MP4, WebM, MOV, or MKV video file.", "请选择 MP4、WebM、MOV 或 MKV 视频文件。"));
       return;
     }
     if (!file.size || file.size > 512 * 1024 * 1024) {
-      message.warning(file.size ? "视频超过 512 MB 上传限制，请先截取片段。" : "所选视频为空，请重新选择。");
+      message.warning(
+        file.size
+          ? t("Video exceeds the 512 MB upload limit; please trim the clip first.", "视频超过 512 MB 上传限制，请先截取片段。")
+          : t("Selected video is empty; please choose another file.", "所选视频为空，请重新选择。"),
+      );
       return;
     }
     uploadInFlight.current = true;
@@ -79,9 +85,9 @@ export function VideoInputCard({
       setPreviewError(false);
       onMetadataChange?.(null);
       onChange(res.file_id);
-      message.success(`已上传待超分视频：${res.filename}`);
+      message.success(t(`Uploaded source video: ${res.filename}`, `已上传待超分视频：${res.filename}`));
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "上传视频失败");
+      message.error(err instanceof Error ? err.message : t("Failed to upload video", "上传视频失败"));
     } finally {
       uploadInFlight.current = false;
       setUploading(false);
@@ -164,7 +170,7 @@ export function VideoInputCard({
             danger
             disabled={uploading}
             icon={<DeleteOutlined />}
-            aria-label={`清空 ${label}`}
+            aria-label={t(`Clear ${label}`, `清空 ${label}`)}
             style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
             onClick={() => {
               setVideoMeta(null);
@@ -173,7 +179,7 @@ export function VideoInputCard({
               onChange("");
             }}
           >
-            清空
+            {t("Clear", "清空")}
           </Button>
         ) : null}
       </div>
@@ -240,9 +246,11 @@ export function VideoInputCard({
               </span>
             </div>
             <Text type="secondary" className="studio-tabular" style={{ fontSize: 11.5 }}>
-              {previewError ? "当前浏览器无法预览，请确认视频可正常播放。" : videoMeta && videoMeta.w > 0
+              {previewError
+                ? t("Preview unavailable in browser; ensure video is playable.", "当前浏览器无法预览，请确认视频可正常播放。")
+                : videoMeta && videoMeta.w > 0
                 ? `${videoMeta.w} × ${videoMeta.h} px${videoMeta.dur > 0 ? ` · ${videoMeta.dur.toFixed(1)}s` : ""}`
-                : "读取原片信息中..."}
+                : t("Reading video metadata...", "读取原片信息中...")}
               {uploadedMeta && uploadedMeta.fileId === value
                 ? ` · ${(uploadedMeta.sizeBytes / (1024 * 1024)).toFixed(2)} MB`
                 : ""}
@@ -255,7 +263,7 @@ export function VideoInputCard({
             loading={uploading}
             onClick={() => fileInputRef.current?.click()}
           >
-            更换
+            {t("Replace", "更换")}
           </Button>
         </div>
       ) : (
@@ -263,15 +271,15 @@ export function VideoInputCard({
           type="button"
           disabled={uploading}
           className="studio-ref-dropzone"
-          aria-label={`点击上传待超分视频 ${label}`}
+          aria-label={t(`Upload source video ${label}`, `点击上传待超分视频 ${label}`)}
           onClick={() => fileInputRef.current?.click()}
         >
           <span className="studio-ref-dropzone-action">
             {uploading ? <LoadingOutlined /> : <CloudUploadOutlined />}
-            <span>点击上传待超分视频</span>
+            <span>{t("Click to upload source video", "点击上传待超分视频")}</span>
           </span>
           <span className="studio-ref-dropzone-sub">
-            支持拖拽 MP4 / WebM / MOV / MKV，自动保留原始帧率与音轨
+            {t("Drag & drop MP4 / WebM / MOV / MKV · preserves frame rate & audio", "支持拖拽 MP4 / WebM / MOV / MKV，自动保留原始帧率与音轨")}
           </span>
         </button>
       )}

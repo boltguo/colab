@@ -209,6 +209,38 @@ class StudioApiSmokeTests(unittest.TestCase):
             self.assertEqual(result["fps"], 12)
             self.assertFalse(result["has_audio"])
 
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg/ffprobe not installed")
+    def test_h3_character_swap_upload_generate_and_download(self):
+        source = self.root / "swap_source.mp4"
+        subprocess.run([
+            "ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+            "color=c=green:s=128x72:r=24:d=0.5", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            str(source),
+        ], check=True, timeout=15)
+        with self.studio("h3-character-swap") as client:
+            vid = self.upload(client, "dance.mp4", source.read_bytes(), "video/mp4")
+            ref1 = self.upload(client, "char1.png", self.image_bytes(), "image/png")
+            ref2 = self.upload(client, "char2.png", self.image_bytes(), "image/png")
+            result = self.generate(client, {
+                "mode": "multi",
+                "source_video": vid,
+                "characters": [
+                    {"image": ref1, "target_description": "left person"},
+                    {"image": ref2, "target_description": "right person"},
+                ],
+                "resolution_tier": "480p",
+                "preserve_aspect": False,
+                "duration_sec": 0,
+                "keep_audio": False,
+                "seed": 42,
+            })
+            output = self.download(client, result, "video_url")
+            self.assertIn(b"ftyp", output[:32])
+            self.assertEqual((result["width"], result["height"]), (832, 480))
+            self.assertEqual(result["fps"], 24)
+            self.assertEqual(result["character_count"], 2)
+            self.assertEqual(result["mode"], "multi")
+
     def test_qwen_chat_attachment_async_history_and_stream(self):
         with self.studio("qwen3.8-27b") as client:
             ref = self.upload(client, "scene.png", self.image_bytes(), "image/png")

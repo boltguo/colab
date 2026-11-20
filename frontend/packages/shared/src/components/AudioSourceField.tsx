@@ -1,11 +1,14 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { resolveApiUrl, uploadMediaFile } from "../api/client";
+import { useStudioLocale } from "../i18n";
 import type { PresetItem } from "../api/types";
 import {
   AudioOutlined,
   Button,
   CheckCircleFilled,
   CloudUploadOutlined,
+  List,
+  ListItem,
   LoadingOutlined,
   Segmented,
   Space,
@@ -21,6 +24,7 @@ export interface AudioSourceFieldProps {
   value: string;
   onChange: (fileRef: string) => void;
   presets?: PresetItem[];
+  defaultPresetId?: string;
   allowPreset?: boolean;
   extraRight?: React.ReactNode;
 }
@@ -33,6 +37,7 @@ export function AudioSourceField({
   value,
   onChange,
   presets = [],
+  defaultPresetId,
   allowPreset = true,
   extraRight,
 }: AudioSourceFieldProps) {
@@ -43,6 +48,7 @@ export function AudioSourceField({
   const mountedRef = useRef(true);
   const uploadingRef = useRef(false);
   const startingRef = useRef(false);
+  const { t } = useStudioLocale();
   const { message } = useStudioFeedback();
 
   const hasPresets = allowPreset && presets.length > 0;
@@ -60,7 +66,8 @@ export function AudioSourceField({
     url: string;
   } | null>(null);
 
-  const activePreset = presets.find((p) => p.id === value) || presets[0];
+  const fallbackPreset = (defaultPresetId && presets.find((p) => p.id === defaultPresetId)) || presets[0];
+  const activePreset = presets.find((p) => p.id === value) || fallbackPreset;
 
   useEffect(() => {
     if (recording || starting) return;
@@ -87,11 +94,11 @@ export function AudioSourceField({
   const handleFileUpload = async (file: File) => {
     if (uploadingRef.current) return;
     if (!/\.(wav|mp3|flac|ogg|m4a|aac|webm)$/i.test(file.name)) {
-      message.warning("请选择 WAV、MP3、FLAC、OGG、M4A、AAC 或 WebM 音频。");
+      message.warning(t("Please select a WAV, MP3, FLAC, OGG, M4A, AAC, or WebM file.", "请选择 WAV、MP3、FLAC、OGG、M4A、AAC 或 WebM 音频。"));
       return;
     }
     if (!file.size || file.size > 512 * 1024 * 1024) {
-      message.warning("音频不能为空，大小需在 512 MB 以内。");
+      message.warning(t("Audio cannot be empty and must be within 512 MB.", "音频不能为空，大小需在 512 MB 以内。"));
       return;
     }
     uploadingRef.current = true;
@@ -105,9 +112,9 @@ export function AudioSourceField({
         url: res.url,
       });
       onChange(res.file_id);
-      message.success(`已载入参考音频：${res.filename}`);
+      message.success(t(`Loaded audio: ${res.filename}`, `已载入参考音频：${res.filename}`));
     } catch (err) {
-      if (mountedRef.current) message.error(err instanceof Error ? err.message : "上传音频失败");
+      if (mountedRef.current) message.error(err instanceof Error ? err.message : t("Failed to upload audio", "上传音频失败"));
     } finally {
       uploadingRef.current = false;
       if (mountedRef.current) setUploading(false);
@@ -117,7 +124,7 @@ export function AudioSourceField({
   const startRecording = async () => {
     if (startingRef.current || recording || uploadingRef.current) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      message.error("当前浏览器不支持麦克风采集，请切换至文件上传。");
+      message.error(t("Microphone recording is not supported in this browser; please upload a file instead.", "当前浏览器不支持麦克风采集，请切换至文件上传。"));
       return;
     }
     startingRef.current = true;
@@ -162,7 +169,7 @@ export function AudioSourceField({
     } catch {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
-      if (mountedRef.current) message.error("无法访问麦克风，请检查浏览器权限。");
+      if (mountedRef.current) message.error(t("Cannot access microphone. Please check browser permissions.", "无法访问麦克风，请检查浏览器权限。"));
     } finally {
       startingRef.current = false;
       if (mountedRef.current) setStarting(false);
@@ -188,22 +195,37 @@ export function AudioSourceField({
   })();
 
   const activeSourceTitle = (() => {
-    if (!value) return "尚未选择音频";
+    if (!value) return t("No audio selected", "尚未选择音频");
     if (value.startsWith("preset:")) {
       const found = presets.find((p) => p.id === value);
       return found ? found.label : value;
     }
-    return uploadedMeta?.fileId === value ? uploadedMeta.name : `已上传音频 (${value})`;
+    return uploadedMeta?.fileId === value ? uploadedMeta.name : t(`Uploaded (${value})`, `已上传音频 (${value})`);
   })();
 
   const modeOptions = [
-    ...(hasPresets ? [{ label: "内置示例音色", value: "preset" }] : []),
-    { label: "上传本地音频", value: "upload" },
-    { label: "麦克风现录", value: "record" },
+    ...(hasPresets ? [{ label: t("Built-in Voices", "内置示例音色"), value: "preset" }] : []),
+    { label: t("Upload Audio", "上传本地音频"), value: "upload" },
+    { label: t("Record Mic", "麦克风现录"), value: "record" },
   ];
 
   return (
     <div className="studio-field-group" style={{ gap: "0.55rem" }}>
+      <input
+        ref={fileInputRef}
+        id={inputId}
+        name="ref_audio"
+        type="file"
+        accept=".wav,.mp3,.flac,.ogg,.m4a,.aac,.webm,audio/*"
+        className="studio-visually-hidden"
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) {
+            void handleFileUpload(selected);
+          }
+          e.target.value = "";
+        }}
+      />
       <div className="studio-field-label">
         <div>
           <label htmlFor={inputId}>{label}</label>
@@ -230,35 +252,26 @@ export function AudioSourceField({
             }
           }}
         />
-        {value && (
+        {value && tab !== "preset" && (
           <Tag icon={<CheckCircleFilled />} color="processing" style={{ marginInlineEnd: 0 }}>
-            当前生效：{activeSourceTitle}
+            {t(`Active: ${activeSourceTitle}`, `当前生效：${activeSourceTitle}`)}
           </Tag>
         )}
       </div>
 
-      {tab === "preset" && activePreset && (
-        <div className="studio-dropzone" style={{ borderStyle: "solid", borderColor: "var(--studio-border)" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <Space size={6} wrap>
-              <Text strong style={{ fontSize: 13 }}>{activePreset.label}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {activePreset.description}
-              </Text>
-            </Space>
-            {value !== activePreset.id && (
-              <Button
-                htmlType="button"
-                size="small"
-                type="primary"
-                ghost
-                onClick={() => onChange(activePreset.id)}
-              >
-                切换为此示例音色
-              </Button>
-            )}
-          </div>
-        </div>
+      {tab === "preset" && presets.length > 0 && (
+        <List variant="segmented" className="studio-history-segmented" aria-label={t("Built-in voices", "内置示例音色")}>
+          {presets.map((preset) => (
+            <ListItem
+              key={preset.id}
+              interactive
+              selected={value === preset.id}
+              headline={preset.label}
+              supportingText={preset.description}
+              onClick={() => onChange(preset.id)}
+            />
+          ))}
+        </List>
       )}
 
       {tab === "upload" && (
@@ -279,20 +292,6 @@ export function AudioSourceField({
             }
           }}
         >
-          <input
-            ref={fileInputRef}
-            id={inputId}
-            type="file"
-            accept=".wav,.mp3,.flac,.ogg,.m4a,.aac,.webm,audio/*"
-            className="studio-visually-hidden"
-            onChange={(e) => {
-              const selected = e.target.files?.[0];
-              if (selected) {
-                void handleFileUpload(selected);
-              }
-              e.target.value = "";
-            }}
-          />
           <Space wrap size={[10, 6]}>
             <Button
               htmlType="button"
@@ -302,10 +301,10 @@ export function AudioSourceField({
               loading={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              点击选择或拖拽音频至此
+              {t("Select or drop audio file", "点击选择或拖拽音频至此")}
             </Button>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              支持 WAV / MP3 / FLAC / M4A · 推荐 3~15 秒无背景音乐清晰干声
+              {t("WAV / MP3 / FLAC / M4A · 3–15s clean vocals without background music recommended", "支持 WAV / MP3 / FLAC / M4A · 推荐 3~15 秒无背景音乐清晰干声")}
             </Text>
           </Space>
         </div>
@@ -323,7 +322,7 @@ export function AudioSourceField({
                 loading={uploading || starting}
                 onClick={() => void startRecording()}
               >
-                开始麦克风录音
+                {t("Start Mic Recording", "开始麦克风录音")}
               </Button>
             ) : (
               <Button
@@ -333,13 +332,13 @@ export function AudioSourceField({
                 icon={<StopOutlined />}
                 onClick={stopRecording}
               >
-                停止录音并上传
+                {t("Stop & Upload", "停止录音并上传")}
               </Button>
             )}
             <Text type="secondary" style={{ fontSize: 12 }}>
               {recording
-                ? "正在采集麦克风声音... 请自然朗读 5~10 秒后点击停止"
-                : "直接用浏览器麦克风录制一段你的声音完成克隆"}
+                ? t("Recording from microphone… Speak naturally for 5–10s, then stop.", "正在采集麦克风声音... 请自然朗读 5~10 秒后点击停止")
+                : t("Record a short sample directly from your microphone to clone your voice.", "直接用浏览器麦克风录制一段你的声音完成克隆")}
             </Text>
           </Space>
         </div>
@@ -349,7 +348,7 @@ export function AudioSourceField({
       {previewUrl && (
         <div className="studio-active-voice-bar">
           <Text style={{ fontSize: 12, fontWeight: 500, color: "var(--studio-text-secondary)" }}>
-            参考音频试听：
+            {t("Reference preview:", "参考音频试听：")}
           </Text>
           <audio
             className="studio-audio-player"

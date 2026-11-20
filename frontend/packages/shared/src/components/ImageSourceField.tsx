@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { resolveApiUrl, uploadMediaFile } from "../api/client";
+import { useStudioLocale } from "../i18n";
 import {
   Button,
   CloudUploadOutlined,
@@ -41,6 +42,7 @@ export function ImageSourceField({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadingRef = useRef(false);
   const mountedRef = useRef(true);
+  const { t } = useStudioLocale();
   const { message } = useStudioFeedback();
 
   const [uploading, setUploading] = useState(false);
@@ -67,11 +69,11 @@ export function ImageSourceField({
   const handleFileUpload = async (file: File) => {
     if (uploadingRef.current) return;
     if (!/\.(png|jpe?g|webp)$/i.test(file.name)) {
-      message.warning("请选择 PNG、JPG 或 WebP 图片。");
+      message.warning(t("Please select a PNG, JPG, or WebP image.", "请选择 PNG、JPG 或 WebP 图片。"));
       return;
     }
     if (!file.size || file.size > 512 * 1024 * 1024) {
-      message.warning("图片不能为空，大小需在 512 MB 以内。");
+      message.warning(t("Image cannot be empty and must be within 512 MB.", "图片不能为空，大小需在 512 MB 以内。"));
       return;
     }
     uploadingRef.current = true;
@@ -88,9 +90,9 @@ export function ImageSourceField({
       setNaturalDims(null);
       onDimensionsChange?.(null);
       onChange(res.file_id);
-      message.success(`已上传：${res.filename}`);
+      message.success(t(`Uploaded: ${res.filename}`, `已上传：${res.filename}`));
     } catch (err) {
-      if (mountedRef.current) message.error(err instanceof Error ? err.message : "上传图像失败");
+      if (mountedRef.current) message.error(err instanceof Error ? err.message : t("Failed to upload image", "上传图像失败"));
     } finally {
       uploadingRef.current = false;
       if (mountedRef.current) setUploading(false);
@@ -159,6 +161,7 @@ export function ImageSourceField({
       <input
         ref={fileInputRef}
         id={inputId}
+        name="ref_image"
         type="file"
         accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
         className="studio-visually-hidden"
@@ -187,7 +190,7 @@ export function ImageSourceField({
             type="text"
             danger
             icon={<DeleteOutlined />}
-            aria-label={`删除 ${label}`}
+            aria-label={t(`Remove ${label}`, `删除 ${label}`)}
             style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
             onClick={() => {
               setNaturalDims(null);
@@ -195,7 +198,7 @@ export function ImageSourceField({
               onRemoveSlot();
             }}
           >
-            删除
+            {t("Remove", "删除")}
           </Button>
         ) : value && allowClear ? (
           <Button
@@ -204,7 +207,7 @@ export function ImageSourceField({
             type="text"
             danger
             icon={<DeleteOutlined />}
-            aria-label={`清空 ${label}`}
+            aria-label={t(`Clear ${label}`, `清空 ${label}`)}
             disabled={uploading}
             style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
             onClick={() => {
@@ -213,7 +216,7 @@ export function ImageSourceField({
               onChange("");
             }}
           >
-            清空
+            {t("Clear", "清空")}
           </Button>
         ) : null}
       </div>
@@ -249,7 +252,11 @@ export function ImageSourceField({
               </span>
             </Text>
             <Text type="secondary" className="studio-tabular" style={{ fontSize: 11.5 }}>
-              {previewFailed ? "图片已失效，请重新上传" : naturalDims ? `${naturalDims.w} × ${naturalDims.h} px` : "读取尺寸中..."}
+              {previewFailed
+                ? t("Image unavailable, please re-upload", "图片已失效，请重新上传")
+                : naturalDims
+                  ? `${naturalDims.w} × ${naturalDims.h} px`
+                  : t("Loading dimensions...", "读取尺寸中...")}
               {uploadedMeta && uploadedMeta.fileId === value
                 ? ` · ${(uploadedMeta.sizeBytes / 1024).toFixed(0)} KB`
                 : ""}
@@ -262,7 +269,7 @@ export function ImageSourceField({
             loading={uploading}
             onClick={() => fileInputRef.current?.click()}
           >
-            更换
+            {t("Replace", "更换")}
           </Button>
         </div>
       ) : (
@@ -270,15 +277,15 @@ export function ImageSourceField({
           type="button"
           className="studio-ref-dropzone"
           disabled={uploading}
-          aria-label={`点击上传图片 ${label}`}
+          aria-label={t(`Upload image for ${label}`, `点击上传图片 ${label}`)}
           onClick={() => fileInputRef.current?.click()}
         >
           <span className="studio-ref-dropzone-action">
             {uploading ? <LoadingOutlined /> : <CloudUploadOutlined />}
-            <span>点击上传图片</span>
+            <span>{t("Click to upload image", "点击上传图片")}</span>
           </span>
           <span className="studio-ref-dropzone-sub">
-            支持拖拽或 ⌘/Ctrl+V 粘贴
+            {t("Drag & drop or paste with ⌘/Ctrl+V", "支持拖拽或 ⌘/Ctrl+V 粘贴")}
           </span>
         </button>
       )}

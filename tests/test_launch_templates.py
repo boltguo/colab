@@ -20,7 +20,7 @@ TEMPLATES = ("step4_app", "step4_comfy_app", "step4_vllm")
 
 def template_ast(name):
     source = (ROOT / "tools/templates" / f"{name}.py").read_text()
-    values = {"REQUIRED_NODES": "set()", "SAMPLE_REQUEST_JSON": "{}"}
+    values = {"REQUIRED_NODES": "set()", "SAMPLE_REQUEST_JSON": "{}", "BUNDLED_NODES_REL": ""}
     source = re.sub(r"\{\{([A-Z_]+)\}\}", lambda match: values.get(match[1], ""), source)
     return ast.parse(source)
 
@@ -155,7 +155,12 @@ class MediaPrerequisiteTests(unittest.TestCase):
         exec(compile(ast.Module(body=[guard], type_ignores=[]), template, "exec"), namespace)
 
     def test_required_media_tools_fail_before_model_loading_with_recovery_hint(self):
-        for template, feature in (("step4_app", "indextts-2.5"), ("step4_comfy_app", "seedvr2"), ("step4_comfy_app", "minimax-h3")):
+        for template, feature in (
+            ("step4_app", "indextts-2.5"),
+            ("step4_comfy_app", "seedvr2"),
+            ("step4_comfy_app", "minimax-h3"),
+            ("step4_comfy_app", "h3-character-swap"),
+        ):
             with self.subTest(feature=feature), self.assertRaisesRegex(RuntimeError, "ffprobe.*apt-get"):
                 self.run_guard(template, feature, {"ffprobe"})
 
@@ -191,9 +196,27 @@ class PasswordLaunchVerificationTests(unittest.TestCase):
         opener.open.return_value.__enter__ = Mock(return_value=Mock(status=200))
         opener.open.return_value.__exit__ = Mock(return_value=False)
         stop = Mock()
-        with self.assertRaisesRegex(RuntimeError, "已停止 Web 服务"):
+        with self.assertRaisesRegex(RuntimeError, "stopped web server"):
             self.run_verification(opener, stop)
         stop.assert_called_once_with("app-pattern", 30)
+
+    def test_generated_notebook_code_cells_are_pure_english_and_markdown_has_chinese_notes(self):
+        cjk_re = re.compile(r"[\u4e00-\u9fff]")
+        notebooks = sorted((ROOT / "notebooks").glob("*/*.ipynb"))
+        self.assertGreaterEqual(len(notebooks), 6)
+        for nb_path in notebooks:
+            nb = json.loads(nb_path.read_text(encoding="utf-8"))
+            has_chinese_markdown = False
+            for idx, cell in enumerate(nb["cells"]):
+                src = "".join(cell.get("source", []))
+                if cell["cell_type"] == "code":
+                    self.assertIsNone(
+                        cjk_re.search(src),
+                        f"{nb_path.name} code cell #{idx} must be pure English, found CJK text.",
+                    )
+                elif cell["cell_type"] == "markdown" and cjk_re.search(src):
+                    has_chinese_markdown = True
+            self.assertTrue(has_chinese_markdown, f"{nb_path.name} should keep Chinese explanations in Markdown cells.")
 
 
 class ReleaseGuardTests(unittest.TestCase):

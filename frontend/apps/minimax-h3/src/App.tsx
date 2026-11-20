@@ -5,23 +5,29 @@ Button,
 Card,
 ChoiceButton,
 ClearOutlined,
+CollapsibleSection,
 DeleteOutlined,
+Divider,
 DownloadOutlined,
+Empty,
 ExperimentOutlined,
-GenerateDock,
+FieldLabel,
+GenerateButton,
 HistoryOutlined,
 ImageSourceField,
 InfoCircleOutlined,
 Input,
 InputNumber,
+Kbd,
 LockOutlined,
 LoraManagerPanel,
 PlusOutlined,
 Popconfirm,
 Progress,
-QuestionCircleOutlined,
+ScrollArea,
 SeedControl,
 Segmented,
+Select,
 Slider,
 SoundOutlined,
 Space,
@@ -31,11 +37,13 @@ Switch,
 Tag,
 Text,
 TextArea,
+TokenChip,
 Tooltip,
 VideoCameraOutlined,
 resolveApiUrl,
 useHistoryStore,
 useStudioFeedback,
+useStudioLocale,
 useTaskRunner
 } from "@colab/shared";
 import { useCallback,useId,useMemo,useRef,useState } from "react";
@@ -47,6 +55,7 @@ H3Mode,
 H3ResolutionTier,
 MiniMaxH3Params,
 MiniMaxH3Result,
+StandardAspectRatio,
 VideoOutputFormat
 } from "./types";
 import {
@@ -79,32 +88,29 @@ interface AudioSlotState {
   fileRef: string;
 }
 
-function FieldLabel({ label, tooltip }: { label: string; tooltip?: string }) {
-  return (
-    <div className="studio-field-label">
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-        {label}
-        {tooltip && (
-          <Tooltip title={tooltip}>
-            <QuestionCircleOutlined style={{ color: "var(--studio-text-muted)", fontSize: 13 }} />
-          </Tooltip>
-        )}
-      </span>
-    </div>
-  );
-}
+const EN_H3_ASPECT_SUBLABELS: Record<StandardAspectRatio, string> = {
+  "16:9": "Widescreen",
+  "9:16": "Vertical",
+  "1:1": "Square",
+  "4:3": "Classic",
+  "3:4": "Portrait",
+  "3:2": "Landscape",
+  "2:3": "Tall",
+  "21:9": "Cinema",
+};
 
 function defaultTurboStepsForMode(mode: H3Mode): number {
   return mode === "r2v" ? 4 : 8;
 }
 
 export function MiniMaxH3StudioApp() {
+  const { isZh, t } = useStudioLocale();
   const promptInputId = useId();
   const negPromptInputId = useId();
   const widthInputId = useId();
   const heightInputId = useId();
   const fpsInputId = useId();
-  const exactFramesInputId = useId();
+  const outputFormatId = useId();
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
   const { message } = useStudioFeedback();
 
@@ -156,7 +162,10 @@ export function MiniMaxH3StudioApp() {
           setParams((prev) => ({ ...prev, seed: finishedTask.result!.used_seed }));
         }
         message.success(
-          `视频生成完成（${finishedTask.result.width}×${finishedTask.result.height} · ${finishedTask.result.duration_sec}s）`
+          t(
+            `Video generated (${finishedTask.result.width}×${finishedTask.result.height} · ${finishedTask.result.duration_sec}s)`,
+            `视频生成完成（${finishedTask.result.width}×${finishedTask.result.height} · ${finishedTask.result.duration_sec}s）`,
+          ),
         );
       }
     },
@@ -375,7 +384,7 @@ export function MiniMaxH3StudioApp() {
     setR2vPrimaryDims(null);
     setParams(DEFAULT_MINIMAX_H3_PARAMS);
     setShowNegPrompt(false);
-    message.success("已恢复默认参数");
+    message.success(t("Reset to default parameters", "已恢复默认参数"));
   };
 
   const insertTokenAtCursor = (token: string) => {
@@ -435,29 +444,29 @@ export function MiniMaxH3StudioApp() {
       ...imageTags.map((it, idx) => ({
         key: `pic-${it.id}`,
         tag: it.tag,
-        hint: `参考图 ${idx + 1}`,
+        hint: t(`Reference Image ${idx + 1}`, `参考图 ${idx + 1}`),
       })),
       ...videoTags.map((vt, idx) => ({
         key: `vid-${vt.id}`,
         tag: vt.videoTag,
-        hint: `参考视频 ${idx + 1}`,
+        hint: t(`Reference Video ${idx + 1}`, `参考视频 ${idx + 1}`),
       })),
       ...videoTags
         .filter((vt) => Boolean(vt.audioTag))
         .map((vt, idx) => ({
           key: `vidaud-${vt.id}`,
           tag: vt.audioTag as string,
-          hint: `视频原声 ${idx + 1}`,
+          hint: t(`Video Audio ${idx + 1}`, `视频原声 ${idx + 1}`),
         })),
       ...standaloneAudioTags.map((at, idx) => ({
         key: `aud-${at.id}`,
         tag: at.tag,
-        hint: `参考音频 ${idx + 1}`,
+        hint: t(`Reference Audio ${idx + 1}`, `参考音频 ${idx + 1}`),
       })),
     ];
 
     return { imageTags, videoTags, standaloneAudioTags, allPromptChips };
-  }, [refAudioSlots, refImageSlots, refVideoSlots]);
+  }, [refAudioSlots, refImageSlots, refVideoSlots, t]);
 
   const uploadedImgCount = useMemo(
     () => refImageSlots.filter((s) => Boolean(s.fileRef.trim())).length,
@@ -521,45 +530,68 @@ export function MiniMaxH3StudioApp() {
   const handleGenerate = useCallback(async () => {
     if (isBusy) return;
     if (!params.prompt.trim()) {
-      message.warning("请先输入视频画面与声音描述 (Prompt)。");
+      message.warning(t("Please enter a visual & audio prompt.", "请先输入视频画面与声音描述 (Prompt)。"));
       return;
     }
     if (params.mode === "fl2v") {
       if (!(params.first_frame || "").trim() && !(params.last_frame || "").trim()) {
-        message.warning("首尾帧图生视频模式请至少上传「首帧图片」（或尾帧图片）。");
+        message.warning(
+          t(
+            "First/Last Frame mode requires at least a First Frame (or Last Frame) image.",
+            "首尾帧图生视频模式请至少上传「首帧图片」（或尾帧图片）。",
+          ),
+        );
         return;
       }
     } else if (params.mode === "r2v") {
       if (uploadedImgCount + uploadedVidCount + uploadedAudCount > H3_REFERENCE_LIMITS.total) {
-        message.warning("参考图片、视频与独立音频合计最多 12 个文件；视频自带原声不另计。");
+        message.warning(
+          t(
+            "Up to 12 total files across images, videos, and standalone audio; extracted video audio does not count toward this limit.",
+            "参考图片、视频与独立音频合计最多 12 个文件；视频自带原声不另计。",
+          ),
+        );
         return;
       }
       if (uploadedImgCount + uploadedVidCount + uploadedAudCount < 1) {
-        message.warning("多模态参考生视频模式请至少上传 1 项参考素材（图片 / 视频 / 音频）。");
+        message.warning(
+          t(
+            "Multimodal R2V mode requires at least 1 reference asset (image, video, or audio).",
+            "多模态参考生视频模式请至少上传 1 项参考素材（图片 / 视频 / 音频）。",
+          ),
+        );
         return;
       }
-      // Guard against non-trailing empty slots shifting <Picture>/<Video>/<Audio> ordinals
       const firstEmptyImg = refImageSlots.findIndex((s) => !s.fileRef.trim());
       if (
         firstEmptyImg >= 0 &&
         refImageSlots.slice(firstEmptyImg + 1).some((s) => Boolean(s.fileRef.trim()))
       ) {
         message.warning(
-          `参考图 ${firstEmptyImg + 1} 尚未上传文件，请上传或点击卡片右上角「删除」移除空槽位，避免 <Picture> 编号错位。`
+          t(
+            `Reference Image ${firstEmptyImg + 1} is empty; upload a file or click Remove to prevent <Picture> index shifting.`,
+            `参考图 ${firstEmptyImg + 1} 尚未上传文件，请上传或点击卡片右上角「删除」移除空槽位，避免 <Picture> 编号错位。`,
+          ),
         );
         return;
       }
       const emptyVidIdx = refVideoSlots.findIndex((s) => !s.fileRef.trim());
       if (emptyVidIdx >= 0) {
         message.warning(
-          `参考视频 ${emptyVidIdx + 1} 尚未上传文件，请上传或点击卡片右上角「删除」移除空卡片。`
+          t(
+            `Reference Video ${emptyVidIdx + 1} is empty; upload a file or click Remove.`,
+            `参考视频 ${emptyVidIdx + 1} 尚未上传文件，请上传或点击卡片右上角「删除」移除空卡片。`,
+          ),
         );
         return;
       }
       const emptyAudIdx = refAudioSlots.findIndex((s) => !s.fileRef.trim());
       if (emptyAudIdx >= 0) {
         message.warning(
-          `参考音频 ${emptyAudIdx + 1} 尚未上传文件，请上传或点击卡片右上角「删除」移除空卡片。`
+          t(
+            `Reference Audio ${emptyAudIdx + 1} is empty; upload a file or click Remove.`,
+            `参考音频 ${emptyAudIdx + 1} 尚未上传文件，请上传或点击卡片右上角「删除」移除空卡片。`,
+          ),
         );
         return;
       }
@@ -577,6 +609,7 @@ export function MiniMaxH3StudioApp() {
     refImageSlots,
     refVideoSlots,
     runTask,
+    t,
     uploadedAudCount,
     uploadedImgCount,
     uploadedVidCount,
@@ -623,6 +656,11 @@ export function MiniMaxH3StudioApp() {
   );
 
   const negPromptNeedsCfgHint = Boolean(params.negative_prompt.trim()) && params.cfg <= 1.01;
+  const activeLoraCount = params.loras.filter((slot) => slot.enabled).length;
+  const matchedDurationPreset =
+    params.frame_count === null
+      ? (DURATION_PRESETS.find((preset) => Math.abs(params.duration_sec - preset.sec) < 0.05)?.sec ?? "")
+      : "";
   const megapixels = ((snap32(params.width) * snap32(params.height)) / (1024 * 1024)).toFixed(2);
   const canFollowRefAspect = params.mode !== "t2v";
 
@@ -637,17 +675,26 @@ export function MiniMaxH3StudioApp() {
               value={params.mode}
               onChange={(val) => handleModeSwitch(val as H3Mode)}
               options={[
-                { label: "文生视频", value: "t2v" },
-                { label: "首尾帧图生视频", value: "fl2v" },
-                { label: "多模态参考生视频", value: "r2v" },
+                { label: t("Text to Video", "文生视频"), value: "t2v" },
+                { label: t("First/Last Frame", "首尾帧图生视频"), value: "fl2v" },
+                { label: t("Multimodal Reference", "多模态参考生视频"), value: "r2v" },
               ]}
             />
             <Text type="secondary" style={{ fontSize: 12.5, fontWeight: 400 }}>
               {params.mode === "t2v"
-                ? "直接用文字描述画面镜头与对白音效，同步生成音画视频"
+                ? t(
+                    "Describe visuals, camera motion, dialogue & sound effects to generate synced video",
+                    "直接用文字描述画面镜头与对白音效，同步生成音画视频",
+                  )
                 : params.mode === "fl2v"
-                  ? "上传首帧起始图（可选添加尾帧结束图），精准控制运镜与首尾过渡"
-                  : "自由组合参考图、参考视频与参考音频，通过 <Picture> / <Video> / <Audio> 编排"}
+                  ? t(
+                      "Upload a start frame (and optional end frame) to control transitions and camera motion",
+                      "上传首帧起始图（可选添加尾帧结束图），精准控制运镜与首尾过渡",
+                    )
+                  : t(
+                      "Mix reference images, videos & audio using <Picture> / <Video> / <Audio> tokens",
+                      "自由组合参考图、参考视频与参考音频，通过 <Picture> / <Video> / <Audio> 编排",
+                    )}
             </Text>
           </Space>
         }
@@ -659,33 +706,26 @@ export function MiniMaxH3StudioApp() {
             icon={<ClearOutlined />}
             onClick={resetAllDefaults}
           >
-            恢复默认
+            {t("Reset", "恢复默认")}
           </Button>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
           {/* Mode B: First-Last Frame Slots */}
           {params.mode === "fl2v" && (
-            <div
-              style={{
-                padding: "0.75rem 0.85rem",
-                borderRadius: "0.65rem",
-                background: "var(--studio-surface-subtle)",
-                border: "1px solid var(--studio-border)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.65rem",
-              }}
-            >
+            <div className="studio-reference-group">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <Text strong style={{ fontSize: 13 }}>
-                  首尾关键帧画面（仅上传首帧即为标准单图生视频，同时上传尾帧则做首尾过渡）
+                  {t(
+                    "Keyframes (First Frame only for I2V, or add Last Frame to interpolate between both)",
+                    "首尾关键帧画面（仅上传首帧即为标准单图生视频，同时上传尾帧则做首尾过渡）",
+                  )}
                 </Text>
               </div>
 
               <div className="studio-image-slot-grid">
                 <ImageSourceField
-                  label="首帧图片（起始画面）"
+                  label={t("First Frame (Start)", "首帧图片（起始画面）")}
                   badgeText="Frame 0"
                   value={params.first_frame || ""}
                   allowClear={Boolean(params.first_frame)}
@@ -693,7 +733,7 @@ export function MiniMaxH3StudioApp() {
                   onChange={(nextRef) => updateParam("first_frame", nextRef || null)}
                 />
                 <ImageSourceField
-                  label="尾帧图片（可选 · 结束画面）"
+                  label={t("Last Frame (Optional · End)", "尾帧图片（可选 · 结束画面）")}
                   badgeText="End Frame"
                   value={params.last_frame || ""}
                   allowClear={Boolean(params.last_frame)}
@@ -703,19 +743,9 @@ export function MiniMaxH3StudioApp() {
             </div>
           )}
 
-          {/* Mode C: Multimodal Reference Slots (Single Top-Right Add Bar, Unified Card Grid) */}
+          {/* Mode C: Multimodal Reference Slots */}
           {params.mode === "r2v" && (
-            <div
-              style={{
-                padding: "0.75rem 0.85rem",
-                borderRadius: "0.65rem",
-                background: "var(--studio-surface-subtle)",
-                border: "1px solid var(--studio-border)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.65rem",
-              }}
-            >
+            <div className="studio-reference-group">
               <div
                 style={{
                   display: "flex",
@@ -727,11 +757,11 @@ export function MiniMaxH3StudioApp() {
                 }}
               >
                 <Text strong style={{ fontSize: 13 }}>
-                  参考素材（已上传{" "}
+                  {t("Reference Assets (", "参考素材（已上传 ")}
                   <span className="studio-tabular">
                     {uploadedImgCount + uploadedVidCount + uploadedAudCount}
                   </span>{" "}
-                  / {H3_REFERENCE_LIMITS.total} 个文件）
+                  {t(`/ ${H3_REFERENCE_LIMITS.total} files)`, `/ ${H3_REFERENCE_LIMITS.total} 个文件）`)}
                 </Text>
 
                 <Space size={6} wrap>
@@ -746,7 +776,7 @@ export function MiniMaxH3StudioApp() {
                         setRefImageSlots((prev) => [...prev, { id: nextId("img"), fileRef: "" }])
                       }
                     >
-                      添加参考图
+                      {t("Add Image", "添加参考图")}
                     </Button>
                   )}
                   {refVideoSlots.length < H3_REFERENCE_LIMITS.videos && (
@@ -763,7 +793,7 @@ export function MiniMaxH3StudioApp() {
                         ])
                       }
                     >
-                      添加参考视频
+                      {t("Add Video", "添加参考视频")}
                     </Button>
                   )}
                   {refAudioSlots.length < H3_REFERENCE_LIMITS.audios && (
@@ -777,15 +807,17 @@ export function MiniMaxH3StudioApp() {
                         setRefAudioSlots((prev) => [...prev, { id: nextId("aud"), fileRef: "" }])
                       }
                     >
-                      添加参考音频
+                      {t("Add Audio", "添加参考音频")}
                     </Button>
                   )}
                 </Space>
               </div>
 
               <Text type="secondary" style={{ fontSize: 12 }}>
-                最多 9 张图片、3 段视频、3 段独立音频，合计不超过 12 个文件；视频原声不另计。
-                已添加 {referenceSlotCount} 个素材槽位（含待上传），移除空槽位后可继续添加其他类型。
+                {t(
+                  `Up to 9 images, 3 videos, 3 standalone audio files (12 files total; video audio doesn't count). ${referenceSlotCount} slot(s) added.`,
+                  `最多 9 张图片、3 段视频、3 段独立音频，合计不超过 12 个文件；视频原声不另计。已添加 ${referenceSlotCount} 个素材槽位（含待上传），移除空槽位后可继续添加其他类型。`,
+                )}
               </Text>
 
               <div
@@ -804,7 +836,7 @@ export function MiniMaxH3StudioApp() {
                   return (
                     <ImageSourceField
                       key={slot.id}
-                      label={`参考图 ${idx + 1}`}
+                      label={t(`Reference Image ${idx + 1}`, `参考图 ${idx + 1}`)}
                       badgeText={`<Picture ${idx + 1}>`}
                       value={slot.fileRef}
                       allowClear={Boolean(slot.fileRef)}
@@ -834,7 +866,7 @@ export function MiniMaxH3StudioApp() {
                   return (
                     <VideoSlotCard
                       key={slot.id}
-                      label={`参考视频 ${idx + 1}`}
+                      label={t(`Reference Video ${idx + 1}`, `参考视频 ${idx + 1}`)}
                       videoBadgeText={vTag?.videoTag || `<Video ${idx + 1}>`}
                       audioBadgeText={vTag?.audioTag || null}
                       value={slot.fileRef}
@@ -865,7 +897,7 @@ export function MiniMaxH3StudioApp() {
                   return (
                     <AudioSlotCard
                       key={slot.id}
-                      label={`参考音频 ${idx + 1}`}
+                      label={t(`Reference Audio ${idx + 1}`, `参考音频 ${idx + 1}`)}
                       badgeText={aTag?.tag || `<Audio ${idx + 1}>`}
                       value={slot.fileRef}
                       onRemoveSlot={() => {
@@ -888,22 +920,20 @@ export function MiniMaxH3StudioApp() {
           {/* Prompt Input + Single Clean Tag Insertion Row */}
           <div className="studio-field-group">
             <div className="studio-field-label">
-              <label htmlFor={promptInputId}>音画场景与动作提示词 (Prompt)</label>
+              <label htmlFor={promptInputId}>{t("Scene & Audio Prompt", "音画场景与动作提示词 (Prompt)")}</label>
               <Space size={8} wrap>
                 {params.mode === "r2v" && r2vTagMapping.allPromptChips.length > 0 && (
                   <Space size={4} wrap>
                     <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
-                      点击插入引用：
+                      {t("Insert token:", "点击插入引用：")}
                     </Text>
                     {r2vTagMapping.allPromptChips.map((chip) => (
-                      <Tooltip key={chip.key} title={`在光标处插入 ${chip.hint} 标签`}>
-                        <button
-                          type="button"
-                          className="studio-token-chip"
-                          onClick={() => insertTokenAtCursor(chip.tag)}
-                        >
-                          {chip.tag}
-                        </button>
+                      <Tooltip key={chip.key} title={t(`Insert ${chip.hint} token at cursor`, `在光标处插入 ${chip.hint} 标签`)}>
+                        <span style={{ display: "inline-flex" }}>
+                          <TokenChip onClick={() => insertTokenAtCursor(chip.tag)}>
+                            {chip.tag}
+                          </TokenChip>
+                        </span>
                       </Tooltip>
                     ))}
                   </Space>
@@ -915,7 +945,9 @@ export function MiniMaxH3StudioApp() {
                   style={{ padding: 0, blockSize: "auto" }}
                   onClick={() => setShowNegPrompt((v) => !v)}
                 >
-                  {showNegPrompt || params.negative_prompt ? "收起反向提示词" : "+ 反向提示词"}
+                  {showNegPrompt || params.negative_prompt
+                    ? t("Hide Negative Prompt", "收起反向提示词")
+                    : t("+ Negative Prompt", "+ 反向提示词")}
                 </Button>
               </Space>
             </div>
@@ -940,10 +972,19 @@ export function MiniMaxH3StudioApp() {
               }}
               placeholder={
                 params.mode === "r2v"
-                  ? "描述参考主体的互动与声音，例如：让 <Picture 1> 中的主角在雨夜街道奔跑，镜头跟随 <Video 1> 的运镜节奏，并用 <Audio 1> 的音色说出对白..."
+                  ? t(
+                      "Describe subject interactions and audio, e.g., <Picture 1> runs through a rainy street following <Video 1>'s camera motion, speaking in <Audio 1>'s voice...",
+                      "描述参考主体的互动与声音，例如：让 <Picture 1> 中的主角在雨夜街道奔跑，镜头跟随 <Video 1> 的运镜节奏，并用 <Audio 1> 的音色说出对白...",
+                    )
                   : params.mode === "fl2v"
-                    ? "描述从首帧画面开始的人物动作、镜头推进方式以及伴随的环境音效或人物台词..."
-                    : "描述画面主体、运镜轨迹、光影氛围，以及伴随的对白台词、环境音效或背景配乐..."
+                    ? t(
+                        "Describe character motion, camera movement, and ambient sound or speech starting from the first frame...",
+                        "描述从首帧画面开始的人物动作、镜头推进方式以及伴随的环境音效或人物台词...",
+                      )
+                    : t(
+                        "Describe subject, camera trajectory, lighting, dialogue, ambient sounds, or score...",
+                        "描述画面主体、运镜轨迹、光影氛围，以及伴随的对白台词、环境音效或背景配乐...",
+                      )
               }
             />
 
@@ -951,12 +992,14 @@ export function MiniMaxH3StudioApp() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                alignItems: "center",
                 fontSize: 12,
                 color: "var(--studio-text-muted)",
               }}
             >
-              <span>
-                快捷键 <code>⌘/Ctrl + Enter</code> 直接生成 · 可直接在提示词中写台词与音效描述
+              <span className="studio-shortcut-hint">
+                <Kbd keys={["mod", "enter"]} size="sm" />
+                <span>{t("Generate · You can write dialogue and SFX cues directly in the prompt", "生成 · 可直接在提示词中写台词与音效描述")}</span>
               </span>
               <span className="studio-tabular">{params.prompt.length} / 8000</span>
             </div>
@@ -965,13 +1008,16 @@ export function MiniMaxH3StudioApp() {
           {(showNegPrompt || Boolean(params.negative_prompt)) && (
             <div className="studio-field-group">
               <div className="studio-field-label">
-                <label htmlFor={negPromptInputId}>反向提示词 (Negative Prompt)</label>
+                <label htmlFor={negPromptInputId}>{t("Negative Prompt", "反向提示词 (Negative Prompt)")}</label>
               </div>
               <Input
                 id={negPromptInputId}
                 value={params.negative_prompt}
                 onValueChange={(value) => updateParam("negative_prompt", value)}
-                placeholder="排除不需要的画面或杂音，例如：画面闪烁、肢体畸变、低画质、电流底噪..."
+                placeholder={t(
+                  "Exclude unwanted artifacts or noise, e.g., flicker, anatomy distortion, blur, hum...",
+                  "排除不需要的画面或杂音，例如：画面闪烁、肢体畸变、低画质、电流底噪...",
+                )}
               />
               {negPromptNeedsCfgHint && (
                 <Alert
@@ -988,8 +1034,10 @@ export function MiniMaxH3StudioApp() {
                       }}
                     >
                       <span>
-                        当前 CFG 为 <strong>1.0</strong>（单路高速模式），反向提示词不会生效；调至{" "}
-                        <strong>2.5 ~ 3.5</strong> 可启用双路负向抑制。
+                        {t(
+                          "At CFG 1.0 (single-pass turbo), negative prompts do not apply; raise CFG to 2.5–3.5 to enable negative guidance.",
+                          "当前 CFG 为 1.0（单路高速模式），反向提示词不会生效；调至 2.5 ~ 3.5 可启用双路负向抑制。",
+                        )}
                       </span>
                       <Button
                         htmlType="button"
@@ -998,7 +1046,7 @@ export function MiniMaxH3StudioApp() {
                         ghost
                         onClick={() => updateParam("cfg", 3.0)}
                       >
-                        设为 CFG 3.0
+                        {t("Set CFG 3.0", "设为 CFG 3.0")}
                       </Button>
                     </div>
                   }
@@ -1015,7 +1063,7 @@ export function MiniMaxH3StudioApp() {
         title={
           <Space size={8}>
             <VideoCameraOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>分辨率、宽高比与时长</span>
+            <span>{t("Resolution, Aspect Ratio & Duration", "分辨率、宽高比与时长")}</span>
           </Space>
         }
         extra={
@@ -1023,12 +1071,11 @@ export function MiniMaxH3StudioApp() {
             className="studio-tabular"
             style={{ fontSize: 12.5, color: "var(--studio-text-secondary)", fontWeight: 600 }}
           >
-            {snap32(params.width)}×{snap32(params.height)} · {alignedFrames} 帧（{actualDurationSec}s）
+            {snap32(params.width)}×{snap32(params.height)} · {alignedFrames} {t("frames", "帧")} ({actualDurationSec}s)
           </span>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "0.95rem" }}>
-          {/* Row 1: Independent Resolution Tier + Soundtrack Switch */}
           <div
             style={{
               display: "flex",
@@ -1040,24 +1087,30 @@ export function MiniMaxH3StudioApp() {
           >
             <div className="studio-field-group" style={{ flex: "1 1 300px" }}>
               <FieldLabel
-                label="分辨率档位 (Resolution)"
-                tooltip="当前接入 H3-Base，原生档位为 768p（如 1344×768）；540p 为低分辨率试跑。自定义宽高仅改变推理画布，未接入高分辨率再生成或超分流程。"
+                label={t("Resolution Tier", "分辨率档位 (Resolution)")}
+                tooltip={t(
+                  "H3-Base natively renders 768p (e.g., 1344×768); 540p provides faster low-res drafts.",
+                  "当前接入 H3-Base，原生档位为 768p（如 1344×768）；540p 为低分辨率试跑。自定义宽高仅改变推理画布，未接入高分辨率再生成或超分流程。",
+                )}
               />
               <Segmented
                 block
                 value={params.resolution_tier === "custom" ? "768p" : params.resolution_tier}
                 onChange={(val) => handleResolutionChange(val as H3ResolutionTier)}
                 options={[
-                  { label: "540p 低清试跑", value: "540p" },
-                  { label: "768p 原生标准", value: "768p" },
+                  { label: t("540p Draft", "540p 低清试跑"), value: "540p" },
+                  { label: t("768p Native", "768p 原生标准"), value: "768p" },
                 ]}
               />
             </div>
 
             <div className="studio-field-group" style={{ flex: "0 1 250px" }}>
               <FieldLabel
-                label="音轨合成 (Audio Track)"
-                tooltip="开启后通过 Audio VAE 同步解码 32kHz 立体声对白、环境音效与音乐并封装入视频"
+                label={t("Audio Track", "音轨合成 (Audio Track)")}
+                tooltip={t(
+                  "When enabled, decodes synchronized 32kHz stereo dialogue, SFX, and music via Audio VAE.",
+                  "开启后通过 Audio VAE 同步解码 32kHz 立体声对白、环境音效与音乐并封装入视频",
+                )}
               />
               <Segmented
                 block
@@ -1065,7 +1118,7 @@ export function MiniMaxH3StudioApp() {
                 onChange={(val) => {
                   const enabled = val === "on";
                   if (enabled && params.fps !== NATIVE_FPS) {
-                    message.info("已恢复 24 fps，保持画面与生成音轨同步。");
+                    message.info(t("Restored 24 fps to keep video synchronized with generated audio.", "已恢复 24 fps，保持画面与生成音轨同步。"));
                   }
                   setParams((prev) => ({ ...prev, soundtrack_enabled: enabled, fps: enabled ? NATIVE_FPS : prev.fps }));
                 }}
@@ -1074,12 +1127,12 @@ export function MiniMaxH3StudioApp() {
                     label: (
                       <span>
                         <SoundOutlined style={{ marginInlineEnd: 4 }} />
-                        音画同生
+                        {t("Synced Audio", "音画同生")}
                       </span>
                     ),
                     value: "on",
                   },
-                  { label: "纯画面静音", value: "off" },
+                  { label: t("Silent Video", "纯画面静音"), value: "off" },
                 ]}
               />
             </div>
@@ -1088,8 +1141,11 @@ export function MiniMaxH3StudioApp() {
           {/* Row 2: Independent Aspect Ratio Selector */}
           <div className="studio-field-group">
             <FieldLabel
-              label="宽高比 (Aspect Ratio)"
-              tooltip="点选比例会自动按当前分辨率档位计算 32px 对齐像素尺寸；也可在下方自由输入宽高"
+              label={t("Aspect Ratio", "宽高比 (Aspect Ratio)")}
+              tooltip={t(
+                "Selecting a ratio computes 32px-aligned dimensions at your active resolution tier.",
+                "点选比例会自动按当前分辨率档位计算 32px 对齐像素尺寸；也可在下方自由输入宽高",
+              )}
             />
             <div className="studio-aspect-grid">
               {canFollowRefAspect && (
@@ -1103,11 +1159,11 @@ export function MiniMaxH3StudioApp() {
                     className="studio-aspect-frame"
                     style={{ inlineSize: 18, blockSize: 18, borderStyle: "dashed" }}
                   />
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>跟随参考图</span>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{t("Match Input", "跟随参考图")}</span>
                   <span style={{ fontSize: 10.5, opacity: 0.75 }}>
                     {activePrimaryDims
                       ? `${activePrimaryDims.w}:${activePrimaryDims.h}`
-                      : "保持原比例"}
+                      : t("Keep ratio", "保持原比例")}
                   </span>
                 </ChoiceButton>
               )}
@@ -1135,7 +1191,9 @@ export function MiniMaxH3StudioApp() {
                       style={{ inlineSize: fw, blockSize: fh }}
                     />
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{opt.label}</span>
-                    <span style={{ fontSize: 10.5, opacity: 0.75 }}>{opt.sub}</span>
+                    <span style={{ fontSize: 10.5, opacity: 0.75 }}>
+                      {isZh ? opt.sub : EN_H3_ASPECT_SUBLABELS[opt.value]}
+                    </span>
                   </ChoiceButton>
                 );
               })}
@@ -1150,8 +1208,8 @@ export function MiniMaxH3StudioApp() {
                   className="studio-aspect-frame"
                   style={{ inlineSize: 19, blockSize: 15, borderRadius: 2 }}
                 />
-                <span style={{ fontSize: 12, fontWeight: 600 }}>自定义</span>
-                <span style={{ fontSize: 10.5, opacity: 0.75 }}>自由宽高</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{t("Custom", "自定义")}</span>
+                <span style={{ fontSize: 10.5, opacity: 0.75 }}>{t("Freeform", "自由宽高")}</span>
               </ChoiceButton>
             </div>
           </div>
@@ -1164,7 +1222,7 @@ export function MiniMaxH3StudioApp() {
                   htmlFor={widthInputId}
                   style={{ fontSize: 12, fontWeight: 600, color: "var(--studio-text-secondary)" }}
                 >
-                  宽度 W (px)
+                  {t("Width W (px)", "宽度 W (px)")}
                 </label>
                 <InputNumber
                   id={widthInputId}
@@ -1185,12 +1243,12 @@ export function MiniMaxH3StudioApp() {
                 />
               </div>
 
-              <Tooltip title="互换宽度与高度">
+              <Tooltip title={t("Swap width & height", "互换宽度与高度")}>
                 <Button
                   htmlType="button"
                   icon={<SwapOutlined />}
                   onClick={handleSwapDimensions}
-                  aria-label="互换宽度与高度"
+                  aria-label={t("Swap width & height", "互换宽度与高度")}
                 />
               </Tooltip>
 
@@ -1199,7 +1257,7 @@ export function MiniMaxH3StudioApp() {
                   htmlFor={heightInputId}
                   style={{ fontSize: 12, fontWeight: 600, color: "var(--studio-text-secondary)" }}
                 >
-                  高度 H (px)
+                  {t("Height H (px)", "高度 H (px)")}
                 </label>
                 <InputNumber
                   id={heightInputId}
@@ -1225,7 +1283,7 @@ export function MiniMaxH3StudioApp() {
                   htmlFor={fpsInputId}
                   style={{ fontSize: 12, fontWeight: 600, color: "var(--studio-text-secondary)" }}
                 >
-                  帧率 (FPS)
+                  FPS
                 </label>
                 <InputNumber
                   id={fpsInputId}
@@ -1245,120 +1303,164 @@ export function MiniMaxH3StudioApp() {
               className="studio-tabular"
               style={{ fontSize: 12, paddingBlockEnd: 6 }}
             >
-              {snap32(params.width)} × {snap32(params.height)} px（{megapixels} MP · 32px 对齐）
+              {snap32(params.width)} × {snap32(params.height)} px ({megapixels} MP · {t("32px aligned", "32px 对齐")})
               {params.soundtrack_enabled
-                ? " · 音画同生固定 24 fps"
-                : " · 调整帧率会改变播放速度与成片时长，不进行插帧"}
+                ? t(" · Locked at 24 fps with synced audio", " · 音画同生固定 24 fps")
+                : t(" · Changing FPS alters playback speed rather than interpolating frames", " · 调整帧率会改变播放速度与成片时长，不进行插帧")}
             </Text>
           </div>
 
           <Text type="secondary" style={{ fontSize: 12 }}>
-            H3-Base 原生为 768p。手动宽高属于实验性画布尺寸，不执行高分辨率再生成或超分。
+            {t(
+              "H3-Base renders natively at 768p. Custom dimensions scale the sampling canvas directly without secondary upscaling.",
+              "H3-Base 原生为 768p。手动宽高属于实验性画布尺寸，不执行高分辨率再生成或超分。",
+            )}
           </Text>
 
           {/* Row 4: Video Duration Presets + Slider + 17k+5 Frame Grid Readout */}
-          <div
-            style={{
-              padding: "0.7rem 0.85rem",
-              borderRadius: "0.65rem",
-              background: "var(--studio-surface-subtle)",
-              border: "1px solid var(--studio-border)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.55rem",
-            }}
-          >
+          <Divider />
+          <div className="studio-field-group" style={{ gap: 12 }}>
             <div
               style={{
                 display: "flex",
                 flexWrap: "wrap",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: "6px 12px",
+                gap: "8px 12px",
               }}
             >
               <Space size={8} wrap>
                 <FieldLabel
-                  label="视频时长 (Duration)"
-                  tooltip={`MiniMax-H3 时间潜空间按 17k+5 帧网格对齐（原生 ${NATIVE_FPS}fps 甜点为 5~15 秒，即 124~362 帧）`}
+                  label={t("Duration", "视频时长 (Duration)")}
+                  tooltip={t(
+                    `MiniMax-H3 temporal latents align to a 17k+5 frame grid (sweet spot 5–15s at ${NATIVE_FPS}fps = 124–362 frames).`,
+                    `MiniMax-H3 时间潜空间按 17k+5 帧网格对齐（原生 ${NATIVE_FPS}fps 甜点为 5~15 秒，即 124~362 帧）`,
+                  )}
                 />
-                <Space size={4} wrap>
-                  {DURATION_PRESETS.map((preset) => {
-                    const isCurrent =
-                      params.frame_count === null &&
-                      Math.abs(params.duration_sec - preset.sec) < 0.05;
-                    return (
-                      <button
-                        key={preset.sec}
-                        type="button"
-                        className="studio-recipe-pill"
-                        data-active={isCurrent ? "true" : "false"}
-                        onClick={() =>
-                          setParams((prev) => ({
-                            ...prev,
-                            duration_sec: preset.sec,
-                            frame_count: null,
-                          }))
-                        }
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </Space>
+                <Segmented
+                  size="small"
+                  variant="tonal"
+                  aria-label={t("Duration presets", "视频时长预设")}
+                  value={matchedDurationPreset}
+                  onChange={(val) =>
+                    setParams((prev) => ({
+                      ...prev,
+                      duration_sec: Number(val),
+                      frame_count: null,
+                    }))
+                  }
+                  options={DURATION_PRESETS.map((preset) => ({
+                    label: isZh ? preset.label : `${preset.sec}s`,
+                    value: preset.sec,
+                  }))}
+                />
               </Space>
 
               <Space size={8} className="studio-tabular">
                 <Tag color="processing" style={{ marginInlineEnd: 0 }}>
-                  实际对齐：{alignedFrames} 帧 ≈ {actualDurationSec} 秒
+                  {t(`Aligned: ${alignedFrames} frames ≈ ${actualDurationSec}s`, `实际对齐：${alignedFrames} 帧 ≈ ${actualDurationSec} 秒`)}
                 </Tag>
               </Space>
             </div>
 
-            <Slider aria-label="视频时长" min={1} max={15} step={0.5} value={params.duration_sec}
-              onChange={(value) => setParams((previous) => ({ ...previous, duration_sec: value, frame_count: null }))} />
+            <Slider
+              aria-label={t("Video duration", "视频时长")}
+              min={1}
+              max={15}
+              step={0.5}
+              value={params.duration_sec}
+              onChange={(value) => setParams((previous) => ({ ...previous, duration_sec: value, frame_count: null }))}
+            />
           </div>
         </div>
       </Card>
 
-      <Card className="studio-card" title="生成设置" extra={<Space size={10}><span>极速模式</span><Switch checked={params.turbo_enabled} onChange={handleToggleTurbo} aria-label="极速模式" /></Space>}>
+      <Card
+        className="studio-card"
+        title={t("Generation Settings", "生成设置")}
+        extra={
+          <Switch
+            label={t("Turbo Mode", "极速模式")}
+            checked={params.turbo_enabled}
+            onChange={handleToggleTurbo}
+            aria-label={t("Turbo Mode", "极速模式")}
+          />
+        }
+      >
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div className="studio-settings-grid">
             <div className="studio-field-group">
-              <div className="studio-field-label"><span>步数</span><span className="studio-tabular">{params.steps} 步</span></div>
-              <Slider aria-label="生成步数" min={2} max={50} step={1} value={params.steps} onChange={(value) => updateParam("steps", value)} />
+              <div className="studio-field-label">
+                <span>{t("Steps", "步数")}</span>
+                <span className="studio-tabular">{t(`${params.steps} steps`, `${params.steps} 步`)}</span>
+              </div>
+              <Slider aria-label={t("Steps", "生成步数")} min={2} max={50} step={1} value={params.steps} onChange={(value) => updateParam("steps", value)} />
             </div>
             <div className="studio-field-group">
-              <div className="studio-field-label"><span>引导强度（CFG）</span><span className="studio-tabular">{params.cfg.toFixed(1)}</span></div>
-              <Slider aria-label="引导强度" min={1} max={8} step={0.1} value={params.cfg} onChange={(value) => updateParam("cfg", value)} />
+              <div className="studio-field-label">
+                <span>{t("Guidance (CFG)", "引导强度（CFG）")}</span>
+                <span className="studio-tabular">{params.cfg.toFixed(1)}</span>
+              </div>
+              <Slider aria-label={t("Guidance (CFG)", "引导强度")} min={1} max={8} step={0.1} value={params.cfg} onChange={(value) => updateParam("cfg", value)} />
             </div>
-            <SeedControl value={params.seed}
-              onChange={(value) => updateParam("seed", value)} onLockedChange={setSeedLocked} />
+            <div className="studio-field-group">
+              <label htmlFor={outputFormatId} className="studio-field-label">
+                <span>{t("Output Format", "输出格式")}</span>
+              </label>
+              <Select
+                id={outputFormatId}
+                aria-label={t("Output format", "输出格式")}
+                value={params.output_format}
+                onChange={(value) => {
+                  const format = value as VideoOutputFormat;
+                  setParams((previous) => ({
+                    ...previous,
+                    output_format: format,
+                    video_codec: format === "webm" && previous.video_codec === "h264" ? "av1" : previous.video_codec,
+                  }));
+                }}
+                options={[
+                  { label: "MP4", value: "mp4" },
+                  { label: "WebM", value: "webm" },
+                  { label: "MKV", value: "mkv" },
+                ]}
+              />
+            </div>
+            <SeedControl
+              value={params.seed}
+              onChange={(value) => updateParam("seed", value)}
+              onLockedChange={setSeedLocked}
+            />
           </div>
         </div>
       </Card>
 
-      <details className="studio-native-details">
-        <summary>风格模型（LoRA，可选）</summary>
-        <div className="studio-details-body"><LoraManagerPanel
+      <CollapsibleSection
+        className="studio-lora-accordion"
+        title={t("Style Models (LoRA, optional)", "风格模型（LoRA，可选）")}
+        subtitle={t("Mount style or camera motion LoRA weights on demand", "按需挂载风格或运镜增强权重")}
+        leading={<ExperimentOutlined />}
+        trailingBadge={activeLoraCount > 0 ? t(`${activeLoraCount} active`, `已启用 ${activeLoraCount} 个`) : undefined}
+      >
+        <LoraManagerPanel
           slots={params.loras}
           maxSlots={4}
           excludeIds={["fl2v_turbo_8step", "ref2v_turbo_4step"]}
           onChange={(nextSlots) => updateParam("loras", nextSlots)}
-        /></div>
-      </details>
+        />
+      </CollapsibleSection>
 
-      <GenerateDock format={params.output_format}
-        formats={[{ label: "MP4", value: "mp4" }, { label: "WebM", value: "webm" }, { label: "MKV", value: "mkv" }]}
-        onFormatChange={(value) => { const format = value as VideoOutputFormat; setParams((previous) => ({ ...previous,
-          output_format: format, video_codec: format === "webm" && previous.video_codec === "h264" ? "av1" : previous.video_codec })); }}
-        busy={isBusy} queued={activeTask?.status === "queued"} onCancel={() => void cancelActive()} onGenerate={() => void handleGenerate()} />
+      <GenerateButton
+        busy={isBusy}
+        queued={activeTask?.status === "queued"}
+        onCancel={() => void cancelActive()}
+        onGenerate={() => void handleGenerate()}
+      />
     </>
   );
 
   const rightPane = (
     <>
-      {/* Live GPU Task Progress Card */}
       {isBusy && activeTask && (
         <Card className="studio-card" size="small">
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1367,8 +1469,8 @@ export function MiniMaxH3StudioApp() {
                 <ExperimentOutlined style={{ color: "var(--studio-accent)" }} />
                 <Text strong style={{ fontSize: 13 }}>
                   {activeTask.status === "queued"
-                    ? `排队等待中（#${activeTask.queue_position || 1}）`
-                    : "正在渲染音画视频"}
+                    ? t(`Queued (#${activeTask.queue_position || 1})`, `排队等待中（#${activeTask.queue_position || 1}）`)
+                    : t("Rendering audio & video", "正在渲染音画视频")}
                 </Text>
               </Space>
               <Text strong className="studio-tabular" style={{ color: "var(--studio-accent)" }}>
@@ -1382,19 +1484,18 @@ export function MiniMaxH3StudioApp() {
               size="small"
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {activeTask.stage || "正在初始化扩散管线..."}
+              {activeTask.stage || t("Initializing diffusion pipeline...", "正在初始化扩散管线...")}
             </Text>
           </div>
         </Card>
       )}
 
-      {/* Primary Video Preview & A/B Reference Stage */}
       <Card
         className="studio-card"
         title={
           <Space size={8}>
             <VideoCameraOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>音画成片预览</span>
+            <span>{t("Generated Video Preview", "音画成片预览")}</span>
           </Space>
         }
         extra={
@@ -1405,48 +1506,33 @@ export function MiniMaxH3StudioApp() {
                 value={stageViewMode}
                 onChange={(val) => setStageViewMode(val as "video" | "reference")}
                 options={[
-                  { label: "成片视频", value: "video" },
-                  { label: "原参考图", value: "reference" },
+                  { label: t("Generated", "成片视频"), value: "video" },
+                  { label: t("Reference", "原参考图"), value: "reference" },
                 ]}
               />
             )}
             {displayedEntry?.result?.mock ? (
               <Tag color="warning" style={{ marginInlineEnd: 0 }}>
-                本地 Mock 预览
+                {t("Mock Preview", "本地 Mock 预览")}
               </Tag>
             ) : displayedEntry?.result ? (
               <Tag color="success" style={{ marginInlineEnd: 0 }}>
-                GPU 渲染
+                {t("GPU Render", "GPU 渲染")}
               </Tag>
             ) : null}
           </Space>
         }
       >
         {!displayedEntry || !stageVideoUrl ? (
-          <div
-            style={{
-              padding: "3rem 1.5rem",
-              textAlign: "center",
-              borderRadius: "0.7rem",
-              background: "var(--studio-surface-subtle)",
-              border: "1px dashed var(--studio-border-strong)",
-            }}
-          >
-            <VideoCameraOutlined style={{ fontSize: 36, color: "var(--m3e-color-outline)", marginBlockEnd: 10 }} />
-            <div
-              style={{
-                fontWeight: 600,
-                fontSize: 14.5,
-                color: "var(--studio-text)",
-                marginBlockEnd: 4,
-              }}
-            >
-              等待视频生成
-            </div>
-            <Text type="secondary" style={{ fontSize: 12.5 }}>
-              选择模式、画幅比例与时长后，点击生成或按 <code>⌘/Ctrl + Enter</code>。成片支持在线音画同步播放、原参考图一键切换对比与下载。
-            </Text>
-          </div>
+          <Empty
+            title={t("Ready to Generate Video", "等待视频生成")}
+            description={t(
+              "Choose a mode, aspect ratio, and duration, then click Generate for synced audio-video playback.",
+              "选择模式、画幅比例与时长后点击生成，支持音画同步播放与原参考图切换对比。",
+            )}
+            icon={<VideoCameraOutlined />}
+            shape="cookie9Sided"
+          />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
             <div
@@ -1459,7 +1545,7 @@ export function MiniMaxH3StudioApp() {
               {stageViewMode === "reference" && stageRefImageUrl ? (
                 <img
                   src={stageRefImageUrl}
-                  alt="原始参考画面"
+                  alt={t("Reference Frame", "原始参考画面")}
                   width={displayedEntry.result.width}
                   height={displayedEntry.result.height}
                   style={{
@@ -1483,7 +1569,6 @@ export function MiniMaxH3StudioApp() {
               )}
             </div>
 
-            {/* Action Bar under Player */}
             <div
               style={{
                 display: "flex",
@@ -1503,8 +1588,8 @@ export function MiniMaxH3StudioApp() {
                   href={stageDownloadUrl}
                   download={displayedEntry.result.filename}
                 >
-                  下载 {displayedEntry.result.format.toUpperCase()}（
-                  {(displayedEntry.result.size_bytes / (1024 * 1024)).toFixed(2)} MB）
+                  {t("Download", "下载")} {displayedEntry.result.format.toUpperCase()} (
+                  {(displayedEntry.result.size_bytes / (1024 * 1024)).toFixed(2)} MB)
                 </Button>
 
                 <Button
@@ -1522,10 +1607,10 @@ export function MiniMaxH3StudioApp() {
                       ...prev.slice(0, 1),
                     ]);
                     handleModeSwitch("r2v");
-                    message.success("已将该成片挂载为多模态参考视频 <Video 1>");
+                    message.success(t("Mounted output video as <Video 1> reference", "已将该成片挂载为多模态参考视频 <Video 1>"));
                   }}
                 >
-                  设为参考视频 &lt;Video 1&gt;
+                  {t("Use as <Video 1>", "设为参考视频 <Video 1>")}
                 </Button>
               </Space>
 
@@ -1536,10 +1621,10 @@ export function MiniMaxH3StudioApp() {
                 onClick={() => {
                   setSeedLocked(true);
                   updateParam("seed", displayedEntry.result.used_seed);
-                  message.success(`已锁定种子：${displayedEntry.result.used_seed}`);
+                  message.success(t(`Locked seed: ${displayedEntry.result.used_seed}`, `已锁定种子：${displayedEntry.result.used_seed}`));
                 }}
               >
-                使用此种子
+                {t("Use this seed", "使用此种子")}
               </Button>
             </div>
 
@@ -1547,19 +1632,7 @@ export function MiniMaxH3StudioApp() {
               <Alert key={idx} type="info" showIcon icon={<InfoCircleOutlined />} message={w} />
             ))}
 
-            {/* Metadata Tags */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: "0.4rem",
-                padding: "0.6rem 0.75rem",
-                borderRadius: "0.6rem",
-                background: "var(--studio-surface-subtle)",
-                border: "1px solid var(--studio-border)",
-              }}
-            >
+            <div className="studio-meta-bar">
               <Tag color="processing" style={{ marginInlineEnd: 0 }}>
                 {displayedEntry.result.model_variant}
               </Tag>
@@ -1567,17 +1640,17 @@ export function MiniMaxH3StudioApp() {
                 {displayedEntry.result.width}×{displayedEntry.result.height}
               </Tag>
               <Tag className="studio-tabular" style={{ marginInlineEnd: 0 }}>
-                {displayedEntry.result.frame_count} 帧 · {displayedEntry.result.duration_sec}s @{" "}
+                {displayedEntry.result.frame_count} {t("frames", "帧")} · {displayedEntry.result.duration_sec}s @{" "}
                 {displayedEntry.result.fps}fps
               </Tag>
               <Tag
                 color={displayedEntry.result.has_audio ? "success" : "default"}
                 style={{ marginInlineEnd: 0 }}
               >
-                {displayedEntry.result.has_audio ? "32kHz 立体声音轨" : "静音画面"}
+                {displayedEntry.result.has_audio ? t("32kHz Stereo Audio", "32kHz 立体声音轨") : t("Muted", "静音画面")}
               </Tag>
               <Tag className="studio-tabular" style={{ marginInlineEnd: 0 }}>
-                {displayedEntry.result.steps} 步 · CFG {displayedEntry.result.cfg}
+                {t(`${displayedEntry.result.steps} steps`, `${displayedEntry.result.steps} 步`)} · CFG {displayedEntry.result.cfg}
               </Tag>
               {displayedEntry.result.active_loras?.map((l) => (
                 <Tag key={l.filename} color="blue" style={{ marginInlineEnd: 0 }}>
@@ -1589,28 +1662,27 @@ export function MiniMaxH3StudioApp() {
         )}
       </Card>
 
-      {/* Session Video History List */}
       <Card
         className="studio-card"
         title={
           <Space size={8}>
             <HistoryOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>本次会话历史（{historyItems.length}）</span>
+            <span>{t(`Session History (${historyItems.length})`, `本次会话历史（${historyItems.length}）`)}</span>
           </Space>
         }
         extra={
           historyItems.length > 0 && (
             <Popconfirm
-              title="清空本地会话视频记录？"
-              okText="清空"
-              cancelText="取消"
+              title={t("Clear session video history?", "清空本地会话视频记录？")}
+              okText={t("Clear", "清空")}
+              cancelText={t("Cancel", "取消")}
               onConfirm={() => {
                 clearAll();
                 setSelectedTakeId(null);
               }}
             >
               <Button htmlType="button" size="small" type="text" danger icon={<DeleteOutlined />}>
-                清空
+                {t("Clear", "清空")}
               </Button>
             </Popconfirm>
           )
@@ -1618,24 +1690,23 @@ export function MiniMaxH3StudioApp() {
       >
         {historyItems.length === 0 ? (
           <Text type="secondary" style={{ fontSize: 12.5 }}>
-            当前会话生成的音画视频会自动记录在此，点击可切换播放或一键回填全部参数。
+            {t(
+              "Videos created in this session appear here so you can switch previews or restore settings.",
+              "当前会话生成的音画视频会自动记录在此，点击可切换播放或一键回填全部参数。",
+            )}
           </Text>
         ) : (
-          <div className="studio-scroll-panel">
-            <div className="studio-video-history-list">
+          <ScrollArea maxHeight={420}>
+            <div className="studio-video-history-list" style={{ paddingInlineEnd: 8 }}>
               {historyItems.map((item) => {
                 const isSelected = displayedEntry?.id === item.id;
                 const videoSrc = resolveApiUrl(item.result.video_url, true);
-                const promptTitle = item.params.prompt || "MiniMax-H3 音画视频";
+                const promptTitle = item.params.prompt || t("MiniMax-H3 Video", "MiniMax-H3 音画视频");
                 return (
                   <div
                     key={item.id}
                     className="studio-video-history-card"
                     data-active={isSelected ? "true" : "false"}
-                    onClick={() => {
-                      setSelectedTakeId(item.id);
-                      setStageViewMode("video");
-                    }}
                   >
                     <video
                       src={videoSrc}
@@ -1652,7 +1723,6 @@ export function MiniMaxH3StudioApp() {
                         borderRadius: 6,
                         background: "var(--m3e-color-on-surface)",
                       }}
-                      onClick={(e) => e.stopPropagation()}
                     />
 
                     <div
@@ -1664,19 +1734,29 @@ export function MiniMaxH3StudioApp() {
                         minInlineSize: 0,
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          color: "var(--studio-text)",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
+                      <button
+                        type="button"
+                        className="studio-video-history-select"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setSelectedTakeId(item.id);
+                          setStageViewMode("video");
                         }}
                       >
-                        {promptTitle}
-                      </div>
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            color: "var(--studio-text)",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {promptTitle}
+                        </div>
+                      </button>
 
                       <div
                         style={{
@@ -1700,8 +1780,7 @@ export function MiniMaxH3StudioApp() {
                           size="small"
                           type="link"
                           style={{ padding: 0, blockSize: "auto", fontSize: 12 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             setParams({
                               ...DEFAULT_MINIMAX_H3_PARAMS,
                               ...buildVideoStudioRequest(item.params),
@@ -1733,10 +1812,10 @@ export function MiniMaxH3StudioApp() {
                                 fileRef: a,
                               }))
                             );
-                            message.info("已恢复常用生成设置");
+                            message.info(t("Restored settings from history", "已恢复常用生成设置"));
                           }}
                         >
-                          再次使用
+                          {t("Reuse", "再次使用")}
                         </Button>
                       </div>
                     </div>
@@ -1744,7 +1823,7 @@ export function MiniMaxH3StudioApp() {
                 );
               })}
             </div>
-          </div>
+          </ScrollArea>
         )}
       </Card>
     </>
@@ -1754,7 +1833,10 @@ export function MiniMaxH3StudioApp() {
     <StudioShell
       brandBadge="H3"
       defaultTitle="MiniMax-H3"
-      defaultSubtitle="文生视频 · 首尾帧 · 多模态参考"
+      defaultSubtitle={t(
+        "Text to Video · First/Last Frame · Multimodal Reference",
+        "文生视频 · 首尾帧 · 多模态参考",
+      )}
       apiEndpointPath="/api/v1/generate"
       mediaKind="video"
       sampleRequestBody={sampleRequestBody}

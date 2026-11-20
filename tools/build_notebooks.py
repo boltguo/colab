@@ -9,8 +9,8 @@ CLOUDFLARED = tpl["cloudflared"]
 HELPERS = tpl["helpers"]
 RELEASE_MANIFEST = json.loads((ROOT / "tools/release_manifest.json").read_text(encoding="utf-8"))
 
-REQ80 = "80GB 级显存（A100 80GB / H100 80GB / RTX 6000 96GB）"
-REQ40 = "40GB 及以上显存（A100 40GB / 80GB、H100 80GB、RTX 6000 96GB）"
+REQ80 = "80GB-class VRAM (A100 80GB / H100 80GB / RTX 6000 96GB)"
+REQ40 = "40GB+ VRAM (A100 40GB/80GB, H100 80GB, RTX 6000 96GB)"
 
 MD1 = """### 1. 环境检测
 - **功能**：检测 GPU 型号、显存容量、BF16 支持、系统内存、磁盘空间及 PyTorch / CUDA 版本。
@@ -39,12 +39,12 @@ MD3_VLLM = """### 3. 下载 Qwen3.8-27B 模型
 - **使用**：直接运行，输出 `[OK]` 后继续。"""
 MD4_APP = """### 4. 启动现代 Web 工作台与 API 服务
 - **功能**：启动 FastAPI 服务（`127.0.0.1:8188`，同时承载 `/` 现代前端工作台、`/api/v1/*` 业务接口与 `/docs` OpenAPI 文档），并挂载 Cloudflare Tunnel。
-- **隧道选择**：`TUNNEL_MODE` 默认选择 `Quick Tunnel (临时链接)`（免费公网临时域名，实例关闭即失效）；也可切换为 `自有 Tunnel`，从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
+- **隧道选择**：`TUNNEL_MODE` 默认选择 `Quick Tunnel (ephemeral)`（免费公网临时域名，实例关闭即失效）；也可切换为 `Custom Tunnel (CF_TUNNEL_TOKEN)`，从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
 - **访问密码**：在下方 `ACCESS_PASSWORD` 填写应用访问密码，或在 Secrets 配置同名项。API 默认免鉴权；需要鉴权时，登录网页并在右上角「API Key」中单独设置密钥。共享笔记本时建议使用 Secrets。
 - **使用**：直接运行，点击输出的公网链接即可在网页操作或直接复制对应链接调用 API。"""
 MD4_VLLM = """### 4. 启动现代多模态 Web 工作台与 OpenAI / Claude Code API 服务
 - **功能**：后台启动内部 `vllm serve`（`127.0.0.1:8189`，`262144` 上下文，MTP 投机采样）与对外 FastAPI 网关（`127.0.0.1:8188`，同时承载 `/` 多模态对话工作台、OpenAI `/v1/chat/completions`、Anthropic `/v1/messages` 与 `/docs`）。
-- **隧道选择**：`TUNNEL_MODE` 默认选择 `Quick Tunnel (临时链接)`（免费公网临时域名，实例关闭即失效）；也可切换为 `自有 Tunnel`，从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
+- **隧道选择**：`TUNNEL_MODE` 默认选择 `Quick Tunnel (ephemeral)`（免费公网临时域名，实例关闭即失效）；也可切换为 `Custom Tunnel (CF_TUNNEL_TOKEN)`，从 Colab 左侧 **🔑 Secrets** 读取 `CF_TUNNEL_TOKEN` 挂载固定域名。
 - **访问密码**：在下方 `ACCESS_PASSWORD` 填写应用访问密码，或在 Secrets 配置同名项。OpenAI / Claude Code 接口默认免鉴权；需要鉴权时，在网页右上角「API Key」中单独设置密钥。共享笔记本时建议使用 Secrets。
 - **使用**：直接运行，点击公网链接打开网页对话，或复制输出的环境变量直连 Claude Code / OpenAI SDK。"""
 
@@ -72,6 +72,7 @@ TURBO = ("TURBO", "lightx2v/Minimax-h3-Turbo", "30f485ed874aa44c8183348ad361c5ea
 QWEN = ("QWEN", "Comfy-Org/Qwen-Image-2.1", "cb504a4090723e43f17ad01cec0359490e2de613", "")
 SEEDVR2 = ("SEEDVR2", "Comfy-Org/SeedVR2", "df48879708206a403d2a61acd55578c2e80fd233", "")
 INDEXTTS = ("INDEXTTS", "IndexTeam/IndexTTS-2.5", "c39ce5ba981572cb187443877ff559dfb246ce63", "")
+VIGGLE_REMAKE = ("VIGGLE_REMAKE", "Viggle/Viggle-Remake", "7e5be143702dd53b9154482de673b8519ed2d4d6", "diffusion_models")
 
 STEP3 = {
     "minimax-h3": dict(models=" MiniMax H3 FL2VA / Ref2VA 音画同生主模型、Qwen3-VL-32B 编码器、双模态 VAE 与官方 8/4 步 Turbo LoRA", files=[
@@ -105,9 +106,18 @@ STEP3 = {
             ("qwen0.6bemo4-merge/tokenizer.json", 11422654), ("qwen0.6bemo4-merge/tokenizer_config.json", 5433),
             ("qwen0.6bemo4-merge/vocab.json", 2776833),
         ]]),
+    "h3-character-swap": dict(
+        models=" Viggle Remake Swap (`int8_convrot`), `Qwen3-VL-32B-INT8`, `H3 Video VAE` & `H3 Audio VAE`（基于 MiniMax-H3 FL2VA，支持人物替换与多人物替换）",
+        files=[
+            (VIGGLE_REMAKE, "int8/viggle_remake_swap_pruned_int8_convrot.safetensors", 20970379616),
+            (H3, "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors", 27141342152),
+            (H3, "vae/minimax_h3_video_vae_fp16.safetensors", 5207808496),
+            (H3, "vae/minimax_h3_audio_vae_fp32.safetensors", 605254808),
+        ],
+    ),
 }
 
-def step3_comfy_app(key, md_template=MD3_COMFY_APP):
+def step3_comfy_app(key, md_template=MD3_COMFY_APP, english_units=False):
     c = STEP3[key]
     sources = []
     for source, *_ in c["files"]:
@@ -118,18 +128,21 @@ def step3_comfy_app(key, md_template=MD3_COMFY_APP):
         MODEL_SOURCES="".join(f'{name} = ({json.dumps(repo)}, {json.dumps(rev)}, {json.dumps(folder)})\n' for name, repo, rev, folder in sources),
         MODEL_FILES="".join(f'    (*{s[0]}, {json.dumps(f)}, {size}),\n' for s, f, size in c["files"]),
         POST_DOWNLOAD=c.get("post", ""))
-    md = md_template.format(models=f"{c['models']}（约 {total / 1024**3:.1f} GB）", model_dir=c.get("model_dir", "/content/ComfyUI/models"))
+    size_note = f" ({total / 1024**3:.1f} GiB)" if english_units else f"（约 {total / 1024**3:.1f} GB）"
+    md = md_template.format(models=f"{c['models']}{size_note}", model_dir=c.get("model_dir", "/content/ComfyUI/models"))
     return text, md
 
-def step1(vram, req, extra=""):
-    return fill(tpl["step1"], MIN_VRAM_GIB=str(vram), REQUIREMENT=req, EXTRA=extra)
+def step1(vram, req, extra="", template_name="step1"):
+    return fill(tpl[template_name], MIN_VRAM_GIB=str(vram), REQUIREMENT=req, EXTRA=extra)
 
 def save(path, nb):
     nb["metadata"] = METADATA(Path(path).name)
     nb["nbformat"], nb["nbformat_minor"] = 4, 5
-    Path(path).write_text(json.dumps(nb, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(nb, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-ACCESS_LINE = "- **访问方式**：默认使用 Cloudflare Quick Tunnel 临时公网域名（用完即关）；亦可在第 4 步切换「自有 Tunnel」从 Colab Secrets 读取 `CF_TUNNEL_TOKEN` 挂载固定域名"
+ACCESS_LINE = "- **访问方式**：默认使用 Cloudflare `Quick Tunnel (ephemeral)` 临时公网域名（用完即关）；亦可在第 4 步切换 `Custom Tunnel (CF_TUNNEL_TOKEN)` 从 Colab Secrets 读取 `CF_TUNNEL_TOKEN` 挂载固定域名"
 
 # 1. SeedVR2 (Headless ComfyUI Worker + Modern Light Web Studio + Video/Image 4K Super-Resolution Full-Param API)
 seed_path = "notebooks/seedvr2/SeedVR2.ipynb"
@@ -162,6 +175,7 @@ set_source(seed_cells[4], fill(tpl["step2_comfy_app"],
     RELEASE_TAG=RELEASE_MANIFEST["release_tag"],
     APP_ARCHIVE=seed_rel["archive"],
     APP_SHA256=seed_rel["sha256"],
+    BUNDLED_NODES_REL="",
     NODE_CONSTANTS="",
     EXTRA_PACKAGES='["av>=19.0.1"]',
     NODE_INSTALL='REQUIREMENT_FILES = [COMFY_DIR / "requirements.txt"]\n',
@@ -172,6 +186,7 @@ set_source(seed_cells[6], seed_code3, True)
 set_source(seed_cells[7], MD4_APP, False)
 set_source(seed_cells[8], fill(tpl["step4_comfy_app"],
     FEATURE_NAME="seedvr2",
+    BUNDLED_NODES_REL="",
     LAUNCH_ARGS="",
     REQUIRED_NODES='{"SeedVR2Preprocess", "SeedVR2PostProcessing", "SeedVR2Conditioning", "SeedVR2TemporalChunk", "SeedVR2TemporalMerge", "ResizeImageMaskNode", "SaveVideo"}',
     HELPERS=HELPERS,
@@ -221,6 +236,7 @@ set_source(h3_cells[4], fill(tpl["step2_comfy_app"],
     RELEASE_TAG=RELEASE_MANIFEST["release_tag"],
     APP_ARCHIVE=h3_rel["archive"],
     APP_SHA256=h3_rel["sha256"],
+    BUNDLED_NODES_REL="",
     NODE_CONSTANTS="",
     EXTRA_PACKAGES='["av>=19.0.1"]',
     NODE_INSTALL='REQUIREMENT_FILES = [COMFY_DIR / "requirements.txt"]\n',
@@ -231,13 +247,14 @@ set_source(h3_cells[6], h3_code3, True)
 set_source(h3_cells[7], MD4_APP, False)
 set_source(h3_cells[8], fill(tpl["step4_comfy_app"],
     FEATURE_NAME="minimax-h3",
+    BUNDLED_NODES_REL="",
     LAUNCH_ARGS='    "--vram-headroom", "4",\n    "--use-pytorch-cross-attention",\n',
     REQUIRED_NODES='{"MiniMaxH3ImageToVideo", "MiniMaxH3ReferenceToVideo", "MiniMaxH3AddGuide", "MiniMaxH3SigmaShift", "VAEDecodeAudio", "CreateVideo", "SaveVideo"}',
     HELPERS=HELPERS,
     LAUNCHER_SOURCE="\n" + tpl["comfy_launcher"],
     SAMPLE_REQUEST_JSON=repr({
         "mode": "t2v",
-        "prompt": "清晨阳光洒在海面，海浪轻拍礁石，远处海鸥鸣叫，电影级推镜头，自然立体声海浪音效",
+        "prompt": "Sunlight shimmers over morning ocean waves hitting coastal rocks while distant seagulls call, smooth cinematic push-in shot, natural stereo ocean audio",
         "resolution_tier": "768p",
         "aspect_ratio": "16:9",
         "duration_sec": 5.0,
@@ -276,7 +293,7 @@ set_source(
     step1(
         35,
         REQ40,
-        'if vram_gib < 70:\n    print("[提示] 当前为 40GB 级显卡；进行 2K 多图编辑时建议保持工作台默认 KV 缓存 CPU 预取，或开启 UNet FP8 省显存模式。")\n',
+        'if vram_gib < 70:\n    print("[Note] <70 GiB VRAM detected (40GB tier): keep default KV cache CPU prefetch enabled or use UNet FP8 for 2K multi-image edits.")\n',
     ),
     True,
 )
@@ -286,6 +303,7 @@ set_source(qwen_img_cells[4], fill(tpl["step2_comfy_app"],
     RELEASE_TAG=RELEASE_MANIFEST["release_tag"],
     APP_ARCHIVE=qwen_img_rel["archive"],
     APP_SHA256=qwen_img_rel["sha256"],
+    BUNDLED_NODES_REL="",
     NODE_CONSTANTS="",
     EXTRA_PACKAGES="[]",
     NODE_INSTALL='REQUIREMENT_FILES = [COMFY_DIR / "requirements.txt"]\n',
@@ -296,13 +314,14 @@ set_source(qwen_img_cells[6], qwen_code3, True)
 set_source(qwen_img_cells[7], MD4_APP, False)
 set_source(qwen_img_cells[8], fill(tpl["step4_comfy_app"],
     FEATURE_NAME="qwen-image-2.1",
+    BUNDLED_NODES_REL="",
     LAUNCH_ARGS="",
     REQUIRED_NODES='{"TextEncodeQwenImage21", "QwenImage21Cache", "JoinImageWithAlpha", "LoraLoaderModelOnly"}',
     HELPERS=HELPERS,
     LAUNCHER_SOURCE="\n" + tpl["comfy_launcher"],
     SAMPLE_REQUEST_JSON=repr({
         "mode": "t2i",
-        "prompt": "一只橘猫坐在窗边，清晨自然光，细腻真实摄影",
+        "prompt": "An orange tabby cat sitting by a sunny window in soft morning light, photorealistic photography",
         "resolution_tier": "2K",
         "aspect_ratio": "1:1",
         "steps": 40,
@@ -363,7 +382,7 @@ nb = json.loads(Path(path).read_text(encoding="utf-8"))
 cells = nb["cells"]
 qwen38_rel = RELEASE_MANIFEST["apps"]["qwen3.8-27b"]
 set_source(cells[1], MD1.format(req="支持 `A100`、`H100`、`RTX 6000`，显存 40GB 及以上。"), False)
-set_source(cells[2], step1(35, REQ40, 'if vram_gib < 70:\n    print("[提示] 40GB 级显卡，第 3 步将自动选择 Qwen3.8-27B-FP8 模型。")\n'), True)
+set_source(cells[2], step1(35, REQ40, 'if vram_gib < 70:\n    print("[Note] 40GB-class GPU detected: Step 3 will automatically select Qwen3.8-27B-FP8.")\n'), True)
 set_source(cells[0], f"""# Qwen3.8-27B（现代多模态 Web 工作台 + OpenAI & Claude Code API）
 
 - **支持显卡**：A100 (40GB / 80GB)、H100 (80GB)、RTX 6000 (96GB)
@@ -393,3 +412,101 @@ set_source(cells[7], MD4_VLLM, False)
 set_source(cells[8], fill(tpl["step4_vllm"], HELPERS=HELPERS), True)
 save(path, nb)
 print("updated", path)
+
+# 6. H3 Character Swap (Bilingual EN-primary + CN notes · Viggle Remake Swap on MiniMax-H3 FL2VA)
+def _make_bilingual_swap_skeleton():
+    return {
+        "cells": [
+            {"cell_type": "markdown", "id": "h3-swap-md0", "metadata": {"id": "h3-swap-md0"}, "source": []},
+            {"cell_type": "markdown", "id": "h3-swap-md1", "metadata": {"id": "h3-swap-md1"}, "source": []},
+            {"cell_type": "code", "execution_count": None, "id": "h3-swap-1", "metadata": {"id": "h3-swap-1", "cellView": "form"}, "outputs": [], "source": []},
+            {"cell_type": "markdown", "id": "h3-swap-md2", "metadata": {"id": "h3-swap-md2"}, "source": []},
+            {"cell_type": "code", "execution_count": None, "id": "h3-swap-2", "metadata": {"id": "h3-swap-2", "cellView": "form"}, "outputs": [], "source": []},
+            {"cell_type": "markdown", "id": "h3-swap-md3", "metadata": {"id": "h3-swap-md3"}, "source": []},
+            {"cell_type": "code", "execution_count": None, "id": "h3-swap-3", "metadata": {"id": "h3-swap-3", "cellView": "form"}, "outputs": [], "source": []},
+            {"cell_type": "markdown", "id": "h3-swap-md4", "metadata": {"id": "h3-swap-md4"}, "source": []},
+            {"cell_type": "code", "execution_count": None, "id": "h3-swap-4", "metadata": {"id": "h3-swap-4", "cellView": "form"}, "outputs": [], "source": []},
+        ],
+        "metadata": METADATA("H3_Character_Swap.ipynb"),
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+
+swap_path = "notebooks/h3-character-swap/H3_Character_Swap.ipynb"
+swap_nb = json.loads(Path(swap_path).read_text(encoding="utf-8")) if Path(swap_path).is_file() else _make_bilingual_swap_skeleton()
+swap_cells = swap_nb["cells"]
+swap_rel = RELEASE_MANIFEST["apps"]["h3-character-swap"]
+swap_md3_tpl = """### 3. Download & Verify Model Weights · 下载并校验模型权重
+- **What this does**: Downloads pinned weights{models} into `{model_dir}` using high-speed `hf_xet` transfers and exact byte-size checks.
+- **中文说明**：使用 `hf_xet` 高速下载并精确校验 Viggle Remake Swap (`int8_convrot`)、`Qwen3-VL-32B-INT8` 与双模态 VAE（共约 50.2 GiB，无需额外 Face/SAM 模型）。
+- **Run**: Execute once; existing verified files are reused automatically."""
+swap_code3, swap_md3 = step3_comfy_app("h3-character-swap", md_template=swap_md3_tpl, english_units=True)
+
+set_source(swap_cells[0], f"""# H3 Character Swap (Character & Multi-Person Video Replacement Studio + API)
+
+> Bilingual Colab Launcher (**English-primary** with Chinese quick notes · 主英文说明，关键参数附中文注释)
+
+- **Recommended GPUs / 显存要求**: `A100 80GB` / `H100 80GB` / `RTX 6000 96GB` for `736p` & full-speed inference; `A100 40GB` is also supported at `480p` (`832×480`, recommended `5s` clips first).
+- **Powered by Viggle Remake Swap (`MiniMax-H3 FL2VA INT8 ConvRot`)**: Replaces a character or multiple people in a source performance video (`<Video 1>`) with target character reference images (`<Picture 1..N>`) in a single **6-step** diffusion pass — preserving original motion, camera movement, lighting, and soundtrack without fragile external face-swap or mask cutouts.
+- **关键能力说明（人物替换与多人物替换）**：同一页面支持 **人物替换** 与 **多人物替换**（UI 支持 1–4 位角色、API 支持最多 9 位），支持可选关键帧锚点引导（`Anchor Guide`）与超过单窗长度的视频 18 帧历史无缝接续，并保留原视频音轨。
+- **Public Access / 公网访问**: Uses Cloudflare **Quick Tunnel** by default (temporary URL, expires when the runtime stops), or select **Custom Tunnel** in Step 4 with Colab Secret `CF_TUNNEL_TOKEN` for a fixed domain.
+- **Execution Order / 执行顺序**: `1. Environment Check` → `2. Install Engine & App Bundle` → `3. Download Model Weights` → `4. Launch Web Studio & API`
+
+| Endpoint | Purpose / 说明 |
+| --- | --- |
+| `GET /` | Web Studio workbench (Character Swap & Multi-Person Swap, A/B wipe video compare, session history / Web 操作台) |
+| `POST /api/v1/files` | Upload source performance video (`MP4/WebM/MOV/MKV`) and character reference images (`PNG/JPG/WebP`) |
+| `POST /api/v1/generate` | Submit async character swap job (returns `task_id`, track via `WS /api/v1/tasks/{{task_id}}/ws`) |
+| `GET /docs` | Interactive OpenAPI / Swagger documentation |
+""", False)
+set_source(swap_cells[1], """### 1. Environment Check · 环境检测
+- **What this does**: Verifies CUDA GPU model, VRAM, BF16 support, system RAM, and free disk space under `/content`.
+- **中文说明**：检测 GPU 型号（推荐 `A100 80GB` / `H100` / `RTX 6000`，亦兼容 `40GB A100` 运行 `480p`）、可用磁盘空间与 BF16 支持。
+- **Run**: Execute cell and wait for `[OK]`.""", False)
+set_source(swap_cells[2], step1(
+    35,
+    "40GB+ VRAM (A100 40GB/80GB, H100 80GB, RTX 6000 96GB)",
+    'if vram_gib < 70:\n    print("[Note] <70 GiB VRAM detected (40GB tier): use 480p resolution and start with 5s test clips first.")\n',
+    template_name="step1",
+), True)
+set_source(swap_cells[3], f"""### 2. Install Inference Engine & App Bundle · 安装推理引擎与应用包
+- **What this does**: Checks out pinned ComfyUI (`v0.43.2`), installs `av>=19.0.1` + FastAPI deps + `cloudflared` (`2026.10.6`), verifies & extracts `{swap_rel["archive"]}` (`{RELEASE_MANIFEST["release_tag"]}`), and syncs the bundled `ComfyUI-Viggle-Remake` nodes.
+- **中文说明**：安装固定版本内部无头 ComfyUI 引擎、拉取校验 Release 前端与后端应用包，并自动同步内置 `ComfyUI-Viggle-Remake` 算子节点包。
+- **Run**: Execute cell and wait for `[OK]`.""", False)
+set_source(swap_cells[4], fill(tpl["step2_comfy_app"],
+    RELEASE_REPO=RELEASE_MANIFEST["repo"],
+    RELEASE_TAG=RELEASE_MANIFEST["release_tag"],
+    APP_ARCHIVE=swap_rel["archive"],
+    APP_SHA256=swap_rel["sha256"],
+    BUNDLED_NODES_REL="backend/features/h3_character_swap/comfy_nodes",
+    NODE_CONSTANTS="",
+    EXTRA_PACKAGES='["av>=19.0.1"]',
+    NODE_INSTALL='REQUIREMENT_FILES = [COMFY_DIR / "requirements.txt"]\n',
+    CLOUDFLARED=CLOUDFLARED,
+    NODE_SUMMARY=" + Viggle-Remake"), True)
+set_source(swap_cells[5], swap_md3, False)
+set_source(swap_cells[6], swap_code3, True)
+set_source(swap_cells[7], """### 4. Launch Web Studio & API Service · 启动工作台与 API 服务
+- **What this does**: Starts internal ComfyUI on `127.0.0.1:8189` (whitelisting `ComfyUI-Viggle-Remake`), launches FastAPI + SPA on `127.0.0.1:8188`, and exposes it over Cloudflare Tunnel.
+- **Security & Tunnel / 访问与隧道**：
+  - `ACCESS_PASSWORD`: **Required** password protecting the Web UI (can also be stored in Colab Secrets as `ACCESS_PASSWORD` / 必填网页访问密码，亦可存放在 Secrets)。
+  - `TUNNEL_MODE`: Defaults to **Quick Tunnel (ephemeral)**; switch to **Custom Tunnel (CF_TUNNEL_TOKEN)** and set `CF_TUNNEL_TOKEN` in Colab Secrets for a permanent domain.
+  - External API calls remain open by default until you configure an optional Bearer API Key inside the Web Studio header.
+- **Run**: Set `ACCESS_PASSWORD` below and execute.""", False)
+set_source(swap_cells[8], fill(tpl["step4_comfy_app"],
+    FEATURE_NAME="h3-character-swap",
+    BUNDLED_NODES_REL="backend/features/h3_character_swap/comfy_nodes",
+    LAUNCH_ARGS='    "--vram-headroom", "4",\n    "--use-pytorch-cross-attention",\n    "--whitelist-custom-nodes", "ComfyUI-Viggle-Remake",\n',
+    REQUIRED_NODES='{"UNETLoader", "CLIPLoader", "VAELoader", "LoadVideo", "GetVideoComponents", "H3RemakeConditioning", "H3RemakeKeyframeUntil", "H3RemakeNoise", "H3RemakeHistory", "MiniMaxH3AddGuide", "KSamplerSelect", "ManualSigmas", "SamplerCustomAdvanced", "LTXVSeparateAVLatent", "VAEDecode", "VAEDecodeAudio", "CreateVideo", "SaveVideo"}',
+    HELPERS=HELPERS,
+    LAUNCHER_SOURCE="\n" + tpl["comfy_launcher"],
+    SAMPLE_REQUEST_JSON=repr({
+        "mode": "single",
+        "source_video": "<UPLOADED_VIDEO_ID>",
+        "characters": [{"image": "<UPLOADED_CHARACTER_IMAGE_ID>"}],
+        "resolution_tier": "480p",
+        "duration_sec": 5.0,
+        "keep_audio": True,
+    })), True)
+save(swap_path, swap_nb)
+print("updated", swap_path)

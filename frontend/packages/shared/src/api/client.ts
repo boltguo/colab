@@ -77,7 +77,7 @@ async function parseJsonOrThrow<T>(resp: Response): Promise<T> {
     window.location.assign("/auth/login");
   }
   if (!resp.ok) {
-    let detail = `请求失败 (HTTP ${resp.status})`;
+    let detail = `Request failed (HTTP ${resp.status})`;
     try {
       const data = await resp.json();
       if (typeof data?.detail === "string") {

@@ -11,7 +11,7 @@ def add_workflow_aliases(manager, routes):
                  if getattr(route, "path", None) == "/userdata/{file}"
                  and getattr(route, "method", None) in {"GET", "POST", "DELETE"}]
     if {route.method for route in originals} != {"GET", "POST", "DELETE"}:
-        raise RuntimeError("ComfyUI 工作流访问接口已变化，未安装兼容路由。")
+        raise RuntimeError("ComfyUI userdata routes changed; workflow compatibility aliases not installed.")
     for route in originals:
         async def workflow_alias(request, handler=route.handler):
             file = request.match_info.get("file", "")
@@ -76,7 +76,7 @@ def install_cf_middleware():
 def main():
     comfy_root = Path("/content/ComfyUI")
     if comfy_root.is_symlink() or not (comfy_root / "main.py").is_file() or not (comfy_root / "comfy/options.py").is_file():
-        raise RuntimeError("ComfyUI 源码目录缺失或无效。")
+        raise RuntimeError("Missing or invalid ComfyUI directory.")
     os.chdir(comfy_root)
     sys.path.insert(0, str(comfy_root))
     sys.argv[0] = str(comfy_root / "main.py")

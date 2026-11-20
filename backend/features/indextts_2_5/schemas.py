@@ -67,7 +67,7 @@ class IndexTTSGenerateRequest(BaseModel):
     )
     speaker_audio: str = Field(
         default="preset:ref_audio",
-        description="说话人参考音频：传 POST /api/v1/files 返回的 file_id，或内置示例 'preset:ref_audio'",
+        description="说话人参考音频：传 POST /api/v1/files 返回的 file_id，或内置示例 'preset:ref_audio' / 'preset:ref_audio_ja'",
     )
     language: LanguageCode = Field(
         default="zh",
@@ -114,7 +114,7 @@ class IndexTTSGenerateRequest(BaseModel):
     )
     emotion_audio: Optional[str] = Field(
         default=None,
-        description="第二段情感参考音频 file_id 或 'preset:ref_audio'（当 emotion_mode='reference' 时生效）",
+        description="第二段情感参考音频 file_id 或 'preset:ref_audio' / 'preset:ref_audio_ja'（当 emotion_mode='reference' 时生效）",
     )
     emotion_text: Optional[str] = Field(
         default=None,
@@ -209,6 +209,8 @@ class IndexTTSGenerateRequest(BaseModel):
         if not cleaned:
             raise ValueError("合成文本 text 不能为空。")
         self.text = cleaned
+        if self.language == "ja" and "speaker_audio" not in self.model_fields_set:
+            self.speaker_audio = "preset:ref_audio_ja"
 
         if self.emotion_mode == "reference" and not (self.emotion_audio or "").strip():
             raise ValueError("当情感模式为 'reference'（情感参考音频）时，必须提供 emotion_audio。")

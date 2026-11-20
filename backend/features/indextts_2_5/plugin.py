@@ -33,6 +33,15 @@ def _register_presets(storage: MediaStorage) -> None:
             description="Sage 示例人声，约 8.9 秒，可用于音色克隆或跨语种合成",
             kind="audio",
         )
+    ja_mp3 = ASSETS_DIR / "ref_audio_ja.mp3"
+    if ja_mp3.is_file():
+        storage.register_preset(
+            preset_id="ref_audio_ja",
+            file_path=ja_mp3,
+            label="日语 · 内置参考音色",
+            description="日语示例人声，约 6.8 秒，适合日语语音合成与跨语种克隆",
+            kind="audio",
+        )
 
 
 def _build_router(

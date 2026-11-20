@@ -26,6 +26,11 @@
       "archive": "app-seedvr2.tar.gz",
       "sha256": "fe21526efb5d0ef3ab298a3324e95a4949d60e589f1dce1f8a744769d2a7153f",
       "size_bytes": 506901
+    },
+    "h3-character-swap": {
+      "archive": "app-h3-character-swap.tar.gz",
+      "sha256": "d7e97c965739baf30459bccf330c4cf9fd7de0399fa6adbdedb08de878ade6a4",
+      "size_bytes": 517590
     }
   }
 }

@@ -1,7 +1,7 @@
-# @title 4. 启动现代 Web 工作台与 OpenAI / Claude Code API 服务 {display-mode: "form"}
-TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
+# @title 4. Launch Web Studio & OpenAI / Claude Code API Service {display-mode: "form"}
+TUNNEL_MODE = "Quick Tunnel (ephemeral)"  # @param ["Quick Tunnel (ephemeral)", "Custom Tunnel (CF_TUNNEL_TOKEN)"]
 ACCESS_PASSWORD = ""  # @param {type:"string"}
-USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
+USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("Custom")
 import hashlib, json, os, re, subprocess, sys, time, urllib.request
 from pathlib import Path
 
@@ -23,7 +23,7 @@ APP_PROCESS_PATTERN = r"backend/run_server\.py|backend\.run_server"
 
 {{HELPERS}}
 if APP_DIR.is_symlink() or not (APP_DIR / "backend/run_server.py").is_file():
-    raise RuntimeError("未找到应用服务目录 /content/app，请先运行第 2 步。")
+    raise RuntimeError("App directory /content/app not found; please run Step 2 first.")
 
 marker = Path("/content/models/.selected_qwen38_dir")
 model_dir = (
@@ -32,7 +32,7 @@ model_dir = (
     or ("/content/models/Qwen3.8-27B" if Path("/content/models/Qwen3.8-27B/config.json").is_file() else "/content/models/Qwen3.8-27B-FP8")
 )
 if Path(model_dir).is_symlink() or not (Path(model_dir) / "config.json").is_file():
-    raise RuntimeError(f"未找到模型目录 {model_dir}，请先运行第 3 步下载模型。")
+    raise RuntimeError(f"Model directory not found: {model_dir}; please run Step 3 first.")
 
 def resolve_access_password():
     if ACCESS_PASSWORD.strip():
@@ -50,14 +50,14 @@ def resolve_access_password():
 access_password = resolve_access_password()
 if not access_password:
     raise RuntimeError(
-        "请在 ACCESS_PASSWORD 填写应用访问密码，或在 Colab 左侧 🔑 Secrets 配置同名项。"
+        "Set ACCESS_PASSWORD above or configure Colab Secret `ACCESS_PASSWORD`."
     )
 
 if DATA_DIR.is_symlink() or UPLOADS_DIR.is_symlink():
-    raise RuntimeError("数据目录包含软链接，拒绝启动。")
+    raise RuntimeError("Symlink detected in data directory; aborting launch.")
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-# 1. 启动内部 vLLM 引擎 (127.0.0.1:8189，不对公网直接暴露)
+# 1. Start internal vLLM engine (127.0.0.1:8189, loopback only)
 def vllm_ready(timeout=5):
     try:
         with urllib.request.urlopen(VLLM_BASE + "/health", timeout=timeout) as r:
@@ -86,12 +86,12 @@ vllm_cmd = [
 vllm_cfg_str = json.dumps(vllm_cmd)
 vllm_is_up = vllm_ready() or (process_running(VLLM_PROCESS_PATTERN) and vllm_ready(timeout=30))
 if vllm_is_up and read_text(VLLM_LAUNCH_CONFIG) != vllm_cfg_str:
-    print("vLLM 启动参数已变化，正在按新参数重启...")
+    print("vLLM launch configuration changed; restarting engine...")
     stop_processes(VLLM_PROCESS_PATTERN, 120)
     vllm_is_up = False
 
 if vllm_is_up:
-    print("[OK] 内部 vLLM 推理引擎已在运行 (127.0.0.1:8189)。")
+    print("[OK] Internal vLLM engine already running (127.0.0.1:8189).")
 else:
     stop_processes(VLLM_PROCESS_PATTERN, 120)
     rotate_log(VLLM_LOG)
@@ -104,21 +104,21 @@ else:
             start_new_session=True,
         )
     VLLM_LAUNCH_CONFIG.write_text(vllm_cfg_str, encoding="utf-8")
-    print("正在加载 27B 权重并初始化推理引擎（256K 上下文，最多 8 路并发）...")
+    print("Loading 27B weights and initializing vLLM engine (256K context, max_num_seqs=8)...")
     deadline = time.time() + 900
     while time.time() < deadline:
         if vllm_proc.poll() is not None:
             print(tail(VLLM_LOG))
-            raise RuntimeError(f"vLLM 启动失败（退出码 {vllm_proc.returncode}），请查看上方日志。")
+            raise RuntimeError(f"vLLM failed to start (exit code {vllm_proc.returncode}); see logs above.")
         if vllm_ready():
-            print("[OK] 内部 vLLM 推理引擎启动成功 (127.0.0.1:8189)。")
+            print("[OK] Internal vLLM engine ready (127.0.0.1:8189).")
             break
         time.sleep(3)
     else:
         print(tail(VLLM_LOG))
-        raise TimeoutError("vLLM 15 分钟内未就绪，请查看上方日志。")
+        raise TimeoutError("vLLM did not become ready within 15 minutes; see logs above.")
 
-# 2. 启动对外 FastAPI + 现代多模态前端工作台 + OpenAI/Anthropic 网关 (127.0.0.1:8188)
+# 2. Start public FastAPI + Web Studio + OpenAI/Anthropic gateway (127.0.0.1:8188)
 def app_ready(timeout=5):
     try:
         with urllib.request.urlopen(BASE + "/api/v1/health", timeout=timeout) as r:
@@ -160,12 +160,12 @@ app_fingerprint = json.dumps({
 }, sort_keys=True)
 app_is_up = app_ready() or (process_running(APP_PROCESS_PATTERN) and app_ready(timeout=15))
 if app_is_up and read_text(APP_LAUNCH_CONFIG) != app_fingerprint:
-    print("Web/API 网关配置已变更，正在重启...")
+    print("Web/API gateway configuration changed; restarting...")
     stop_processes(APP_PROCESS_PATTERN, 30)
     app_is_up = False
 
 if app_is_up:
-    print("[OK] 现代 Web 工作台与 OpenAI/Anthropic API 网关已在运行 (127.0.0.1:8188)。")
+    print("[OK] Web Studio and OpenAI/Anthropic gateway already running (127.0.0.1:8188).")
 else:
     stop_processes(APP_PROCESS_PATTERN, 30)
     rotate_log(APP_LOG)
@@ -181,21 +181,21 @@ else:
             start_new_session=True,
         )
     APP_LAUNCH_CONFIG.write_text(app_fingerprint, encoding="utf-8")
-    print("正在启动现代多模态 Web 工作台与 API 网关...")
+    print("Starting Web Studio and API gateway...")
     deadline = time.time() + 120
     while time.time() < deadline:
         if app_proc.poll() is not None:
             print(tail(APP_LOG))
-            raise RuntimeError(f"Web/API 服务启动失败（退出码 {app_proc.returncode}），详见上方日志。")
+            raise RuntimeError(f"Web/API service failed to start (exit code {app_proc.returncode}); see logs above.")
         if app_ready():
-            print("[OK] 现代 Web 工作台与 API 网关启动成功。")
+            print("[OK] Web Studio and API gateway started.")
             break
         time.sleep(1.5)
     else:
         print(tail(APP_LOG))
-        raise TimeoutError("Web/API 服务 2 分钟内未就绪，请检查日志。")
+        raise TimeoutError("Web/API service did not become ready within 2 minutes; check logs.")
 
-# 3. 挂载 Cloudflare Tunnel 并同步隧道元数据
+# 3. Expose via Cloudflare Tunnel & persist live URL metadata
 verify_web_password(BASE, APP_PROCESS_PATTERN)
 host_url = start_cf_tunnel(cf_token)
 tunnel_mode_key = "custom" if cf_token else "quick"
@@ -209,19 +209,19 @@ check_public_url(host_url, "/api/v1/health")
 
 key_display = "YOUR_API_KEY"
 tunnel_tip = (
-    "⚠️ 提示：当前使用 Cloudflare Quick Tunnel 临时公网域名，实例关闭或重连隧道后地址即失效；如需固定域名请在上方选择「自有 Tunnel」。"
+    "WARNING: Quick Tunnel provides a temporary URL that expires when the runtime stops. Select Custom Tunnel above for a permanent domain."
     if tunnel_mode_key == "quick"
-    else "✅ 当前使用自有 Cloudflare Tunnel 固定域名。"
+    else "INFO: Using your custom fixed Cloudflare Tunnel domain."
 )
 print(f"""
-=== 访问入口 ===
-🌐 现代多模态 Web 工作台 : {host_url}
-📖 在线 API 文档         : {host_url}/docs
-🩺 机器与显存实时状态    : {host_url}/api/v1/system
+=== Endpoints ===
+Web Playground : {host_url}
+API Docs       : {host_url}/docs
+System Stats   : {host_url}/api/v1/system
 {tunnel_tip}
-🔑 API 默认免鉴权；如需鉴权，在网页右上角「API Key」中设置。
+API Key        : Open by default; configure an optional key in the Web Studio header.
 
-=== 1. Claude Code (cc) 直连配置（Anthropic /v1/messages 原生协议）===
+=== 1. Claude Code (Anthropic /v1/messages) ===
 export ANTHROPIC_BASE_URL="{host_url}"
 export ANTHROPIC_AUTH_TOKEN="{key_display}"
 export ANTHROPIC_API_KEY="{key_display}"
@@ -230,8 +230,8 @@ export ANTHROPIC_SMALL_FAST_MODEL="qwen3.8-27b"
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 claude --model qwen3.8-27b
 
-=== 2. OpenAI 兼容接口配置（/v1/chat/completions）===
+=== 2. OpenAI-Compatible Endpoint (/v1/chat/completions) ===
 Base URL : {host_url}/v1
-Model    : qwen3.8-27b （或 Qwen/Qwen3.8-27B）
+Model    : qwen3.8-27b (or Qwen/Qwen3.8-27B)
 API Key  : {key_display}
 """)

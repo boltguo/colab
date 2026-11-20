@@ -11,6 +11,7 @@ from ..core.app_factory import FeaturePlugin
 from ..core.storage import MediaStorage
 
 FEATURE_MODULES: Dict[str, Tuple[str, str]] = {
+    "h3-character-swap": ("backend.features.h3_character_swap.plugin", "H3_CHARACTER_SWAP_PLUGIN"),
     "indextts-2.5": ("backend.features.indextts_2_5.plugin", "INDEXTTS_2_5_PLUGIN"),
     "minimax-h3": ("backend.features.minimax_h3.plugin", "MINIMAX_H3_PLUGIN"),
     "qwen-image-2.1": ("backend.features.qwen_image_2_1.plugin", "QWEN_IMAGE_2_1_PLUGIN"),

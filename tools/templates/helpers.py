@@ -36,7 +36,7 @@ def resolve_cf_token():
 
 def start_cf_tunnel(token=""):
     if not CF_BIN.exists():
-        raise RuntimeError("未找到 cloudflared，请先运行第 2 步。")
+        raise RuntimeError("cloudflared not found; please run Step 2 first.")
     stop_processes("cloudflared tunnel", 10)
     rotate_log(CF_LOG)
     cmd = [
@@ -63,14 +63,14 @@ def start_cf_tunnel(token=""):
         if cf_proc.poll() is not None:
             print(tail(CF_LOG, 4000))
             if token:
-                raise RuntimeError("Cloudflare Tunnel 启动失败，请检查 CF_TUNNEL_TOKEN 是否正确。")
-            raise RuntimeError("Cloudflare 临时隧道启动失败，请查看上方日志。")
+                raise RuntimeError("Cloudflare Tunnel failed to start; check CF_TUNNEL_TOKEN.")
+            raise RuntimeError("Cloudflare Quick Tunnel failed to start; check logs above.")
         log_text = read_text(CF_LOG)
         if not token:
             match = re.search(r"https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com", log_text)
             if match and "Registered tunnel connection" in log_text:
                 url = match.group(0)
-                print(f"[OK] Cloudflare 临时隧道已连接 (HTTP/2): {url} -> {BASE}")
+                print(f"[OK] Cloudflare Quick Tunnel connected (HTTP/2): {url} -> {BASE}")
                 return url
         elif "Registered tunnel connection" in log_text:
             if "Updated to new configuration" not in log_text:
@@ -80,25 +80,25 @@ def start_cf_tunnel(token=""):
             config = configs[-1].replace('\\"', '"') if configs else ""
             routes = re.findall(r'"hostname"\s*:\s*"([^"]+)"(?:(?!"hostname").)*?"service"\s*:\s*"([^"]+)"', config)
             for host, service in routes:
-                print(f"[OK] Cloudflare Tunnel 已连接 (HTTP/2): https://{host} -> {service}")
+                print(f"[OK] Cloudflare Tunnel connected (HTTP/2): https://{host} -> {service}")
             hosts = [host for host, service in routes if f":{PORT}" in service]
             if not routes:
-                print("[OK] Cloudflare Tunnel 已连接 (HTTP/2)，请通过你在 Cloudflare 绑定的域名访问。")
+                print("[OK] Cloudflare Tunnel connected (HTTP/2); open via your configured Cloudflare hostname.")
             elif not hosts:
-                print(f"[WARN] 没有域名转发到本服务的 {PORT} 端口！")
-                print(f"       请前往 Cloudflare Zero Trust -> Networks -> Tunnels -> Public Hostname，将 Service URL 改为 {BASE}")
-            return f"https://{hosts[0]}" if hosts else "https://<你的CF域名>"
+                print(f"[WARN] No public hostname forwards to port {PORT}!")
+                print(f"       Set Service URL to {BASE} under Cloudflare Zero Trust -> Networks -> Tunnels -> Public Hostname")
+            return f"https://{hosts[0]}" if hosts else "https://<your-cf-domain>"
         time.sleep(1)
     if not token:
         match = re.search(r"https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com", read_text(CF_LOG))
         if match:
             url = match.group(0)
-            print(f"[OK] Cloudflare 临时隧道已创建: {url} -> {BASE}")
+            print(f"[OK] Cloudflare Quick Tunnel ready: {url} -> {BASE}")
             return url
         print(tail(CF_LOG, 4000))
-        raise RuntimeError(f"Cloudflare 临时隧道 60 秒内未返回地址，详见 {CF_LOG}。")
-    print(f"[WARN] Cloudflare Tunnel 30 秒内未确认连接，仍在后台运行，详见 {CF_LOG}。")
-    return "https://<你的CF域名>"
+        raise RuntimeError(f"Cloudflare Quick Tunnel returned no URL within 60s; see {CF_LOG}.")
+    print(f"[WARN] Cloudflare Tunnel connection not confirmed within 30s (still running); see {CF_LOG}.")
+    return "https://<your-cf-domain>"
 
 def verify_web_password(base_url, process_pattern):
     from urllib.error import HTTPError
@@ -113,12 +113,12 @@ def verify_web_password(base_url, process_pattern):
             pass
     except HTTPError as error:
         if error.code == 303 and error.headers.get("Location") == "/auth/login":
-            print("[OK] 应用访问密码已生效。")
+            print("[OK] Web access password protection verified.")
             return
     except Exception:
         pass
     stop_processes(process_pattern, 30)
-    raise RuntimeError("应用访问密码未生效，已停止 Web 服务。请更新笔记本并重新运行第 2、4 步。")
+    raise RuntimeError("Web access password check failed; stopped web server. Update the notebook and rerun Steps 2 and 4.")
 
 def check_public_url(url, route):
     if "<" in url:
@@ -129,13 +129,13 @@ def check_public_url(url, route):
         try:
             request = urllib.request.Request(url + route, headers={"User-Agent": "colab-tunnel-check"})
             with urllib.request.urlopen(request, timeout=10):
-                print(f"[OK] 公网访问正常：{url}")
+                print(f"[OK] Public URL reachable: {url}")
                 return
         except Exception as e:
             error = e
         time.sleep(3)
-    print(f"[WARN] 公网地址 60 秒内无法访问：{url}{route}（{error}）")
+    print(f"[WARN] Public URL unreachable within 60s: {url}{route} ({error})")
 
 cf_token = resolve_cf_token() if USE_CF_TUNNEL_TOKEN else ""
 if USE_CF_TUNNEL_TOKEN and not cf_token:
-    raise RuntimeError("已勾选 USE_CF_TUNNEL_TOKEN，但未检测到 CF_TUNNEL_TOKEN；请在 Colab 左侧 🔑 Secrets 中添加 CF_TUNNEL_TOKEN 并开启访问权限，或取消勾选改用临时隧道。")
+    raise RuntimeError("Custom Tunnel is selected, but CF_TUNNEL_TOKEN was not found. Add CF_TUNNEL_TOKEN in Colab Secrets (or switch to Quick Tunnel).")

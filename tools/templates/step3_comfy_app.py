@@ -1,4 +1,4 @@
-# @title 3. 下载并校验基础模型权重 {display-mode: "form"}
+# @title 3. Download & Verify Base Model Weights {display-mode: "form"}
 import os, shutil, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -20,7 +20,7 @@ def local_directory(path):
         if parent == COMFY_DIR.parent:
             break
         if parent.is_symlink():
-            raise RuntimeError(f"目录是软链接，请使用新的 runtime：{parent}")
+            raise RuntimeError(f"Directory is a symlink; please start a fresh runtime: {parent}")
     path.mkdir(parents=True, exist_ok=True)
 
 def model_ready(target, size):
@@ -42,8 +42,8 @@ def download_model(repo, revision, folder, file, size):
         )
     )
     if result.resolve() != target.resolve() or not model_ready(target, size):
-        raise RuntimeError(f"模型下载不完整或校验不匹配：{target}")
-    print(f"已下载：{file}（{size / 1024**3:.2f} GB，{time.time() - started:.0f} 秒）")
+        raise RuntimeError(f"Incomplete or mismatched model download: {target}")
+    print(f"Downloaded: {file} ({size / 1024**3:.2f} GiB in {time.time() - started:.0f}s)")
 
 def download_models():
     pending = []
@@ -51,9 +51,9 @@ def download_models():
         base = MODEL_DIR / item[2] if item[2] else MODEL_DIR
         target = base / item[3]
         if target.is_symlink():
-            raise RuntimeError(f"模型文件是软链接：{target}")
+            raise RuntimeError(f"Refusing symlink model file: {target}")
         if model_ready(target, item[4]):
-            print("已就绪：", item[3])
+            print("Verified:", item[3])
         else:
             pending.append(item)
     if not pending:
@@ -61,7 +61,7 @@ def download_models():
     missing = sum(item[4] for item in pending)
     free = shutil.disk_usage(MODEL_DIR).free
     if free < missing + 2 * 1024**3:
-        raise RuntimeError(f"磁盘空间不足：还需 {missing / 1024**3:.1f} GB，当前可用 {free / 1024**3:.1f} GB。")
+        raise RuntimeError(f"Insufficient disk space: need {missing / 1024**3:.1f} GiB more, free {free / 1024**3:.1f} GiB.")
     started = time.time()
     pool = ThreadPoolExecutor(max_workers=3)
     try:
@@ -71,9 +71,9 @@ def download_models():
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
     elapsed = time.time() - started
-    print(f"基础模型下载完成：{missing / 1024**3:.1f} GB，用时 {elapsed:.0f} 秒（{missing / 1024**2 / max(elapsed, 1):.0f} MB/s）")
+    print(f"Base weights ready: {missing / 1024**3:.1f} GiB in {elapsed:.0f}s ({missing / 1024**2 / max(elapsed, 1):.0f} MB/s)")
 
 for path in [MODEL_DIR, MODEL_DIR / "loras", COMFY_DIR / "input", COMFY_DIR / "output"]:
     local_directory(path)
 download_models()
-{{POST_DOWNLOAD}}print("[OK] 基础模型权重校验完成（可选风格与自定义 LoRA 可在 Web 工作台或 API 中按需在线热挂载）。")
+{{POST_DOWNLOAD}}print("[OK] Base model weights verified.")

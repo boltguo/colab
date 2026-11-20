@@ -7,9 +7,11 @@ import {
   PlayCircleOutlined,
   ReloadOutlined,
   Segmented,
+  Slider,
   Space,
   Text,
   VideoCameraOutlined,
+  useStudioLocale,
 } from "@colab/shared";
 import type { SeedVR2Result } from "./types";
 
@@ -30,11 +32,10 @@ export function VideoCompareStage({
   referenceFit = "contain",
   onUseAsInput,
 }: VideoCompareStageProps) {
+  const { t } = useStudioLocale();
   const splitSliderId = useId();
   const scrubSliderId = useId();
 
-  const splitSliderRef = useRef<HTMLInputElement | null>(null);
-  const scrubSliderRef = useRef<HTMLInputElement | null>(null);
   const afterVideoRef = useRef<HTMLVideoElement | null>(null);
   const beforeVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -49,20 +50,23 @@ export function VideoCompareStage({
   const referenceStart = Math.max(0, result.input_start_time || 0);
   const referenceRate = result.input_fps && result.fps ? result.fps / result.input_fps : 1;
 
-  const syncReference = useCallback((outputTime: number, force = false) => {
-    const before = beforeVideoRef.current;
-    if (!before || before.readyState < 1) return;
-    const target = Math.min(
-      referenceStart + outputTime * referenceRate,
-      Number.isFinite(before.duration) ? Math.max(0, before.duration - 0.001) : Infinity
-    );
-    if (force || Math.abs(before.currentTime - target) > 0.14) before.currentTime = target;
-    try {
-      before.playbackRate = referenceRate;
-    } catch {
-      // Extreme rates are not supported by every browser; timestamp sync still aligns frames.
-    }
-  }, [referenceStart, referenceRate]);
+  const syncReference = useCallback(
+    (outputTime: number, force = false) => {
+      const before = beforeVideoRef.current;
+      if (!before || before.readyState < 1) return;
+      const target = Math.min(
+        referenceStart + outputTime * referenceRate,
+        Number.isFinite(before.duration) ? Math.max(0, before.duration - 0.001) : Infinity
+      );
+      if (force || Math.abs(before.currentTime - target) > 0.14) before.currentTime = target;
+      try {
+        before.playbackRate = referenceRate;
+      } catch {
+        // Extreme rates are not supported by every browser; timestamp sync still aligns frames.
+      }
+    },
+    [referenceStart, referenceRate]
+  );
 
   useEffect(() => {
     setViewMode(inputUrl ? "split" : "result");
@@ -70,24 +74,6 @@ export function VideoCompareStage({
     setCurrentTime(0);
     setDuration(result.duration_sec || 0);
   }, [outputUrl, inputUrl, result.duration_sec]);
-
-  // Sync CSS custom properties on the native A/B range slider for cross-browser active track fill
-  useEffect(() => {
-    const el = splitSliderRef.current;
-    if (!el) return;
-    el.style.setProperty("--attr-min", el.min || "0");
-    el.style.setProperty("--attr-max", el.max || "100");
-    el.style.setProperty("--control-value", String(splitPct));
-  }, [splitPct, viewMode]);
-
-  useEffect(() => {
-    const el = scrubSliderRef.current;
-    if (!el) return;
-    const safeMax = Math.max(0.1, duration || 1);
-    el.style.setProperty("--attr-min", "0");
-    el.style.setProperty("--attr-max", String(safeMax));
-    el.style.setProperty("--control-value", String(Math.min(currentTime, safeMax)));
-  }, [currentTime, duration, viewMode]);
 
   const toggleSplitPlay = async () => {
     const afterV = afterVideoRef.current;
@@ -123,7 +109,6 @@ export function VideoCompareStage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      {/* Top Toolbar */}
       <div
         style={{
           display: "flex",
@@ -144,9 +129,9 @@ export function VideoCompareStage({
               setViewMode(val as "result" | "split" | "ref");
             }}
             options={[
-              { label: "超分后成片", value: "result" },
-              { label: "A/B 卷帘同屏对比", value: "split", icon: <ColumnWidthOutlined /> },
-              { label: "超分前原片", value: "ref" },
+              { label: t("Upscaled", "超分后成片"), value: "result" },
+              { label: t("A/B Split", "A/B 卷帘同屏对比"), value: "split", icon: <ColumnWidthOutlined /> },
+              { label: t("Original", "超分前原片"), value: "ref" },
             ]}
           />
         ) : (
@@ -163,24 +148,28 @@ export function VideoCompareStage({
               icon={<VideoCameraOutlined />}
               onClick={onUseAsInput}
             >
-              设为源视频继续放大
+              {t("Use as Input", "设为源视频继续放大")}
             </Button>
           )}
-          <a href={downloadUrl} download={result.filename}>
-            <Button htmlType="button" size="small" type="primary" icon={<DownloadOutlined />}>
-              下载 {result.format.toUpperCase()}（{(result.size_bytes / (1024 * 1024)).toFixed(2)} MB）
-            </Button>
-          </a>
+          <Button
+            htmlType="button"
+            size="small"
+            type="primary"
+            href={downloadUrl}
+            download={result.filename}
+            icon={<DownloadOutlined />}
+          >
+            {t("Download", "下载")} {result.format.toUpperCase()} ({(result.size_bytes / (1024 * 1024)).toFixed(2)} MB)
+          </Button>
         </Space>
       </div>
 
-      {/* Main Video Stage (Eager above-the-fold, explicit integer width & height + aspect-ratio) */}
       <div
         className="studio-video-stage"
         style={{
           aspectRatio: `${result.width} / ${result.height}`,
           inlineSize: "100%",
-          maxInlineSize: 540 * result.width / result.height,
+          maxInlineSize: (540 * result.width) / result.height,
           marginInline: "auto",
         }}
       >
@@ -195,11 +184,13 @@ export function VideoCompareStage({
               width={result.input_width || result.width}
               height={result.input_height || result.height}
               src={inputUrl}
-              onLoadedMetadata={(e) => { e.currentTarget.currentTime = referenceStart; }}
+              onLoadedMetadata={(e) => {
+                e.currentTarget.currentTime = referenceStart;
+              }}
               style={{ position: "absolute", inset: 0, blockSize: "100%" }}
             />
             <span className="studio-compare-badge" style={{ insetInlineStart: "0.75rem" }}>
-              超分前原片（{result.input_width}×{result.input_height}）
+              {t(`Original (${result.input_width}×${result.input_height})`, `超分前原片（${result.input_width}×${result.input_height}）`)}
             </span>
           </>
         ) : viewMode === "split" && inputUrl ? (
@@ -221,9 +212,9 @@ export function VideoCompareStage({
                 }
               }}
               onTimeUpdate={(e) => {
-                const t = e.currentTarget.currentTime;
-                setCurrentTime(t);
-                syncReference(t);
+                const tSec = e.currentTarget.currentTime;
+                setCurrentTime(tSec);
+                syncReference(tSec);
               }}
               onPlay={() => {
                 setPlaying(true);
@@ -263,10 +254,10 @@ export function VideoCompareStage({
               style={{ insetInlineStart: `${splitPct}%` }}
             />
             <span className="studio-compare-badge" style={{ insetInlineStart: "0.75rem" }}>
-              原片 {result.input_width}×{result.input_height}
+              {t(`Original ${result.input_width}×${result.input_height}`, `原片 ${result.input_width}×${result.input_height}`)}
             </span>
             <span className="studio-compare-badge" style={{ insetInlineEnd: "0.75rem" }}>
-              SeedVR2 超分 {result.width}×{result.height}
+              {t(`SeedVR2 ${result.width}×${result.height}`, `SeedVR2 超分 ${result.width}×${result.height}`)}
             </span>
           </>
         ) : (
@@ -284,20 +275,9 @@ export function VideoCompareStage({
         )}
       </div>
 
-      {/* Synchronized Playback + A/B Wipe Controls for Split View */}
       {viewMode === "split" && inputUrl && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            padding: "0.55rem 0.75rem",
-            borderRadius: "0.6rem",
-            background: "var(--studio-surface-subtle)",
-            border: "1px solid var(--studio-border)",
-          }}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+        <div className="studio-compare-controls">
+          <div className="studio-compare-slider-row" style={{ flexWrap: "wrap" }}>
             <Button
               htmlType="button"
               size="small"
@@ -305,13 +285,13 @@ export function VideoCompareStage({
               icon={playing ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
               onClick={() => void toggleSplitPlay()}
             >
-              {playing ? "暂停对比" : "同步播放对比"}
+              {playing ? t("Pause", "暂停对比") : t("Sync Play", "同步播放对比")}
             </Button>
             <Button
               htmlType="button"
               size="small"
               icon={<ReloadOutlined />}
-              aria-label="从头重播对比"
+              aria-label={t("Replay comparison from start", "从头重播对比")}
               onClick={() => {
                 handleScrub(0);
                 if (!playing) {
@@ -319,23 +299,18 @@ export function VideoCompareStage({
                 }
               }}
             >
-              重播
+              {t("Replay", "重播")}
             </Button>
 
-            <label htmlFor={scrubSliderId} className="studio-visually-hidden">
-              对比播放时间轴
-            </label>
-            <input
-              ref={scrubSliderRef}
+            <Slider
               id={scrubSliderId}
-              type="range"
-              min="0"
+              aria-label={t("Comparison timeline", "对比播放时间轴")}
+              min={0}
               max={Math.max(0.1, duration || 1)}
-              step="0.02"
+              step={0.02}
               value={Math.min(currentTime, Math.max(0.1, duration || 1))}
-              aria-valuetext={`${currentTime.toFixed(1)} 秒`}
-              className="studio-compare-range"
-              onChange={(e) => handleScrub(Number(e.target.value))}
+              onChange={handleScrub}
+              tooltip={{ formatter: (v) => `${(v ?? 0).toFixed(1)}s` }}
             />
             <Text
               type="secondary"
@@ -346,7 +321,7 @@ export function VideoCompareStage({
             </Text>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="studio-compare-slider-row">
             <label
               htmlFor={splitSliderId}
               style={{
@@ -356,19 +331,17 @@ export function VideoCompareStage({
                 whiteSpace: "nowrap",
               }}
             >
-              卷帘分界位置
+              {t("Split Position", "卷帘分界位置")}
             </label>
-            <input
-              ref={splitSliderRef}
+            <Slider
               id={splitSliderId}
-              type="range"
-              min="0"
-              max="100"
-              step="0.5"
+              aria-label={t("Split Position", "卷帘分界位置")}
+              min={0}
+              max={100}
+              step={0.5}
               value={splitPct}
-              aria-valuetext={`左侧原片占比 ${Math.round(splitPct)}%`}
-              className="studio-compare-range"
-              onChange={(e) => setSplitPct(Number(e.target.value))}
+              onChange={setSplitPct}
+              tooltip={{ formatter: (v) => `${Math.round(v ?? 0)}%` }}
             />
             <Text
               className="studio-tabular"
@@ -382,8 +355,10 @@ export function VideoCompareStage({
       )}
       {hasInput && (referenceStart > 0 || Math.abs(referenceRate - 1) > 0.001) && (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          原片从 {referenceStart.toFixed(2)} 秒起对齐
-          {Math.abs(referenceRate - 1) > 0.001 ? ` · 按 ${referenceRate.toFixed(2)} 倍速同步` : ""}
+          {t(`Source aligned from ${referenceStart.toFixed(2)}s`, `原片从 ${referenceStart.toFixed(2)} 秒起对齐`)}
+          {Math.abs(referenceRate - 1) > 0.001
+            ? t(` · synced at ${referenceRate.toFixed(2)}x rate`, ` · 按 ${referenceRate.toFixed(2)} 倍速同步`)
+            : ""}
         </Text>
       )}
     </div>

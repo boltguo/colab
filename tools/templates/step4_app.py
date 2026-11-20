@@ -1,7 +1,7 @@
-# @title 4. 启动现代 Web 工作台与 API 服务 {display-mode: "form"}
-TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
+# @title 4. Launch Web Studio & API Service {display-mode: "form"}
+TUNNEL_MODE = "Quick Tunnel (ephemeral)"  # @param ["Quick Tunnel (ephemeral)", "Custom Tunnel (CF_TUNNEL_TOKEN)"]
 ACCESS_PASSWORD = ""  # @param {type:"string"}
-USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
+USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("Custom")
 import hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 
@@ -16,12 +16,12 @@ PROCESS_PATTERN = r"backend/run_server\.py|backend\.run_server"
 
 {{HELPERS}}
 if APP_DIR.is_symlink() or not (APP_DIR / "backend/run_server.py").is_file():
-    raise RuntimeError("未找到应用服务目录 /content/app，请先运行第 2 步。")
+    raise RuntimeError("App directory /content/app not found; please run Step 2 first.")
 
 if FEATURE_NAME == "indextts-2.5":
     missing_media_tools = [name for name in ("ffmpeg", "ffprobe") if not shutil.which(name)]
     if missing_media_tools:
-        raise RuntimeError(f"缺少媒体处理工具：{', '.join(missing_media_tools)}。请先执行 !apt-get -qq update && apt-get -qq install -y ffmpeg，再运行第 4 步。")
+        raise RuntimeError(f"Missing required media tools: {', '.join(missing_media_tools)}. Run !apt-get -qq update && apt-get -qq install -y ffmpeg first.")
 
 def resolve_access_password():
     if ACCESS_PASSWORD.strip():
@@ -39,7 +39,7 @@ def resolve_access_password():
 access_password = resolve_access_password()
 if not access_password:
     raise RuntimeError(
-        "请在 ACCESS_PASSWORD 填写应用访问密码，或在 Colab 左侧 🔑 Secrets 配置同名项。"
+        "Set ACCESS_PASSWORD above or configure Colab Secret `ACCESS_PASSWORD`."
     )
 
 def ready(timeout=5):
@@ -81,12 +81,12 @@ launch_fingerprint = json.dumps({
 }, sort_keys=True)
 running = ready() or (process_running(PROCESS_PATTERN) and ready(timeout=15))
 if running and read_text(LAUNCH_CONFIG) != launch_fingerprint:
-    print("服务配置已变更，正在重启应用服务...")
+    print("Service configuration changed; restarting web server...")
     stop_processes(PROCESS_PATTERN, 30)
     running = False
 
 if running:
-    print("[OK] Web 与 API 服务已经在运行。")
+    print("[OK] Web Studio and API server already running.")
 else:
     stop_processes(PROCESS_PATTERN, 30)
     rotate_log(LOG)
@@ -102,19 +102,19 @@ else:
             start_new_session=True,
         )
     LAUNCH_CONFIG.write_text(launch_fingerprint, encoding="utf-8")
-    print("正在启动 FastAPI 服务与静态前端工作台...")
+    print("Starting FastAPI server and Web Studio...")
     deadline = time.time() + 120
     while time.time() < deadline:
         if process.poll() is not None:
             print(tail(LOG))
-            raise RuntimeError(f"应用服务启动失败（退出码 {process.returncode}），详见上方日志。")
+            raise RuntimeError(f"App server failed to start (exit code {process.returncode}); see logs above.")
         if ready():
-            print("[OK] Web 与 API 服务启动成功。")
+            print("[OK] Web Studio and API server started.")
             break
         time.sleep(1.5)
     else:
         print(tail(LOG))
-        raise TimeoutError("应用服务 2 分钟内未就绪，请查看上方日志。")
+        raise TimeoutError("App server did not become ready within 2 minutes; see logs above.")
 
 verify_web_password(BASE, PROCESS_PATTERN)
 host_url = start_cf_tunnel(cf_token)
@@ -130,24 +130,24 @@ if not DATA_DIR.is_symlink():
 check_public_url(host_url, "/api/v1/health")
 
 sample_body = json.dumps(
-    {"text": "你好，欢迎调用 IndexTTS 2.5 API 服务！", "speaker_audio": "preset:ref_audio", "language": "zh"},
+    {"text": "Hello, welcome to IndexTTS 2.5 API!", "speaker_audio": "preset:ref_audio", "language": "en"},
     ensure_ascii=False,
 )
 auth_note = ' -H "Authorization: Bearer YOUR_API_KEY"'
 tunnel_tip = (
-    "⚠️ 提示：当前使用 Cloudflare Quick Tunnel 临时公网域名，实例关闭或重连隧道后地址即失效；如需固定域名请在上方选择「自有 Tunnel」。"
+    "WARNING: Quick Tunnel provides a temporary URL that expires when the runtime stops. Select Custom Tunnel above for a permanent domain."
     if tunnel_mode_key == "quick"
-    else "✅ 当前使用自有 Cloudflare Tunnel 固定域名。"
+    else "INFO: Using your custom fixed Cloudflare Tunnel domain."
 )
 print(f"""
-=== 访问入口 ===
-🌐 现代 Web 操作台 : {host_url}
-📖 在线 API 文档   : {host_url}/docs
-🩺 系统与显存状态  : {host_url}/api/v1/system
+=== Endpoints ===
+Web Studio   : {host_url}
+API Docs     : {host_url}/docs
+System Stats : {host_url}/api/v1/system
 {tunnel_tip}
-🔑 API 默认免鉴权；如需鉴权，在网页右上角「API Key」中设置。
+API Key      : Open by default; configure an optional key in the Web Studio header.
 
-=== 快速 API 调用示例 ===
+=== Quick API Example ===
 curl -X POST "{host_url}/api/v1/generate" \\
   -H "Content-Type: application/json"{auth_note} \\
   -d '{sample_body}'

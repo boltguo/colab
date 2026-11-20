@@ -1,11 +1,12 @@
-# @title 4. 启动现代 Web 工作台与 API 服务 {display-mode: "form"}
-TUNNEL_MODE = "Quick Tunnel (临时链接)"  # @param ["Quick Tunnel (临时链接)", "自有 Tunnel (读取 Secrets 中 CF_TUNNEL_TOKEN)"]
+# @title 4. Launch Web Studio & API Service {display-mode: "form"}
+TUNNEL_MODE = "Quick Tunnel (ephemeral)"  # @param ["Quick Tunnel (ephemeral)", "Custom Tunnel (CF_TUNNEL_TOKEN)"]
 ACCESS_PASSWORD = ""  # @param {type:"string"}
-USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("自有")
+USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("Custom")
 import hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 
 FEATURE_NAME = "{{FEATURE_NAME}}"
+BUNDLED_NODES_REL = "{{BUNDLED_NODES_REL}}"
 COMFY_DIR = Path("/content/ComfyUI")
 COMFY_PORT = 8189
 COMFY_BASE = f"http://127.0.0.1:{COMFY_PORT}"
@@ -30,14 +31,29 @@ APP_PROCESS_PATTERN = r"backend/run_server\.py|backend\.run_server"
 
 {{HELPERS}}
 if not (COMFY_DIR / "main.py").is_file():
-    raise RuntimeError("未找到内部推理引擎 /content/ComfyUI，请先运行第 2 步。")
+    raise RuntimeError("Internal engine /content/ComfyUI not found; please run Step 2 first.")
 if APP_DIR.is_symlink() or not (APP_DIR / "backend/run_server.py").is_file():
-    raise RuntimeError("未找到应用服务目录 /content/app，请先运行第 2 步。")
+    raise RuntimeError("App directory /content/app not found; please run Step 2 first.")
 
-if FEATURE_NAME in ("minimax-h3", "seedvr2"):
+if FEATURE_NAME in ("minimax-h3", "seedvr2", "h3-character-swap"):
     missing_media_tools = [name for name in ("ffmpeg", "ffprobe") if not shutil.which(name)]
     if missing_media_tools:
-        raise RuntimeError(f"缺少媒体处理工具：{', '.join(missing_media_tools)}。请先执行 !apt-get -qq update && apt-get -qq install -y ffmpeg，再运行第 4 步。")
+        raise RuntimeError(f"Missing required media tools: {', '.join(missing_media_tools)}. Run !apt-get -qq update && apt-get -qq install -y ffmpeg first.")
+
+if BUNDLED_NODES_REL:
+    bundled_nodes_src = APP_DIR / BUNDLED_NODES_REL
+    if bundled_nodes_src.is_dir():
+        custom_nodes_dir = COMFY_DIR / "custom_nodes"
+        custom_nodes_dir.mkdir(parents=True, exist_ok=True)
+        for node_dir in sorted(p for p in bundled_nodes_src.iterdir() if p.is_dir()):
+            if node_dir.is_symlink() or any(c.is_symlink() for c in node_dir.rglob("*")):
+                raise RuntimeError(f"Refusing symlink inside bundled custom nodes: {node_dir}")
+            dest = custom_nodes_dir / node_dir.name
+            if dest.is_symlink():
+                raise RuntimeError(f"Destination custom node path is a symlink: {dest}")
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(node_dir, dest, symlinks=False)
 
 def resolve_access_password():
     if ACCESS_PASSWORD.strip():
@@ -55,7 +71,7 @@ def resolve_access_password():
 access_password = resolve_access_password()
 if not access_password:
     raise RuntimeError(
-        "请在 ACCESS_PASSWORD 填写应用访问密码，或在 Colab 左侧 🔑 Secrets 配置同名项。"
+        "Set ACCESS_PASSWORD above or configure Colab Secret `ACCESS_PASSWORD`."
     )
 
 LAUNCHER_SOURCE = r'''{{LAUNCHER_SOURCE}}'''
@@ -71,16 +87,16 @@ def comfy_ready(timeout=5):
     except Exception:
         return False
 
-# 1. 启动内部无头推理 Worker (127.0.0.1:8189，不对公网直接暴露)
+# 1. Start internal headless ComfyUI worker (127.0.0.1:8189, loopback only)
 comfy_cfg_str = json.dumps({"launcher": LAUNCHER_SOURCE, "args": COMFY_LAUNCH_ARGS, "port": COMFY_PORT})
 comfy_running = comfy_ready() or (process_running(COMFY_PROCESS_PATTERN) and comfy_ready(timeout=30))
 if comfy_running and read_text(COMFY_LAUNCH_CONFIG) != comfy_cfg_str:
-    print("内部推理引擎参数已更新，正在重启...")
+    print("Restarting internal ComfyUI worker with updated launch configuration...")
     stop_processes(COMFY_PROCESS_PATTERN, 60)
     comfy_running = False
 
 if comfy_running:
-    print("[OK] 内部推理引擎已在运行 (127.0.0.1:8189)。")
+    print("[OK] Internal ComfyUI worker already running (127.0.0.1:8189).")
 else:
     stop_processes(COMFY_PROCESS_PATTERN, 60)
     COMFY_LAUNCHER.write_text(LAUNCHER_SOURCE, encoding="utf-8")
@@ -95,26 +111,26 @@ else:
             start_new_session=True,
         )
     COMFY_LAUNCH_CONFIG.write_text(comfy_cfg_str, encoding="utf-8")
-    print("正在启动内部 GPU 推理引擎...")
+    print("Starting internal GPU inference engine...")
     deadline = time.time() + 600
     while time.time() < deadline:
         if comfy_proc.poll() is not None:
             print(tail(COMFY_LOG))
-            raise RuntimeError(f"内部推理引擎启动失败（退出码 {comfy_proc.returncode}），详见上方日志。")
+            raise RuntimeError(f"Internal engine failed to start (exit code {comfy_proc.returncode}); see logs above.")
         if comfy_ready():
-            print("[OK] 内部 GPU 推理引擎就绪 (127.0.0.1:8189)。")
+            print("[OK] Internal GPU inference engine ready (127.0.0.1:8189).")
             break
         time.sleep(2)
     else:
         print(tail(COMFY_LOG))
-        raise TimeoutError("内部推理引擎 10 分钟内未就绪，请检查日志。")
+        raise TimeoutError("Internal engine did not become ready within 10 minutes; check logs.")
 
 missing = sorted(REQUIRED_NODES - set(comfy_get_json("/object_info", timeout=60)))
 if missing:
     print(tail(COMFY_LOG))
-    raise RuntimeError(f"推理引擎缺少必要算子节点：{', '.join(missing)}。请重新运行第 2 步。")
+    raise RuntimeError(f"Missing required ComfyUI nodes: {', '.join(missing)}. Re-run Step 2.")
 
-# 2. 启动对外 FastAPI + 现代静态前端工作台 (127.0.0.1:8188)
+# 2. Start public FastAPI gateway & static Web Studio (127.0.0.1:8188)
 def app_ready(timeout=5):
     try:
         with urllib.request.urlopen(BASE + "/api/v1/health", timeout=timeout) as r:
@@ -156,12 +172,12 @@ app_fingerprint = json.dumps({
 }, sort_keys=True)
 app_is_up = app_ready() or (process_running(APP_PROCESS_PATTERN) and app_ready(timeout=15))
 if app_is_up and read_text(APP_LAUNCH_CONFIG) != app_fingerprint:
-    print("Web/API 服务配置变更，正在重启...")
+    print("Web/API configuration changed; restarting...")
     stop_processes(APP_PROCESS_PATTERN, 30)
     app_is_up = False
 
 if app_is_up:
-    print("[OK] 现代 Web 工作台与 API 服务已在运行 (127.0.0.1:8188)。")
+    print("[OK] Web Studio and API service already running (127.0.0.1:8188).")
 else:
     stop_processes(APP_PROCESS_PATTERN, 30)
     rotate_log(APP_LOG)
@@ -177,21 +193,21 @@ else:
             start_new_session=True,
         )
     APP_LAUNCH_CONFIG.write_text(app_fingerprint, encoding="utf-8")
-    print("正在启动现代 Web 工作台与标准 API 网关...")
+    print("Starting Web Studio and API service...")
     deadline = time.time() + 120
     while time.time() < deadline:
         if app_proc.poll() is not None:
             print(tail(APP_LOG))
-            raise RuntimeError(f"Web/API 服务启动失败（退出码 {app_proc.returncode}），详见上方日志。")
+            raise RuntimeError(f"Web/API service failed to start (exit code {app_proc.returncode}); see logs above.")
         if app_ready():
-            print("[OK] 现代 Web 工作台与标准 API 服务启动成功。")
+            print("[OK] Web Studio and API service started.")
             break
         time.sleep(1.5)
     else:
         print(tail(APP_LOG))
-        raise TimeoutError("Web/API 服务 2 分钟内未就绪，请检查日志。")
+        raise TimeoutError("Web/API service did not become ready within 2 minutes; check logs.")
 
-# 3. 挂载 Cloudflare Tunnel 并同步隧道地址供前端 API 调用示例自动读取
+# 3. Expose via Cloudflare Tunnel & persist live URL metadata
 verify_web_password(BASE, APP_PROCESS_PATTERN)
 host_url = start_cf_tunnel(cf_token)
 tunnel_mode_key = "custom" if cf_token else "quick"
@@ -208,19 +224,19 @@ check_public_url(host_url, "/api/v1/health")
 sample_body = json.dumps({{SAMPLE_REQUEST_JSON}}, ensure_ascii=False)
 auth_note = ' -H "Authorization: Bearer YOUR_API_KEY"'
 tunnel_tip = (
-    "⚠️ 提示：当前使用 Cloudflare Quick Tunnel 临时公网域名，实例关闭或重连隧道后地址即失效；如需固定域名请在上方选择「自有 Tunnel」。"
+    "WARNING: Quick Tunnel provides a temporary URL that expires when the runtime stops. Select Custom Tunnel above for a permanent domain."
     if tunnel_mode_key == "quick"
-    else "✅ 当前使用自有 Cloudflare Tunnel 固定域名。"
+    else "INFO: Using your custom fixed Cloudflare Tunnel domain."
 )
 print(f"""
-=== 访问入口 ===
-🌐 现代 Web 操作台 : {host_url}
-📖 在线 API 文档   : {host_url}/docs
-🩺 机器与显存状态  : {host_url}/api/v1/system
+=== Endpoints ===
+Web Studio   : {host_url}
+API Docs     : {host_url}/docs
+System Stats : {host_url}/api/v1/system
 {tunnel_tip}
-🔑 API 默认免鉴权；如需鉴权，在网页右上角「API Key」中设置。
+API Key      : Open by default; configure an optional key in the Web Studio header.
 
-=== 快速 API 调用示例 ===
+=== Quick API Example ===
 curl -X POST "{host_url}/api/v1/generate" \\
   -H "Content-Type: application/json"{auth_note} \\
   -d '{sample_body}'

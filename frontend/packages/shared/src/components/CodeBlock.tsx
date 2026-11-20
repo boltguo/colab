@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { ThemedToken } from "shiki/core";
+import { useStudioLocale } from "../i18n";
 import { CheckCircleFilled, CopyOutlined, IconButton, ScrollArea, Tooltip, useStudioFeedback } from "../ui/primitives";
 
 export interface CodeBlockProps {
@@ -10,6 +11,7 @@ export interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, language = "text", title, onCopy }: CodeBlockProps) {
+  const { t } = useStudioLocale();
   const { message } = useStudioFeedback();
   const [highlighted, setHighlighted] = useState<{ code: string; language: string; tokens: ThemedToken[][] } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -37,15 +39,15 @@ export function CodeBlock({ code, language = "text", title, onCopy }: CodeBlockP
       else await navigator.clipboard.writeText(code);
       setCopied(true);
     } catch {
-      message.warning("复制失败，请手动选中代码复制");
+      message.warning(t("Copy failed. Please select and copy manually.", "复制失败，请手动选中代码复制"));
     }
   };
   const tokens = highlighted?.code === code && highlighted.language === language ? highlighted.tokens : null;
   return <div className="studio-syntax-block">
     <div className="studio-syntax-header">
       <span>{title || language}</span>
-      <Tooltip title={copied ? "已复制" : "复制代码"}>
-        <IconButton type="button" variant="standard" size="xs" aria-label={copied ? "已复制代码" : "复制代码"}
+      <Tooltip title={copied ? t("Copied", "已复制") : t("Copy code", "复制代码")}>
+        <IconButton type="button" variant="standard" size="xs" aria-label={copied ? t("Code copied", "已复制代码") : t("Copy code", "复制代码")}
           icon={copied ? <CheckCircleFilled /> : <CopyOutlined />} onClick={() => void copy()} />
       </Tooltip>
     </div>

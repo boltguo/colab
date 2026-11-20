@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useStudioLocale } from "../i18n";
 import { Button, Dialog, DownloadOutlined, ScrollArea } from "../ui/primitives";
 import { fitImageScale, imageDownloadUrl } from "../utils/imageViewing";
 import type { StageImageEntry } from "./ImageCompareStage";
@@ -8,6 +9,7 @@ export { imageDownloadUrl } from "../utils/imageViewing";
 export function ImageLightbox({ images, open, onClose }: {
   images: StageImageEntry[]; open: boolean; onClose: () => void;
 }) {
+  const { t } = useStudioLocale();
   const [index, setIndex] = useState(0);
   const [scale, setScale] = useState<number | null>(null);
   const [canvas, setCanvas] = useState<HTMLDivElement | null>(null);
@@ -30,18 +32,18 @@ export function ImageLightbox({ images, open, onClose }: {
   const currentScale = scale ?? fitScale;
   const zoom = (factor: number) => setScale(Math.max(Math.min(0.01, fitScale / 16), Math.min(Math.max(4, fitScale * 8), currentScale * factor)));
   return <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }} showCloseButton
-    title={`查看图片 · ${width} × ${height}`} className="studio-image-dialog"
+    title={t(`Inspect Image · ${width} × ${height}`, `查看图片 · ${width} × ${height}`)} className="studio-image-dialog"
     style={{ width: "calc(100vw - 40px)", height: "calc(100dvh - 40px)", minWidth: 0, maxWidth: "none", maxHeight: "none" }}>
     <div className="studio-image-toolbar">
-      {images.length > 1 && <><Button size="small" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}>上一张</Button>
+      {images.length > 1 && <><Button size="small" disabled={index === 0} onClick={() => setIndex((value) => value - 1)}>{t("Prev", "上一张")}</Button>
         <span className="studio-tabular">{index + 1} / {images.length}</span>
-        <Button size="small" disabled={index === images.length - 1} onClick={() => setIndex((value) => value + 1)}>下一张</Button></>}
-      <Button size="small" aria-label="缩小图片" onClick={() => zoom(1 / 1.25)}>−</Button>
+        <Button size="small" disabled={index === images.length - 1} onClick={() => setIndex((value) => value + 1)}>{t("Next", "下一张")}</Button></>}
+      <Button size="small" aria-label={t("Zoom out", "缩小图片")} onClick={() => zoom(1 / 1.25)}>−</Button>
       <span className="studio-tabular">{Math.round(currentScale * 100)}%</span>
-      <Button size="small" aria-label="放大图片" onClick={() => zoom(1.25)}>＋</Button>
-      <Button size="small" onClick={() => setScale(null)}>适应窗口</Button>
-      <Button size="small" onClick={() => setScale(1)}>原始大小</Button>
-      <Button size="small" type="primary" href={imageDownloadUrl(image.url)} download={image.filename} icon={<DownloadOutlined />}>下载原图</Button>
+      <Button size="small" aria-label={t("Zoom in", "放大图片")} onClick={() => zoom(1.25)}>＋</Button>
+      <Button size="small" onClick={() => setScale(null)}>{t("Fit", "适应窗口")}</Button>
+      <Button size="small" onClick={() => setScale(1)}>{t("100%", "原始大小")}</Button>
+      <Button size="small" type="primary" href={imageDownloadUrl(image.url)} download={image.filename} icon={<DownloadOutlined />}>{t("Download", "下载原图")}</Button>
     </div>
     <div ref={setCanvas} className="studio-image-canvas">
       <ScrollArea orientation="both" maxHeight="100%" style={{ height: "100%", width: "100%" }}>

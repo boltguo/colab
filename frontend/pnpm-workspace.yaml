@@ -6,7 +6,7 @@ allowBuilds:
   esbuild: true
 
 minimumReleaseAgeExclude:
-  - m3eui@0.1.0
+  - m3eui@0.2.0
 
 onlyBuiltDependencies:
   - esbuild

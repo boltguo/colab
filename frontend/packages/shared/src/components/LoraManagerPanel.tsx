@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useStudioLocale } from "../i18n";
 import {
   deleteCachedLora,
   fetchLoraCatalog,
@@ -59,8 +60,10 @@ export function LoraManagerPanel({
   excludeIds = [],
 }: LoraManagerPanelProps) {
   const sourceInputId = useId();
+  const uploadInputId = useId();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
+  const { t } = useStudioLocale();
   const { message } = useStudioFeedback();
 
   const [catalog, setCatalog] = useState<LoraListResponse | null>(null);
@@ -99,11 +102,11 @@ export function LoraManagerPanel({
           idx === existingIdx ? { ...s, lora: entry.filename, enabled: true } : s
         );
         onChange(updated);
-        message.info(`已启用 LoRA：${entry.label}`);
+        message.info(t(`Enabled LoRA: ${entry.label}`, `已启用 LoRA：${entry.label}`));
         return;
       }
       if (slots.length >= maxSlots) {
-        message.warning(`最多支持同时叠加 ${maxSlots} 个 LoRA。`);
+        message.warning(t(`Up to ${maxSlots} LoRAs can be stacked at once.`, `最多支持同时叠加 ${maxSlots} 个 LoRA。`));
         return;
       }
       onChange([
@@ -116,9 +119,9 @@ export function LoraManagerPanel({
           enabled: true,
         },
       ]);
-      message.success(`已挂载 LoRA：${entry.label}`);
+      message.success(t(`Mounted LoRA: ${entry.label}`, `已挂载 LoRA：${entry.label}`));
     },
-    [maxSlots, message, onChange, slots]
+    [maxSlots, message, onChange, slots, t]
   );
 
   const triggerDownloadAndAttach = async (
@@ -126,11 +129,11 @@ export function LoraManagerPanel({
   ) => {
     const cleanSrc = source.trim();
     if (!cleanSrc) {
-      message.warning("请输入 Hugging Face 仓库名（如 owner/repo）或 .safetensors 链接。");
+      message.warning(t("Enter a Hugging Face repo (e.g. owner/repo) or a .safetensors URL.", "请输入 Hugging Face 仓库名（如 owner/repo）或 .safetensors 链接。"));
       return;
     }
     unsubRef.current?.();
-    setDlState({ busy: true, progress: 0.04, stage: "正在后台下载并校验..." });
+    setDlState({ busy: true, progress: 0.04, stage: t("Downloading and verifying in background...", "正在后台下载并校验...") });
     try {
       const task = await submitLoraDownloadTask({
         source: cleanSrc,
@@ -150,7 +153,7 @@ export function LoraManagerPanel({
             void refreshCatalog();
             attachLoraToStack(downloaded);
           } else if (snap.status === "failed") {
-            message.error(snap.error || "LoRA 下载校验失败");
+            message.error(snap.error || t("LoRA download or verification failed", "LoRA 下载校验失败"));
           }
         },
         (err) => {
@@ -160,7 +163,7 @@ export function LoraManagerPanel({
       );
     } catch (err) {
       setDlState({ busy: false, progress: 0, stage: "" });
-      message.error(err instanceof Error ? err.message : "提交 LoRA 下载失败");
+      message.error(err instanceof Error ? err.message : t("Failed to queue LoRA download", "提交 LoRA 下载失败"));
     }
   };
 
@@ -171,7 +174,7 @@ export function LoraManagerPanel({
       await refreshCatalog();
       attachLoraToStack(entry);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "本地 LoRA 上传失败");
+      message.error(err instanceof Error ? err.message : t("Failed to upload local LoRA", "本地 LoRA 上传失败"));
     } finally {
       setUploadingLocal(false);
     }
@@ -182,9 +185,14 @@ export function LoraManagerPanel({
       const res = await deleteCachedLora(filename);
       onChange(slots.filter((s) => s.lora !== filename));
       await refreshCatalog();
-      message.success(`已删除 ${res.deleted}（释放 ${(res.freed_bytes / 1024 ** 2).toFixed(1)} MB）`);
+      message.success(
+        t(
+          `Deleted ${res.deleted} (freed ${(res.freed_bytes / 1024 ** 2).toFixed(1)} MB)`,
+          `已删除 ${res.deleted}（释放 ${(res.freed_bytes / 1024 ** 2).toFixed(1)} MB）`,
+        ),
+      );
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "删除 LoRA 失败");
+      message.error(err instanceof Error ? err.message : t("Failed to delete LoRA", "删除 LoRA 失败"));
     }
   };
 
@@ -238,7 +246,7 @@ export function LoraManagerPanel({
                       icon={<DeleteOutlined />}
                       onClick={() => onChange(slots.filter((_, i) => i !== idx))}
                     >
-                      移除
+                      {t("Remove", "移除")}
                     </Button>
                   </Space>
                 </div>
@@ -256,8 +264,8 @@ export function LoraManagerPanel({
                       onChange(next);
                     }}
                   />
-                  <Text strong className="studio-tabular" style={{ minInlineSize: 62, textAlign: "end", fontSize: 12.5 }}>
-                    强度 {slot.strength_model.toFixed(2)}
+                  <Text strong className="studio-tabular" style={{ minInlineSize: 82, textAlign: "end", fontSize: 12.5 }}>
+                    {t(`Strength ${slot.strength_model.toFixed(2)}`, `强度 ${slot.strength_model.toFixed(2)}`)}
                   </Text>
                 </div>
               </div>
@@ -269,14 +277,14 @@ export function LoraManagerPanel({
       {/* 2. Compact Single-Row Online Puller + Upload */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <label htmlFor={sourceInputId} className="studio-visually-hidden">
-          输入 Hugging Face 仓库或 .safetensors 下载链接
+          {t("Enter Hugging Face repo or .safetensors download URL", "输入 Hugging Face 仓库或 .safetensors 下载链接")}
         </label>
         <Input
           id={sourceInputId}
           style={{ flex: "1 1 260px" }}
           value={remoteSource}
           onValueChange={(value) => setRemoteSource(value)}
-          placeholder="粘贴模型下载链接或 Hugging Face 仓库名"
+          placeholder={t("Paste .safetensors URL or Hugging Face repo", "粘贴模型下载链接或 Hugging Face 仓库名")}
           onPressEnter={() =>
             void triggerDownloadAndAttach(remoteSource)
           }
@@ -291,10 +299,12 @@ export function LoraManagerPanel({
             void triggerDownloadAndAttach(remoteSource)
           }
         >
-          添加模型
+          {t("Add Model", "添加模型")}
         </Button>
 
         <input
+          id={uploadInputId}
+          name="lora_file"
           ref={uploadInputRef}
           type="file"
           accept=".safetensors"
@@ -313,7 +323,7 @@ export function LoraManagerPanel({
           loading={uploadingLocal}
           onClick={() => uploadInputRef.current?.click()}
         >
-          上传模型
+          {t("Upload Model", "上传模型")}
         </Button>
       </div>
 
@@ -322,7 +332,7 @@ export function LoraManagerPanel({
         <Space size={[6, 6]} wrap>
           {catalog && catalog.items.some((it) => !excludeIds.includes(it.id)) && (
             <>
-              <Text type="secondary" style={{ fontSize: 12 }}>可用模型：</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>{t("Available:", "可用模型：")}</Text>
               {catalog.items
                 .filter((it) => !excludeIds.includes(it.id))
                 .map((item) => {
@@ -331,7 +341,7 @@ export function LoraManagerPanel({
                   );
                   return (
                     <Space key={item.id} size={2}>
-                      <Tooltip title={`${item.description}（${item.filename}${item.size_bytes ? ` · ${formatSizeMb(item.size_bytes)}` : ""}）`}>
+                      <Tooltip title={`${item.description} (${item.filename}${item.size_bytes ? ` · ${formatSizeMb(item.size_bytes)}` : ""})`}>
                         <Button
                           htmlType="button"
                           size="small"
@@ -357,9 +367,9 @@ export function LoraManagerPanel({
                       </Tooltip>
                       {item.installed && (
                         <Popconfirm
-                          title={`从磁盘删除缓存 ${item.filename}？`}
-                          okText="删除"
-                          cancelText="取消"
+                          title={t(`Delete cached ${item.filename} from disk?`, `从磁盘删除缓存 ${item.filename}？`)}
+                          okText={t("Delete", "删除")}
+                          cancelText={t("Cancel", "取消")}
                           onConfirm={() => void handleDeleteCached(item.filename)}
                         >
                           <Button
@@ -368,7 +378,7 @@ export function LoraManagerPanel({
                             type="text"
                             danger
                             icon={<DeleteOutlined />}
-                            aria-label={`删除 ${item.filename}`}
+                            aria-label={t(`Delete ${item.filename}`, `删除 ${item.filename}`)}
                           />
                         </Popconfirm>
                       )}
@@ -383,7 +393,7 @@ export function LoraManagerPanel({
           {catalog && (
             <span className="studio-tabular" style={{ fontSize: 11.5, color: "var(--studio-text-muted)" }}>
               <HddOutlined style={{ marginInlineEnd: 4 }} />
-              可用磁盘 {catalog.free_disk_gb.toFixed(1)} GiB
+              {t(`Free disk ${catalog.free_disk_gb.toFixed(1)} GiB`, `可用磁盘 ${catalog.free_disk_gb.toFixed(1)} GiB`)}
             </span>
           )}
 

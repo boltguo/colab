@@ -1,76 +1,57 @@
 import {
-Alert,
-Button,
-Card,
-ChoiceButton,
-ClearOutlined,
-DeleteOutlined,
-ExperimentOutlined,
-GenerateDock,
-HistoryOutlined,
-ImageCompareStage,
-ImageSourceField,
-InfoCircleOutlined,
-InputNumber,
-LockOutlined,
-PictureOutlined,
-Popconfirm,
-Progress,
-QuestionCircleOutlined,
-SeedControl,
-Segmented,
-Select,
-Slider,
-Space,
-StudioShell,
-Switch,
-Tag,
-Text,
-ThunderboltOutlined,
-Tooltip,
-VideoCameraOutlined,
-resolveApiUrl,
-useHistoryStore,
-useStudioFeedback,
-useTaskRunner
+  Alert,
+  Button,
+  Card,
+  ChoiceButton,
+  ClearOutlined,
+  DeleteOutlined,
+  Empty,
+  ExperimentOutlined,
+  FieldLabel,
+  GenerateButton,
+  HistoryOutlined,
+  ImageCompareStage,
+  ImageSourceField,
+  InfoCircleOutlined,
+  InputNumber,
+  LockOutlined,
+  PictureOutlined,
+  Popconfirm,
+  Progress,
+  ScrollArea,
+  SeedControl,
+  Segmented,
+  Select,
+  Slider,
+  Space,
+  StudioShell,
+  Switch,
+  Tag,
+  Text,
+  ThunderboltOutlined,
+  VideoCameraOutlined,
+  resolveApiUrl,
+  useHistoryStore,
+  useStudioFeedback,
+  useStudioLocale,
+  useTaskRunner,
 } from "@colab/shared";
-import { useCallback,useEffect,useId,useMemo,useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { VideoCompareStage } from "./VideoCompareStage";
 import type { VideoSourceMeta } from "./VideoInputCard";
 import { VideoInputCard } from "./VideoInputCard";
-import { buildUpscaleStudioRequest,type SeedVR2StudioRequest } from "./request";
+import { buildUpscaleStudioRequest, type SeedVR2StudioRequest } from "./request";
 import type {
-CropMode,
-ImageOutputFormat,
-SeedVR2Mode,
-SeedVR2ModelVariant,
-SeedVR2Params,
-SeedVR2Result,
-SizingMode,
-VideoOutputFormat
+  CropMode,
+  ImageOutputFormat,
+  SeedVR2Mode,
+  SeedVR2ModelVariant,
+  SeedVR2Params,
+  SeedVR2Result,
+  SizingMode,
+  VideoOutputFormat,
 } from "./types";
-import {
-DEFAULT_SEEDVR2_PARAMS,
-computeTargetDimensions
-} from "./types";
-
-function FieldLabel({ label, tooltip, htmlFor }: { label: string; tooltip?: string; htmlFor?: string }) {
-  const inner = (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-      {label}
-      {tooltip && (
-        <Tooltip title={tooltip}>
-          <QuestionCircleOutlined style={{ color: "var(--studio-text-muted)", fontSize: 13 }} />
-        </Tooltip>
-      )}
-    </span>
-  );
-  return (
-    <div className="studio-field-label">
-      {htmlFor ? <label htmlFor={htmlFor}>{inner}</label> : inner}
-    </div>
-  );
-}
+import { DEFAULT_SEEDVR2_PARAMS, computeTargetDimensions } from "./types";
 
 const SCALE_PRESETS_VIDEO = [1.5, 2.0, 3.0, 4.0];
 const SCALE_PRESETS_IMAGE = [2.0, 3.0, 4.0, 6.0];
@@ -85,15 +66,15 @@ const LONGER_EDGE_PRESETS = [
   { label: "4K (3840)", value: 3840 },
   { label: "DCI 4K (4096)", value: 4096 },
 ];
-const CHUNK_FRAME_PRESETS = [1, 5, 9, 13, 17, 21, 25, 33, 49];
 
 export function SeedVR2StudioApp() {
+  const { t } = useStudioLocale();
   const scaleInputId = useId();
   const shortEdgeInputId = useId();
   const longEdgeInputId = useId();
   const customWidthId = useId();
   const customHeightId = useId();
-  const seedInputId = useId();
+  const outputFormatId = useId();
 
   const { message } = useStudioFeedback();
 
@@ -113,7 +94,10 @@ export function SeedVR2StudioApp() {
 
   const activeInputRef = params.mode === "video" ? videoFileRef : imageFileRef;
 
-  const effectivePayload = useMemo(() => buildUpscaleStudioRequest(params, activeInputRef || "<YOUR_UPLOADED_FILE_ID>"), [params, activeInputRef]);
+  const effectivePayload = useMemo(
+    () => buildUpscaleStudioRequest(params, activeInputRef || "<YOUR_UPLOADED_FILE_ID>"),
+    [params, activeInputRef],
+  );
 
   const { activeTask, isBusy, runTask, cancelActive } = useTaskRunner<
     SeedVR2Result,
@@ -135,7 +119,10 @@ export function SeedVR2StudioApp() {
           setParams((prev) => ({ ...prev, seed: finishedTask.result!.used_seed }));
         }
         message.success(
-          `超分完成：${finishedTask.result.input_width}×${finishedTask.result.input_height} → ${finishedTask.result.width}×${finishedTask.result.height}`
+          t(
+            `Upscale completed: ${finishedTask.result.input_width}×${finishedTask.result.input_height} → ${finishedTask.result.width}×${finishedTask.result.height}`,
+            `超分完成：${finishedTask.result.input_width}×${finishedTask.result.input_height} → ${finishedTask.result.width}×${finishedTask.result.height}`,
+          ),
         );
       }
     },
@@ -205,13 +192,19 @@ export function SeedVR2StudioApp() {
 
   const validationMessage = useMemo(() => {
     if (params.sizing_mode === "dimensions" && !params.target_width && !params.target_height) {
-      return "目标宽度与高度不能同时为 0，请至少设置一个尺寸。";
+      return t(
+        "Target width and height cannot both be 0; set at least one dimension.",
+        "目标宽度与高度不能同时为 0，请至少设置一个尺寸。",
+      );
     }
     if (activeSourceDims && Math.max(previewTarget.width, previewTarget.height) > 16384) {
-      return "目标尺寸超出单边 16384 像素上限，请降低放大倍数或目标尺寸。";
+      return t(
+        "Target dimension exceeds 16,384 px per side; reduce scale factor or target size.",
+        "目标尺寸超出单边 16384 像素上限，请降低放大倍数或目标尺寸。",
+      );
     }
     return "";
-  }, [params, activeSourceDims, previewTarget, videoSourceMeta]);
+  }, [params, activeSourceDims, previewTarget, t]);
 
   const handleGenerate = useCallback(async () => {
     if (isBusy) return;
@@ -222,16 +215,15 @@ export function SeedVR2StudioApp() {
     if (!activeInputRef.trim()) {
       message.warning(
         params.mode === "video"
-          ? "请先上传待超分的源视频文件。"
-          : "请先上传待超分的源图片文件。"
+          ? t("Please upload a source video to upscale.", "请先上传待超分的源视频文件。")
+          : t("Please upload a source image to upscale.", "请先上传待超分的源图片文件。"),
       );
       return;
     }
     const payload = buildUpscaleStudioRequest(params, activeInputRef);
     await runTask(payload);
-  }, [isBusy, activeInputRef, params, message, runTask, validationMessage]);
+  }, [isBusy, activeInputRef, params, message, runTask, t, validationMessage]);
 
-  // Global Cmd/Ctrl + Enter shortcut
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !e.isComposing && e.keyCode !== 229) {
@@ -263,7 +255,6 @@ export function SeedVR2StudioApp() {
 
   const leftPane = (
     <>
-      {/* 1. Mode & Source Media Card */}
       <Card
         className="studio-card"
         title={
@@ -273,12 +264,12 @@ export function SeedVR2StudioApp() {
               onChange={(val) => handleModeSwitch(val as SeedVR2Mode)}
               options={[
                 {
-                  label: "视频画质超分",
+                  label: t("Video Upscale", "视频画质超分"),
                   value: "video",
                   icon: <VideoCameraOutlined />,
                 },
                 {
-                  label: "图片 4K 超分",
+                  label: t("Image 4K Upscale", "图片 4K 超分"),
                   value: "image",
                   icon: <PictureOutlined />,
                 },
@@ -286,8 +277,8 @@ export function SeedVR2StudioApp() {
             />
             <Text type="secondary" style={{ fontSize: 12.5, fontWeight: 400 }}>
               {params.mode === "video"
-                ? "保留原声与帧率 · 支持时间分块"
-                : "单图 4K 细节重绘 · 保留透明通道"}
+                ? t("Preserves original audio & FPS · Temporal chunking", "保留原声与帧率 · 支持时间分块")
+                : t("Single-image 4K detail restoration · Alpha preserved", "单图 4K 细节重绘 · 保留透明通道")}
             </Text>
           </div>
         }
@@ -295,6 +286,7 @@ export function SeedVR2StudioApp() {
           <Button
             htmlType="button"
             size="small"
+            type="text"
             icon={<ClearOutlined />}
             onClick={() => {
               setParams((prev) => ({
@@ -302,16 +294,16 @@ export function SeedVR2StudioApp() {
                 mode: prev.mode,
                 scale_factor: prev.mode === "image" ? 4.0 : 2.0,
               }));
-              message.info("已恢复推荐默认超分参数");
+              message.info(t("Restored recommended upscale defaults", "已恢复推荐默认超分参数"));
             }}
           >
-            恢复默认
+            {t("Reset", "恢复默认")}
           </Button>
         }
       >
         {params.mode === "video" ? (
           <VideoInputCard
-            label="待超分源视频"
+            label={t("Source Video", "待超分源视频")}
             badgeText="MP4 / WebM / MOV / MKV"
             value={videoFileRef}
             onChange={setVideoFileRef}
@@ -319,7 +311,7 @@ export function SeedVR2StudioApp() {
           />
         ) : (
           <ImageSourceField
-            label="待超分源图片"
+            label={t("Source Image", "待超分源图片")}
             badgeText="PNG / JPG / WebP"
             value={imageFileRef}
             onChange={setImageFileRef}
@@ -328,102 +320,106 @@ export function SeedVR2StudioApp() {
         )}
       </Card>
 
-      {/* 2. Model Variant & Independent Target Resolution Card */}
       <Card
         className="studio-card"
         title={
           <Space size={8}>
             <ThunderboltOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>模型与尺寸</span>
+            <span>{t("Model & Sizing", "模型与尺寸")}</span>
           </Space>
         }
         extra={
           <Tag color="processing" className="studio-tabular" style={{ marginInlineEnd: 0 }}>
-            按原图比例放大
+            {t("Proportional upscale", "按原图比例放大")}
           </Tag>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {/* Model Variant Flat Cards */}
           <div className="studio-field-group">
             <FieldLabel
-              label="模型"
-              tooltip="7B Sharp 拥有 15.35GB FP16 权重，人像肤质、毛发与建筑锐度最高；3B Fast 仅 6.32GB，适合长视频高吞吐与 40GB 显卡快速超分。"
+              label={t("Model", "模型")}
+              tooltip={t(
+                "7B Sharp (15.35 GB FP16) maximizes texture & skin/hair crispness; 3B Fast (6.32 GB) excels on long videos and 40GB GPUs.",
+                "7B Sharp 拥有 15.35GB FP16 权重，人像肤质、毛发与建筑锐度最高；3B Fast 仅 6.32GB，适合长视频高吞吐与 40GB 显卡快速超分。",
+              )}
             />
             <div className="studio-image-slot-grid">
               <ChoiceButton
                 type="button"
+                align="start"
                 className="studio-aspect-pill"
                 active={params.model_variant === "7b_sharp"}
                 style={{
-                  alignItems: "flex-start",
-                  textAlign: "start",
-                  padding: "0.65rem 0.85rem",
+                  padding: "0.65rem 0.9rem",
                   minBlockSize: 68,
                 }}
                 onClick={() => handleVariantSwitch("7b_sharp")}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", inlineSize: "100%", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>7B Sharp · 清晰优先</span>
+                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>{t("7B Sharp · Best Detail", "7B Sharp · 清晰优先")}</span>
                 </div>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>
-                  适合细节修复和高品质放大
+                  {t("Highest fidelity & micro-texture restoration", "适合细节修复和高品质放大")}
                 </span>
               </ChoiceButton>
 
               <ChoiceButton
                 type="button"
+                align="start"
                 className="studio-aspect-pill"
                 active={params.model_variant === "3b_fast"}
                 style={{
-                  alignItems: "flex-start",
-                  textAlign: "start",
-                  padding: "0.65rem 0.85rem",
+                  padding: "0.65rem 0.9rem",
                   minBlockSize: 68,
                 }}
                 onClick={() => handleVariantSwitch("3b_fast")}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", inlineSize: "100%", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>3B Fast · 速度优先</span>
+                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>{t("3B Fast · Speed Priority", "3B Fast · 速度优先")}</span>
                 </div>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>
-                  适合长视频与快速处理
+                  {t("Best for long videos & faster throughput", "适合长视频与快速处理")}
                 </span>
               </ChoiceButton>
             </div>
           </div>
 
-          {/* Sizing Strategy Bar */}
           <div className="studio-field-group">
             <FieldLabel
-              label="调整尺寸"
-              tooltip="支持按倍数等比放大、锁定标准短边档位（如 1080P/2K/4K）、锁定长边像素或指定精确宽高。"
+              label={t("Resize Mode", "调整尺寸")}
+              tooltip={t(
+                "Upscale by factor, lock standard shorter edge (1080P/2K/4K), lock longer edge, or set exact dimensions.",
+                "支持按倍数等比放大、锁定标准短边档位（如 1080P/2K/4K）、锁定长边像素或指定精确宽高。",
+              )}
             />
             <Segmented
               block
               value={params.sizing_mode}
               onChange={(val) => updateParam("sizing_mode", val as SizingMode)}
               options={[
-                { label: "倍数", value: "multiplier" },
-                { label: "短边", value: "shorter_edge" },
-                { label: "长边", value: "longer_edge" },
-                { label: "自定义", value: "dimensions" },
+                { label: t("Scale", "倍数"), value: "multiplier" },
+                { label: t("Short Edge", "短边"), value: "shorter_edge" },
+                { label: t("Long Edge", "长边"), value: "longer_edge" },
+                { label: t("Custom", "自定义"), value: "dimensions" },
               ]}
             />
           </div>
 
-          {/* Active Sizing Controls + Pre-Interpolation */}
           <div className="studio-dim-bar">
             {params.sizing_mode === "multiplier" && (
               <div className="studio-field-group" style={{ flex: "1 1 280px" }}>
-                <FieldLabel label="等比放大倍数 (Scale Factor)" htmlFor={scaleInputId} />
+                <FieldLabel label={t("Scale Factor", "等比放大倍数 (Scale Factor)")} htmlFor={scaleInputId} />
                 <div className="studio-preset-field">
-                  <Segmented size="small" variant="tonal" aria-label="等比放大倍数预设"
+                  <Segmented
+                    size="small"
+                    variant="tonal"
+                    aria-label={t("Scale presets", "等比放大倍数预设")}
                     value={params.scale_factor}
                     onChange={(value) => updateParam("scale_factor", Number(value))}
                     options={(params.mode === "image" ? SCALE_PRESETS_IMAGE : SCALE_PRESETS_VIDEO).map(
-                    (preset) => ({ label: `${preset}x`, value: preset })
-                  )} />
+                      (preset) => ({ label: `${preset}x`, value: preset })
+                    )}
+                  />
                   <InputNumber
                     id={scaleInputId}
                     size="small"
@@ -444,12 +440,16 @@ export function SeedVR2StudioApp() {
 
             {params.sizing_mode === "shorter_edge" && (
               <div className="studio-field-group" style={{ flex: "1 1 320px" }}>
-                <FieldLabel label="目标短边像素 (Shorter Edge)" htmlFor={shortEdgeInputId} />
+                <FieldLabel label={t("Target Shorter Edge (px)", "目标短边像素 (Shorter Edge)")} htmlFor={shortEdgeInputId} />
                 <div className="studio-preset-field">
-                  <Segmented size="small" variant="tonal" aria-label="目标短边预设"
+                  <Segmented
+                    size="small"
+                    variant="tonal"
+                    aria-label={t("Short edge presets", "目标短边预设")}
                     value={params.target_shorter_edge}
                     onChange={(value) => updateParam("target_shorter_edge", Number(value))}
-                    options={SHORTER_EDGE_PRESETS.map((preset) => ({ label: preset.label, value: preset.value }))} />
+                    options={SHORTER_EDGE_PRESETS.map((preset) => ({ label: preset.label, value: preset.value }))}
+                  />
                   <InputNumber
                     id={shortEdgeInputId}
                     size="small"
@@ -473,12 +473,16 @@ export function SeedVR2StudioApp() {
 
             {params.sizing_mode === "longer_edge" && (
               <div className="studio-field-group" style={{ flex: "1 1 320px" }}>
-                <FieldLabel label="目标长边像素 (Longer Edge)" htmlFor={longEdgeInputId} />
+                <FieldLabel label={t("Target Longer Edge (px)", "目标长边像素 (Longer Edge)")} htmlFor={longEdgeInputId} />
                 <div className="studio-preset-field">
-                  <Segmented size="small" variant="tonal" aria-label="目标长边预设"
+                  <Segmented
+                    size="small"
+                    variant="tonal"
+                    aria-label={t("Long edge presets", "目标长边预设")}
                     value={params.target_longer_edge}
                     onChange={(value) => updateParam("target_longer_edge", Number(value))}
-                    options={LONGER_EDGE_PRESETS.map((preset) => ({ label: preset.label, value: preset.value }))} />
+                    options={LONGER_EDGE_PRESETS.map((preset) => ({ label: preset.label, value: preset.value }))}
+                  />
                   <InputNumber
                     id={longEdgeInputId}
                     size="small"
@@ -503,7 +507,7 @@ export function SeedVR2StudioApp() {
             {params.sizing_mode === "dimensions" && (
               <div className="studio-field-group" style={{ flex: "1 1 360px" }}>
                 <FieldLabel
-                  label="精确目标宽 × 高 (0 = 按原比例自适应)"
+                  label={t("Exact Target Width × Height (0 = auto aspect)", "精确目标宽 × 高 (0 = 按原比例自适应)")}
                   htmlFor={customWidthId}
                 />
                 <Space wrap size={8}>
@@ -515,7 +519,7 @@ export function SeedVR2StudioApp() {
                     min={0}
                     max={8192}
                     step={16}
-                    addonBefore="宽"
+                    addonBefore={t("W", "宽")}
                     value={params.target_width}
                     onChange={(v) =>
                       updateParam(
@@ -526,7 +530,7 @@ export function SeedVR2StudioApp() {
                   />
                   <Text type="secondary">×</Text>
                   <label htmlFor={customHeightId} className="studio-visually-hidden">
-                    目标高度像素
+                    {t("Target height in pixels", "目标高度像素")}
                   </label>
                   <InputNumber
                     id={customHeightId}
@@ -536,7 +540,7 @@ export function SeedVR2StudioApp() {
                     min={0}
                     max={8192}
                     step={16}
-                    addonBefore="高"
+                    addonBefore={t("H", "高")}
                     value={params.target_height}
                     onChange={(v) =>
                       updateParam(
@@ -547,20 +551,18 @@ export function SeedVR2StudioApp() {
                   />
                   <Select
                     size="small"
-                    style={{ inlineSize: 132 }}
+                    style={{ inlineSize: 150 }}
                     value={params.crop_mode}
                     onChange={(v) => updateParam("crop_mode", v as CropMode)}
                     options={[
-                      { label: "居中裁切保比例", value: "center" },
-                      { label: "强制拉伸填充", value: "disabled" },
+                      { label: t("Center Crop", "居中裁切保比例"), value: "center" },
+                      { label: t("Stretch to Fit", "强制拉伸填充"), value: "disabled" },
                     ]}
                   />
                 </Space>
               </div>
             )}
 
-
-            {/* Live Dimension Readout */}
             <div
               className="studio-tabular"
               style={{
@@ -576,7 +578,9 @@ export function SeedVR2StudioApp() {
               }}
             >
               <span style={{ color: "var(--studio-text-secondary)" }}>
-                {previewTarget.isExample ? "预估换算示例（上传后读取真实尺寸）：" : "实时尺寸换算："}
+                {previewTarget.isExample
+                  ? t("Estimated example (updates on upload): ", "预估换算示例（上传后读取真实尺寸）：")
+                  : t("Target dimensions: ", "实时尺寸换算：")}
                 <strong>
                   {previewTarget.srcW} × {previewTarget.srcH}
                 </strong>{" "}
@@ -587,7 +591,7 @@ export function SeedVR2StudioApp() {
               </span>
               <Space size={6}>
                 <Tag color="blue" style={{ marginInlineEnd: 0 }}>
-                  等效 ×{previewTarget.effectiveScale.toFixed(2)}
+                  {t(`Scale ×${previewTarget.effectiveScale.toFixed(2)}`, `等效 ×${previewTarget.effectiveScale.toFixed(2)}`)}
                 </Tag>
                 <Tag style={{ marginInlineEnd: 0 }}>{previewTarget.megapixels} MP</Tag>
               </Space>
@@ -596,35 +600,79 @@ export function SeedVR2StudioApp() {
         </div>
       </Card>
 
-      <Card className="studio-card" title="生成设置" extra={params.mode === "video" && <Space size={10}><span>保留原声</span><Switch checked={params.keep_audio} onChange={(value) => updateParam("keep_audio", value)} aria-label="保留原声" /></Space>}>
+      <Card
+        className="studio-card"
+        title={t("Generation Settings", "生成设置")}
+        extra={
+          params.mode === "video" && (
+            <Switch
+              label={t("Keep original audio", "保留原声")}
+              checked={params.keep_audio}
+              onChange={(value) => updateParam("keep_audio", value)}
+              aria-label={t("Keep original audio", "保留原声")}
+            />
+          )
+        }
+      >
         <div className="studio-settings-grid">
           <div className="studio-field-group">
-            <div className="studio-field-label"><span>步数</span><span className="studio-tabular">{params.steps} 步</span></div>
-            <Slider aria-label="生成步数" min={1} max={20} step={1} value={params.steps} onChange={(value) => updateParam("steps", value)} />
+            <div className="studio-field-label">
+              <span>{t("Steps", "步数")}</span>
+              <span className="studio-tabular">{t(`${params.steps} step${params.steps === 1 ? "" : "s"}`, `${params.steps} 步`)}</span>
+            </div>
+            <Slider aria-label={t("Steps", "生成步数")} min={1} max={20} step={1} value={params.steps} onChange={(value) => updateParam("steps", value)} />
           </div>
-          <SeedControl value={params.seed} max={2147483647}
-            onChange={(value) => updateParam("seed", value)} onLockedChange={setSeedLocked} />
+          <div className="studio-field-group">
+            <label htmlFor={outputFormatId} className="studio-field-label">
+              <span>{t("Output Format", "输出格式")}</span>
+            </label>
+            <Select
+              id={outputFormatId}
+              aria-label={t("Output format", "输出格式")}
+              value={params.mode === "video" ? params.video_output_format : params.image_output_format}
+              options={
+                params.mode === "video"
+                  ? [{ label: "MP4", value: "mp4" }, { label: "WebM", value: "webm" }, { label: "MKV", value: "mkv" }]
+                  : [{ label: "PNG", value: "png" }, { label: "WebP", value: "webp" }, { label: "JPEG", value: "jpeg" }]
+              }
+              onChange={(value) => {
+                if (params.mode === "image") {
+                  updateParam("image_output_format", value as ImageOutputFormat);
+                  return;
+                }
+                const format = value as VideoOutputFormat;
+                setParams((previous) => ({
+                  ...previous,
+                  video_output_format: format,
+                  video_codec: format === "webm" && previous.video_codec === "h264" ? "auto" : previous.video_codec,
+                }));
+              }}
+            />
+          </div>
+          <SeedControl
+            value={params.seed}
+            max={2147483647}
+            onChange={(value) => updateParam("seed", value)}
+            onLockedChange={setSeedLocked}
+          />
         </div>
       </Card>
 
       {validationMessage && <Alert type="warning" showIcon message={validationMessage} />}
 
-      <GenerateDock format={params.mode === "video" ? params.video_output_format : params.image_output_format}
-        formats={params.mode === "video" ? [{ label: "MP4", value: "mp4" }, { label: "WebM", value: "webm" }, { label: "MKV", value: "mkv" }]
-          : [{ label: "PNG", value: "png" }, { label: "WebP", value: "webp" }, { label: "JPEG", value: "jpeg" }]}
-        onFormatChange={(value) => {
-          if (params.mode === "image") { updateParam("image_output_format", value as ImageOutputFormat); return; }
-          const format = value as VideoOutputFormat;
-          setParams((previous) => ({ ...previous, video_output_format: format,
-            video_codec: format === "webm" && previous.video_codec === "h264" ? "auto" : previous.video_codec }));
-        }} label="开始超分" disabled={Boolean(validationMessage) || !activeInputRef.trim()}
-        busy={isBusy} queued={activeTask?.status === "queued"} onCancel={() => void cancelActive()} onGenerate={() => void handleGenerate()} />
+      <GenerateButton
+        label={t("Start Upscale", "开始超分")}
+        disabled={Boolean(validationMessage) || !activeInputRef.trim()}
+        busy={isBusy}
+        queued={activeTask?.status === "queued"}
+        onCancel={() => void cancelActive()}
+        onGenerate={() => void handleGenerate()}
+      />
     </>
   );
 
   const rightPane = (
     <>
-      {/* Live GPU Task Progress */}
       {isBusy && activeTask && (
         <Card className="studio-card" size="small">
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -633,8 +681,8 @@ export function SeedVR2StudioApp() {
                 <ExperimentOutlined style={{ color: "var(--studio-accent)" }} />
                 <Text strong style={{ fontSize: 13 }}>
                   {activeTask.status === "queued"
-                    ? `排队等待中（#${activeTask.queue_position || 1}）`
-                    : "SeedVR2 正在执行超分细节重建"}
+                    ? t(`Queued (#${activeTask.queue_position || 1})`, `排队等待中（#${activeTask.queue_position || 1}）`)
+                    : t("SeedVR2 rebuilding fine details", "SeedVR2 正在执行超分细节重建")}
                 </Text>
               </Space>
               <Text strong className="studio-tabular" style={{ color: "var(--studio-accent)" }}>
@@ -648,13 +696,12 @@ export function SeedVR2StudioApp() {
               size="small"
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {activeTask.stage || "正在调度 Tiled VAE 与 SeedVR2 扩散模型..."}
+              {activeTask.stage || t("Scheduling Tiled VAE & SeedVR2 diffusion...", "正在调度 Tiled VAE 与 SeedVR2 扩散模型...")}
             </Text>
           </div>
         </Card>
       )}
 
-      {/* Primary Preview & A/B Reference Stage */}
       <Card
         className="studio-card"
         title={
@@ -664,50 +711,31 @@ export function SeedVR2StudioApp() {
             ) : (
               <VideoCameraOutlined style={{ color: "var(--studio-accent)" }} />
             )}
-            <span>超分前后 A/B 对比检视台</span>
+            <span>{t("Before / After A/B Inspector", "超分前后 A/B 对比检视台")}</span>
           </Space>
         }
         extra={
           displayedEntry?.result.mock ? (
             <Tag color="warning" style={{ marginInlineEnd: 0 }}>
-              本地 Mock 预览
+              {t("Mock Preview", "本地 Mock 预览")}
             </Tag>
           ) : displayedEntry?.result ? (
             <Tag color="success" style={{ marginInlineEnd: 0 }}>
-              GPU 真实超分
+              {t("GPU Upscaled", "GPU 真实超分")}
             </Tag>
           ) : null
         }
       >
         {!displayedEntry || !stageOutputUrl ? (
-          <div
-            style={{
-              padding: "3rem 1.5rem",
-              textAlign: "center",
-              borderRadius: "0.7rem",
-              background: "var(--studio-surface-subtle)",
-              border: "1px dashed var(--studio-border-strong)",
-            }}
-          >
-            {params.mode === "video" ? (
-              <VideoCameraOutlined style={{ fontSize: 36, color: "var(--m3e-color-outline)", marginBlockEnd: 10 }} />
-            ) : (
-              <PictureOutlined style={{ fontSize: 36, color: "var(--m3e-color-outline)", marginBlockEnd: 10 }} />
+          <Empty
+            title={t("Ready to Upscale", "等待超分任务完成")}
+            description={t(
+              "Upload a video or image, pick your target sizing mode, then click Start Upscale for interactive A/B wipe inspection.",
+              "上传视频或图片并选择放大策略后点击开始超分，完成后可拖拽卷帘实时对比细节。",
             )}
-            <div
-              style={{
-                fontWeight: 600,
-                fontSize: 14.5,
-                color: "var(--studio-text)",
-                marginBlockEnd: 4,
-              }}
-            >
-              等待超分任务完成
-            </div>
-            <Text type="secondary" style={{ fontSize: 12.5 }}>
-              在左侧上传视频或图片并选择放大策略后，点击底部主按钮或按 <code>⌘/Ctrl + Enter</code>。完成后可在此拖拽卷帘实时对比原片与超分细节。
-            </Text>
-          </div>
+            icon={params.mode === "video" ? <VideoCameraOutlined /> : <PictureOutlined />}
+            shape="flower"
+          />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
             {displayedEntry.result.media_type === "video" ? (
@@ -716,9 +744,13 @@ export function SeedVR2StudioApp() {
                 outputUrl={stageOutputUrl}
                 downloadUrl={stageDownloadUrl}
                 inputUrl={stageInputUrl || undefined}
-                referenceFit={displayedEntry.params.sizing_mode === "dimensions"
-                  ? displayedEntry.params.crop_mode === "center" ? "cover" : "fill"
-                  : "contain"}
+                referenceFit={
+                  displayedEntry.params.sizing_mode === "dimensions"
+                    ? displayedEntry.params.crop_mode === "center"
+                      ? "cover"
+                      : "fill"
+                    : "contain"
+                }
                 onUseAsInput={() => {
                   const outRef = `output:${displayedEntry.result.filename}`;
                   setVideoFileRef(outRef);
@@ -728,7 +760,7 @@ export function SeedVR2StudioApp() {
                     dur: displayedEntry.result.duration_sec || 0,
                   });
                   handleModeSwitch("video");
-                  message.success("已将该超分视频挂载为新的源视频");
+                  message.success(t("Loaded upscaled video as new input source", "已将该超分视频挂载为新的源视频"));
                 }}
               />
             ) : (
@@ -744,15 +776,21 @@ export function SeedVR2StudioApp() {
                   },
                 ]}
                 referenceUrl={stageInputUrl || undefined}
-                referenceLabel={`超分前原图 (${displayedEntry.result.input_width}×${displayedEntry.result.input_height})`}
-                resultLabel={`SeedVR2 超分 (${displayedEntry.result.width}×${displayedEntry.result.height})`}
-                useAsReferenceLabel="设为源图继续放大"
+                referenceLabel={t(
+                  `Original (${displayedEntry.result.input_width}×${displayedEntry.result.input_height})`,
+                  `超分前原图 (${displayedEntry.result.input_width}×${displayedEntry.result.input_height})`,
+                )}
+                resultLabel={t(
+                  `SeedVR2 (${displayedEntry.result.width}×${displayedEntry.result.height})`,
+                  `SeedVR2 超分 (${displayedEntry.result.width}×${displayedEntry.result.height})`,
+                )}
+                useAsReferenceLabel={t("Use as Input", "设为源图继续放大")}
                 onUseAsReference={(img) => {
                   const outRef = `output:${img.filename}`;
                   setImageFileRef(outRef);
                   setImageSourceDims({ w: img.width, h: img.height });
                   handleModeSwitch("image");
-                  message.success("已将该超分图挂载为新的源图片");
+                  message.success(t("Loaded upscaled image as new input source", "已将该超分图挂载为新的源图片"));
                 }}
               />
             )}
@@ -761,20 +799,7 @@ export function SeedVR2StudioApp() {
               <Alert key={idx} type="info" showIcon icon={<InfoCircleOutlined />} message={w} />
             ))}
 
-            {/* Metadata & Seed Lock Footer */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "0.5rem",
-                padding: "0.6rem 0.75rem",
-                borderRadius: "0.6rem",
-                background: "var(--studio-surface-subtle)",
-                border: "1px solid var(--studio-border)",
-              }}
-            >
+            <div className="studio-meta-bar">
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.4rem" }}>
                 <Tag color="processing" style={{ marginInlineEnd: 0 }}>
                   {displayedEntry.result.model_variant === "7b_sharp" ? "7B Sharp" : "3B Fast"}
@@ -785,14 +810,14 @@ export function SeedVR2StudioApp() {
                   {displayedEntry.result.effective_scale})
                 </Tag>
                 <Tag style={{ marginInlineEnd: 0 }}>
-                  追色: {displayedEntry.result.color_correction.toUpperCase()}
+                  {t(`Color: ${displayedEntry.result.color_correction.toUpperCase()}`, `追色: ${displayedEntry.result.color_correction.toUpperCase()}`)}
                 </Tag>
                 {displayedEntry.result.media_type === "video" && (
                   <Tag
                     color={displayedEntry.result.has_audio ? "success" : "default"}
                     style={{ marginInlineEnd: 0 }}
                   >
-                    {displayedEntry.result.has_audio ? "原声保留" : "无音轨"}
+                    {displayedEntry.result.has_audio ? t("Audio Kept", "原声保留") : t("Muted", "无音轨")}
                   </Tag>
                 )}
                 {displayedEntry.result.split_latent && (
@@ -801,7 +826,7 @@ export function SeedVR2StudioApp() {
                   </Tag>
                 )}
                 <Tag className="studio-tabular" style={{ marginInlineEnd: 0 }}>
-                  {displayedEntry.result.steps} 步 · CFG {displayedEntry.result.cfg}
+                  {t(`${displayedEntry.result.steps} steps`, `${displayedEntry.result.steps} 步`)} · CFG {displayedEntry.result.cfg}
                 </Tag>
               </div>
 
@@ -812,38 +837,37 @@ export function SeedVR2StudioApp() {
                 onClick={() => {
                   setSeedLocked(true);
                   updateParam("seed", displayedEntry.result.used_seed);
-                  message.success(`已锁定种子：${displayedEntry.result.used_seed}`);
+                  message.success(t(`Locked seed: ${displayedEntry.result.used_seed}`, `已锁定种子：${displayedEntry.result.used_seed}`));
                 }}
               >
-                使用此种子
+                {t("Use this seed", "使用此种子")}
               </Button>
             </div>
           </div>
         )}
       </Card>
 
-      {/* Session History List */}
       <Card
         className="studio-card"
         title={
           <Space size={8}>
             <HistoryOutlined style={{ color: "var(--studio-accent)" }} />
-            <span>本次会话超分历史（{historyItems.length}）</span>
+            <span>{t(`Session History (${historyItems.length})`, `本次会话超分历史（${historyItems.length}）`)}</span>
           </Space>
         }
         extra={
           historyItems.length > 0 && (
             <Popconfirm
-              title="清空当前会话超分记录？"
-              okText="清空"
-              cancelText="取消"
+              title={t("Clear session upscale history?", "清空当前会话超分记录？")}
+              okText={t("Clear", "清空")}
+              cancelText={t("Cancel", "取消")}
               onConfirm={() => {
                 clearAll();
                 setSelectedTakeId(null);
               }}
             >
               <Button htmlType="button" size="small" type="text" danger icon={<DeleteOutlined />}>
-                清空
+                {t("Clear", "清空")}
               </Button>
             </Popconfirm>
           )
@@ -851,16 +875,21 @@ export function SeedVR2StudioApp() {
       >
         {historyItems.length === 0 ? (
           <Text type="secondary" style={{ fontSize: 12.5 }}>
-            本次会话完成的视频与图片超分记录会自动保存在此，支持随时切换对比或一键回填全部参数。
+            {t(
+              "Completed video and image upscales appear here so you can compare results or restore parameters.",
+              "本次会话完成的视频与图片超分记录会自动保存在此，支持随时切换对比或一键回填全部参数。",
+            )}
           </Text>
         ) : (
-          <div className="studio-scroll-panel">
-            <div className="studio-video-history-list">
+          <ScrollArea maxHeight={420}>
+            <div className="studio-video-history-list" style={{ paddingInlineEnd: 8 }}>
               {historyItems.map((item) => {
                 const isSelected = displayedEntry?.id === item.id;
                 const mediaSrc = resolveApiUrl(item.result.output_url, true);
                 const isVideo = item.result.media_type === "video";
-                const titleText = `${isVideo ? "视频超分" : "图片超分"} · ${
+                const titleText = `${
+                  isVideo ? t("Video Upscale", "视频超分") : t("Image Upscale", "图片超分")
+                } · ${
                   item.result.model_variant === "7b_sharp" ? "7B Sharp" : "3B Fast"
                 } (×${item.result.effective_scale})`;
 
@@ -869,7 +898,6 @@ export function SeedVR2StudioApp() {
                     key={item.id}
                     className="studio-video-history-card"
                     data-active={isSelected ? "true" : "false"}
-                    onClick={() => setSelectedTakeId(item.id)}
                   >
                     {isVideo ? (
                       <video
@@ -887,7 +915,6 @@ export function SeedVR2StudioApp() {
                           borderRadius: 6,
                           background: "var(--m3e-color-on-surface)",
                         }}
-                        onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
                       <img
@@ -916,15 +943,22 @@ export function SeedVR2StudioApp() {
                         minInlineSize: 0,
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          color: "var(--studio-text)",
-                        }}
+                      <button
+                        type="button"
+                        className="studio-video-history-select"
+                        aria-pressed={isSelected}
+                        onClick={() => setSelectedTakeId(item.id)}
                       >
-                        {titleText}
-                      </div>
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            color: "var(--studio-text)",
+                          }}
+                        >
+                          {titleText}
+                        </div>
+                      </button>
 
                       <div
                         style={{
@@ -948,8 +982,7 @@ export function SeedVR2StudioApp() {
                           size="small"
                           type="link"
                           style={{ padding: 0, blockSize: "auto", fontSize: 12 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             setParams({ ...DEFAULT_SEEDVR2_PARAMS, ...buildUpscaleStudioRequest(item.params) });
                             setSeedLocked(item.params.seed > 0);
                             if (item.params.mode === "video") {
@@ -959,10 +992,10 @@ export function SeedVR2StudioApp() {
                               setImageFileRef(item.params.input_file);
                               setImageSourceDims({ w: item.result.input_width, h: item.result.input_height });
                             }
-                            message.info("已恢复常用超分设置");
+                            message.info(t("Restored settings from history", "已恢复常用超分设置"));
                           }}
                         >
-                          再次使用
+                          {t("Reuse", "再次使用")}
                         </Button>
                       </div>
                     </div>
@@ -970,7 +1003,7 @@ export function SeedVR2StudioApp() {
                 );
               })}
             </div>
-          </div>
+          </ScrollArea>
         )}
       </Card>
     </>
@@ -980,7 +1013,10 @@ export function SeedVR2StudioApp() {
     <StudioShell
       brandBadge="VR2"
       defaultTitle="SeedVR2"
-      defaultSubtitle="视频与图片超分 · 清晰优先或速度优先"
+      defaultSubtitle={t(
+        "Video & Image Super-Resolution · 7B Sharp or 3B Fast",
+        "视频与图片超分 · 清晰优先或速度优先",
+      )}
       apiEndpointPath="/api/v1/generate"
       mediaKind={params.mode === "image" ? "image" : "video"}
       sampleRequestBody={effectivePayload as unknown as Record<string, unknown>}

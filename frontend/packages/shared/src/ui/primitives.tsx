@@ -1,21 +1,33 @@
 /** Shared Studio adapter. Keep component-library details out of feature apps. */
 import React, { forwardRef, useMemo, useState } from "react";
 import {
-  Alert as M3Alert, AlertDialog, Badge as M3Badge, Button as M3Button,
+  Accordion as M3Accordion, Alert as M3Alert, AlertDialog, Badge as M3Badge, Button as M3Button,
   ButtonGroup, Card as M3Card, Chip, Dialog, Divider as M3Divider, Empty as M3Empty,
-  IconButton, LinearProgressIndicator, M3EProvider, NumberField, Popover as M3Popover,
-  ScrollArea, Select as M3Select, Slider as M3Slider, Switch as M3Switch, Tab, Tabs as M3Tabs,
-  TabsList, TabsPanel, TextField, Tooltip as M3Tooltip, useM3EToast,
-  type M3EButtonActionProps, type M3ECardProps, type M3EChipLabelProps, type M3ENumberFieldProps,
-  type M3ESelectSingleProps, type M3ESliderProps, type M3ESwitchProps,
+  IconButton, Kbd as M3Kbd, LinearProgressIndicator, List as M3List, ListItem as M3ListItem,
+  M3EProvider, MaterialShapeView as M3MaterialShapeView, Meter as M3Meter, NumberField,
+  Popover as M3Popover, ScrollArea, Select as M3Select, Slider as M3Slider, Switch as M3Switch,
+  Tab, Tabs as M3Tabs, TabsList, TabsPanel, TextField, Tooltip as M3Tooltip, useM3EToast,
+  type M3EButtonActionProps, type M3ECardProps, type M3EChipLabelProps,
+  type M3ENumberFieldProps, type M3ESelectSingleProps, type M3ESliderProps, type M3ESwitchProps,
   type M3ETextFieldSingleLineProps,
 } from "m3eui";
+import { QuestionCircleOutlined } from "./icons";
+import { StudioI18nProvider, toM3ELocale, useStudioLocale } from "../i18n";
 
-export function StudioThemeProvider({ children }: { children: React.ReactNode }) {
-  return <M3EProvider initialColorMode="light" initialLocale="zh-CN">{children}</M3EProvider>;
+function ThemedM3EProvider({ children }: { children: React.ReactNode }) {
+  const { locale } = useStudioLocale();
+  return <M3EProvider initialColorMode="light" locale={toM3ELocale(locale)}>{children}</M3EProvider>;
 }
 
-export { Dialog, IconButton, ScrollArea };
+export function StudioThemeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <StudioI18nProvider>
+      <ThemedM3EProvider>{children}</ThemedM3EProvider>
+    </StudioI18nProvider>
+  );
+}
+
+export { Dialog, IconButton, M3Kbd as Kbd, M3List as List, M3ListItem as ListItem, M3MaterialShapeView as MaterialShapeView, M3Meter as Meter, ScrollArea };
 
 export function useStudioFeedback() {
   const { toast } = useM3EToast();
@@ -31,7 +43,7 @@ export function useStudioFeedback() {
 type Size = "small" | "middle" | "large";
 type ButtonProps = Omit<M3EButtonActionProps, "type" | "size" | "children"> & {
   children?: React.ReactNode;
-  type?: "primary" | "default" | "dashed" | "link" | "text";
+  type?: "primary" | "tonal" | "default" | "dashed" | "link" | "text";
   htmlType?: "button" | "submit" | "reset";
   size?: Size;
   icon?: React.ReactNode;
@@ -44,11 +56,13 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button({
   type = "default", htmlType = "button", size, icon, block, danger, ghost,
   children, ...props
 }, ref) {
+  const { t } = useStudioLocale();
   const variant = type === "link" || type === "text" ? "text"
+    : type === "tonal" && !ghost ? "tonal"
     : type === "primary" && !ghost ? "filled" : "outlined";
   if (icon && children == null && !props.href) {
     return <IconButton {...props} ref={ref} icon={icon} type={htmlType}
-      aria-label={props["aria-label"] || props.title || "操作"}
+      aria-label={props["aria-label"] || props.title || t("Action", "操作")}
       variant={variant === "text" ? "standard" : variant}
       intent={danger ? "danger" : "default"} size={size === "small" ? "xs" : "sm"} />;
   }
@@ -69,11 +83,13 @@ export function Card({ title, extra, children, size: _size, style, ...props }:
   </M3Card>;
 }
 
-export function ChoiceButton({ active, children, ...props }:
-  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "value"> & { active: boolean }) {
+export function ChoiceButton({ active, align = "center", children, ...props }:
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "value"> & { active: boolean; align?: "center" | "start" }) {
   return <M3Button {...props} pressed={active} variant="tonal" shape="square"
-    style={{ height: "auto", minHeight: 88, paddingBlock: 12, inlineSize: "100%", ...props.style }}>
-    <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>{children}</span>
+    style={{ height: "auto", minHeight: 88, paddingBlock: 12, inlineSize: "100%",
+      justifyContent: align === "start" ? "flex-start" : undefined, ...props.style }}>
+    <span style={{ display: "flex", flexDirection: "column", alignItems: align === "start" ? "flex-start" : "center",
+      textAlign: align === "start" ? "start" : "center", inlineSize: "100%", gap: 4 }}>{children}</span>
   </M3Button>;
 }
 
@@ -220,38 +236,73 @@ export function Popover({ content, children, trigger, placement, ...props }:
   }) {
   return <M3Popover {...props} trigger={children} openOnHover={Array.isArray(trigger) && trigger.includes("hover")}
     side="bottom" align={placement?.endsWith("Right") ? "end" : "center"}
-    style={{ maxWidth: "min(480px, calc(100vw - 24px))", ...props.style }}>{content}</M3Popover>;
+    style={{ maxWidth: "min(380px, var(--available-width, calc(100dvw - 24px)))", ...props.style }}>{content}</M3Popover>;
 }
-export function Popconfirm({ children, title, onConfirm, okText = "确定", cancelText = "取消", disabled }:
+export function Popconfirm({ children, title, onConfirm, okText, cancelText, disabled }:
   { children: React.ReactElement; title: React.ReactNode; onConfirm: () => void; okText?: string; cancelText?: string; disabled?: boolean }) {
+  const { t } = useStudioLocale();
   const [open, setOpen] = useState(false);
   if (disabled) return children;
   return <AlertDialog title={title} trigger={children} open={open} onOpenChange={setOpen}
     actions={<>
-      <Button onClick={() => setOpen(false)}>{cancelText}</Button>
-      <Button type="primary" danger onClick={() => { onConfirm(); setOpen(false); }}>{okText}</Button>
+      <Button onClick={() => setOpen(false)}>{cancelText ?? t("Cancel", "取消")}</Button>
+      <Button type="primary" danger onClick={() => { onConfirm(); setOpen(false); }}>{okText ?? t("Confirm", "确定")}</Button>
     </>} />;
 }
-export function Modal({ title, children, open, onCancel, onOk, okText = "确定", cancelText = "取消", confirmLoading = false }:
+export function Modal({ title, children, open, onCancel, onOk, okText, cancelText, confirmLoading = false }:
   { title: React.ReactNode; children: React.ReactNode; open: boolean; onCancel: () => void; onOk: () => void; okText?: string; cancelText?: string; confirmLoading?: boolean }) {
+  const { t } = useStudioLocale();
   return <Dialog title={title} open={open} onOpenChange={(next) => { if (!next) onCancel(); }}
-    actions={<><Button onClick={onCancel}>{cancelText}</Button><Button type="primary" disabled={confirmLoading} onClick={onOk}>{confirmLoading ? "保存中…" : okText}</Button></>}>
+    actions={<><Button onClick={onCancel}>{cancelText ?? t("Cancel", "取消")}</Button><Button type="primary" disabled={confirmLoading} onClick={onOk}>{confirmLoading ? t("Saving…", "保存中…") : (okText ?? t("OK", "确定"))}</Button></>}>
     {children}
   </Dialog>;
 }
-export function Tabs({ items, className }: { items: Array<{ key: string; label: React.ReactNode; children: React.ReactNode }>; className?: string }) {
-  return <M3Tabs className={className} defaultValue={items[0]?.key} variant="secondary" scrollable>
-    <TabsList aria-label="API 调用示例">{items.map((item) => <Tab key={item.key} value={item.key}>{item.label}</Tab>)}</TabsList>
+export function Tabs({ items, className }: { items: Array<{ key: string; label: React.ReactNode; icon?: React.ReactNode; children: React.ReactNode }>; className?: string }) {
+  const { t } = useStudioLocale();
+  return <M3Tabs className={className} defaultValue={items[0]?.key} variant="secondary" scrollable={items.length > 4}>
+    <TabsList aria-label={t("API examples", "API 调用示例")}>{items.map((item) => <Tab key={item.key} value={item.key} icon={item.icon}>{item.label}</Tab>)}</TabsList>
     {items.map((item) => <TabsPanel key={item.key} value={item.key}>{item.children}</TabsPanel>)}
   </M3Tabs>;
 }
 export function Progress({ percent, showInfo, style }: { percent: number; status?: string; showInfo?: boolean; size?: Size; style?: React.CSSProperties }) {
-  return <LinearProgressIndicator value={percent} showValue={showInfo} aria-label="任务进度" style={style} />;
+  const { t } = useStudioLocale();
+  return <LinearProgressIndicator value={percent} showValue={showInfo} aria-label={t("Task progress", "任务进度")} style={style} />;
 }
-function EmptyState({ image: _image, ...props }: React.ComponentProps<typeof M3Empty> & { image?: unknown }) {
-  return <M3Empty {...props} compact />;
+function EmptyState({ image: _image, compact = true, ...props }: React.ComponentProps<typeof M3Empty> & { image?: unknown }) {
+  return <M3Empty {...props} compact={compact} />;
 }
 export const Empty = Object.assign(EmptyState, { PRESENTED_IMAGE_SIMPLE: undefined });
+
+export function CollapsibleSection({ title, subtitle, leading, trailingBadge, defaultOpen = false, className, children }: {
+  title: React.ReactNode; subtitle?: React.ReactNode; leading?: React.ReactNode;
+  trailingBadge?: React.ReactNode; defaultOpen?: boolean; className?: string; children: React.ReactNode;
+}) {
+  return <M3Accordion variant="tonal" className={className} defaultValue={defaultOpen ? ["section"] : []}
+    items={[{ value: "section", title, subtitle, leading, trailingBadge, content: children }]} />;
+}
+
+export function FieldLabel({ label, tooltip, htmlFor, extra }: {
+  label: string; tooltip?: string; htmlFor?: string; extra?: React.ReactNode;
+}) {
+  const { t } = useStudioLocale();
+  const labelNode = htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span>{label}</span>;
+  return <div className="studio-field-label">
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      {labelNode}
+      {tooltip && <Tooltip title={tooltip}>
+        <button type="button" className="studio-hint-btn" aria-label={t(`About ${label}`, `${label}说明`)}><QuestionCircleOutlined /></button>
+      </Tooltip>}
+    </span>
+    {extra}
+  </div>;
+}
+
+export function TokenChip({ children, onClick, className }: {
+  children: React.ReactNode; onClick: () => void; className?: string;
+}) {
+  return <Chip size="sm" variant="tonal" tone="primary"
+    className={`studio-token-chip-m3e ${className || ""}`} onClick={onClick}>{children}</Chip>;
+}
 
 type SpaceProps = React.HTMLAttributes<HTMLDivElement> & { size?: number | [number, number]; direction?: "horizontal" | "vertical"; wrap?: boolean; block?: boolean };
 function Stack({ size = 8, direction, wrap, block: _block, style, ...props }: SpaceProps) {

@@ -14,6 +14,7 @@ import {
   resolveApiUrl,
   uploadMediaFile,
   useStudioFeedback,
+  useStudioLocale,
 } from "@colab/shared";
 
 function splitFilename(name: string): { stem: string; ext: string } {
@@ -47,6 +48,7 @@ export function VideoSlotCard({
 }: VideoSlotCardProps) {
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { t } = useStudioLocale();
   const { message } = useStudioFeedback();
 
   const [uploading, setUploading] = useState(false);
@@ -71,9 +73,9 @@ export function VideoSlotCard({
       });
       setVideoMeta(null);
       onChange(res.file_id);
-      message.success(`已上传视频：${res.filename}`);
+      message.success(t(`Uploaded video: ${res.filename}`, `已上传视频：${res.filename}`));
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "上传参考视频失败");
+      message.error(err instanceof Error ? err.message : t("Failed to upload reference video", "上传参考视频失败"));
     } finally {
       setUploading(false);
     }
@@ -155,11 +157,11 @@ export function VideoSlotCard({
               type="text"
               danger
               icon={<DeleteOutlined />}
-              aria-label={`删除 ${label}`}
+              aria-label={t(`Remove ${label}`, `删除 ${label}`)}
               style={{ paddingInline: 4, blockSize: 24, fontSize: 12 }}
               onClick={onRemoveSlot}
             >
-              删除
+              {t("Remove", "删除")}
             </Button>
           ) : value && allowClear ? (
             <Button
@@ -168,14 +170,14 @@ export function VideoSlotCard({
               type="text"
               danger
               icon={<DeleteOutlined />}
-              aria-label={`清空 ${label}`}
+              aria-label={t(`Clear ${label}`, `清空 ${label}`)}
               style={{ paddingInline: 4, blockSize: 24, fontSize: 12 }}
               onClick={() => {
                 setVideoMeta(null);
                 onChange("");
               }}
             >
-              清空
+              {t("Clear", "清空")}
             </Button>
           ) : null}
         </div>
@@ -218,7 +220,7 @@ export function VideoSlotCard({
             <Text type="secondary" className="studio-tabular" style={{ fontSize: 11.5, whiteSpace: "nowrap" }}>
               {videoMeta && videoMeta.w > 0
                 ? `${videoMeta.w}×${videoMeta.h}${videoMeta.dur > 0 ? ` · ${videoMeta.dur.toFixed(1)}s` : ""}`
-                : "视频已就绪"}
+                : t("Video ready", "视频已就绪")}
             </Text>
           </div>
           <Button
@@ -228,22 +230,22 @@ export function VideoSlotCard({
             loading={uploading}
             onClick={() => fileInputRef.current?.click()}
           >
-            更换
+            {t("Replace", "更换")}
           </Button>
         </div>
       ) : (
         <button
           type="button"
           className="studio-ref-dropzone"
-          aria-label={`点击上传视频 ${label}`}
+          aria-label={t(`Upload reference video ${label}`, `点击上传视频 ${label}`)}
           onClick={() => fileInputRef.current?.click()}
         >
           <span className="studio-ref-dropzone-action">
             {uploading ? <LoadingOutlined /> : <CloudUploadOutlined />}
-            <span>点击上传参考视频</span>
+            <span>{t("Click to upload reference video", "点击上传参考视频")}</span>
           </span>
           <span className="studio-ref-dropzone-sub">
-            支持拖拽 MP4 / WebM / MOV（推荐 2~15 秒片段）
+            {t("Drag & drop MP4 / WebM / MOV (2–15s recommended)", "支持拖拽 MP4 / WebM / MOV（推荐 2~15 秒片段）")}
           </span>
         </button>
       )}
@@ -261,7 +263,7 @@ export function VideoSlotCard({
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minInlineSize: 0 }}>
             <Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-              提取视频原声
+              {t("Extract video audio", "提取视频原声")}
             </Text>
             {useVideoAudio && audioBadgeText ? (
               <code className="studio-ref-badge">{audioBadgeText}</code>
@@ -271,7 +273,7 @@ export function VideoSlotCard({
             size="small"
             checked={useVideoAudio}
             onChange={onUseVideoAudioChange}
-            aria-label={`${label} 提取视频原声`}
+            aria-label={t(`${label} extract video audio`, `${label} 提取视频原声`)}
           />
         </div>
       )}
@@ -302,6 +304,7 @@ export function AudioSlotCard({
   const streamRef = useRef<MediaStream | null>(null);
   const mountedRef = useRef(true);
   const requestingMicRef = useRef(false);
+  const { t } = useStudioLocale();
   const { message } = useStudioFeedback();
 
   const [uploading, setUploading] = useState(false);
@@ -338,9 +341,9 @@ export function AudioSlotCard({
         url: res.url,
       });
       onChange(res.file_id);
-      message.success(`已上传音频：${res.filename}`);
+      message.success(t(`Uploaded audio: ${res.filename}`, `已上传音频：${res.filename}`));
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "上传音频失败");
+      message.error(err instanceof Error ? err.message : t("Failed to upload audio", "上传音频失败"));
     } finally {
       setUploading(false);
     }
@@ -356,7 +359,7 @@ export function AudioSlotCard({
     }
     if (requestingMicRef.current) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      message.error("当前浏览器不支持麦克风录制，请直接上传音频文件。");
+      message.error(t("Microphone recording is not supported in this browser; please upload a file.", "当前浏览器不支持麦克风录制，请直接上传音频文件。"));
       return;
     }
     requestingMicRef.current = true;
@@ -392,7 +395,7 @@ export function AudioSlotCard({
     } catch {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
-      message.error("无法访问麦克风，请检查浏览器麦克风权限。");
+      message.error(t("Cannot access microphone. Please check browser permissions.", "无法访问麦克风，请检查浏览器麦克风权限。"));
     } finally {
       requestingMicRef.current = false;
     }
@@ -470,7 +473,7 @@ export function AudioSlotCard({
             style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
             onClick={() => void toggleRecording()}
           >
-            {recording ? "停止录音" : "录音"}
+            {recording ? t("Stop Rec", "停止录音") : t("Record", "录音")}
           </Button>
 
           {onRemoveSlot ? (
@@ -480,11 +483,11 @@ export function AudioSlotCard({
               type="text"
               danger
               icon={<DeleteOutlined />}
-              aria-label={`删除 ${label}`}
+              aria-label={t(`Remove ${label}`, `删除 ${label}`)}
               style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
               onClick={onRemoveSlot}
             >
-              删除
+              {t("Remove", "删除")}
             </Button>
           ) : value && allowClear ? (
             <Button
@@ -493,11 +496,11 @@ export function AudioSlotCard({
               type="text"
               danger
               icon={<DeleteOutlined />}
-              aria-label={`清空 ${label}`}
+              aria-label={t(`Clear ${label}`, `清空 ${label}`)}
               style={{ paddingInline: 6, blockSize: 24, fontSize: 12 }}
               onClick={() => onChange("")}
             >
-              清空
+              {t("Clear", "清空")}
             </Button>
           ) : null}
         </Space>
@@ -523,7 +526,7 @@ export function AudioSlotCard({
               loading={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              更换
+              {t("Replace", "更换")}
             </Button>
           </div>
           <audio
@@ -537,15 +540,15 @@ export function AudioSlotCard({
         <button
           type="button"
           className="studio-ref-dropzone"
-          aria-label={`点击上传音频 ${label}`}
+          aria-label={t(`Upload reference audio ${label}`, `点击上传音频 ${label}`)}
           onClick={() => fileInputRef.current?.click()}
         >
           <span className="studio-ref-dropzone-action">
             {uploading ? <LoadingOutlined /> : <CloudUploadOutlined />}
-            <span>{recording ? "正在录制麦克风声音..." : "点击上传参考音频"}</span>
+            <span>{recording ? t("Recording from mic...", "正在录制麦克风声音...") : t("Click to upload reference audio", "点击上传参考音频")}</span>
           </span>
           <span className="studio-ref-dropzone-sub">
-            支持 WAV / MP3 / FLAC / M4A 或点击右上角「录音」
+            {t("Supports WAV / MP3 / FLAC / M4A or click Record above", "支持 WAV / MP3 / FLAC / M4A 或点击右上角「录音」")}
           </span>
         </button>
       )}
