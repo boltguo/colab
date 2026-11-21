@@ -17,68 +17,16 @@
 
 上传素材、填写文本或提示词，再调整尺寸、步数、种子等常用设置。底部选择输出格式和数量，点击生成；结果可以预览、下载，也可以从本次历史中再次使用。
 
-专业采样、缓存、推理精度和编码细节使用默认值。页面右上角可查看机器资源、设置 API Key 和复制调用代码。
+专业采样、缓存、推理精度和编码细节使用默认值。页面右上角可查看实时机器资源与切换中/英文界面。
 
 ![Qwen-Image 2.1 Web 页面](docs/images/qwen-image-studio.png)
 
-## API 调用
-
-使用对应笔记本启动后生成的服务地址。页面右上角「API 调用代码」可直接复制当前设置，`/docs` 可查看完整接口和参数。
-
-图像、视频、语音和超分通过 `POST /api/v1/generate` 提交任务，返回 `task_id` 后查询结果。以 IndexTTS 为例：
-
-```python
-import time
-import requests
-from urllib.parse import urljoin
-
-BASE_URL = "https://YOUR_TUNNEL_DOMAIN"
-API_KEY = "YOUR_API_KEY"  # 登录网页后，在右上角 API Key 中设置
-headers = {"Authorization": f"Bearer {API_KEY}"} if API_KEY else {}
-
-response = requests.post(
-    f"{BASE_URL}/api/v1/generate",
-    headers=headers,
-    json={"text": "你好，欢迎收听。", "speaker_audio": "preset:ref_audio"},
-    timeout=30,
-)
-response.raise_for_status()
-task = response.json()
-
-while task["status"] not in {"succeeded", "failed", "cancelled"}:
-    time.sleep(1)
-    response = requests.get(
-        f"{BASE_URL}/api/v1/tasks/{task['task_id']}", headers=headers, timeout=30
-    )
-    response.raise_for_status()
-    task = response.json()
-
-if task["status"] != "succeeded":
-    raise RuntimeError(task.get("error") or task["status"])
-print(urljoin(BASE_URL, task["result"]["audio_url"]))
-```
-
-自定义素材先上传到 `POST /api/v1/files`，再将返回的 `file_id` 填入对应输入字段。需要实时进度时连接 `WS /api/v1/tasks/{task_id}/ws`。
-
-Qwen3.8-27B 提供 OpenAI 兼容的 `/v1/chat/completions` 和 Anthropic 兼容的 `/v1/messages`。例如：
-
-```bash
-curl "https://YOUR_TUNNEL_DOMAIN/v1/chat/completions" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{"model":"qwen3.8-27b","messages":[{"role":"user","content":"你好"}]}'
-```
-
-应用访问密码与 API Key 独立。API 默认免鉴权；在网页右上角设置 API Key 后，外部调用才需要携带它。留空保存可关闭 API 鉴权，修改立即生效。高级参数仍可通过 API 使用。
-
 ## 使用说明
 
-1. 从上方选择模型，连接符合要求的 Colab GPU。
-2. 依次运行笔记本的四步；第 4 步在 `ACCESS_PASSWORD` 填写应用访问密码，也可在 Colab Secrets 配置同名项。
-3. 打开最后一步输出的链接，输入密码后上传素材或填写文本。需要外部调用时，再在网页右上角设置 API Key。
-4. 使用默认设置先生成一次，再按需要调整尺寸、时长、步数或种子。
-
-Quick Tunnel 的临时地址随实例停止而失效。需要固定域名时，在第 4 步选择自有 Cloudflare Tunnel，并配置 `CF_TUNNEL_TOKEN`。
+1. 从上方表格选择模型，并在 Colab 中连接符合要求的 GPU。
+2. 在浏览器打开笔记本后，依次运行第 1–4 步即可。
+3. 第 4 步通过 Google Colab 官方内置端口代理（`proxyPort`）启动 Web 页面，仅绑定当前登录的 Google 账号访问，无需配置外部隧道或额外密码，也不开放外部 API；实例停止后临时链接即失效。
+4. 建议先用默认设置（或 40GB 显存下先用 `480p` / `5s`）测试一次，再按需要调整尺寸、时长、步数或种子。
 
 ## 模型与功能
 
@@ -92,7 +40,7 @@ Quick Tunnel 的临时地址随实例停止而失效。需要固定域名时，�
 
 ### H3 Character Swap
 
-基于 Viggle Remake Swap (`MiniMax-H3 FL2VA`)，支持单人替换与多人同框分别替换（Web UI 支持 1–4 位角色，API 最多 9 位），在保持原视频动作、镜头运动、光影和原声的前提下替换人物外观，可选关键帧锚点引导与 A/B 卷帘视频对比（配套 Colab 笔记本为主英文带中文说明的双语版）。
+基于 `MiniMax-H3 Ref2VA + FL2V Turbo 8-step + Character Swap V1.5 + SAM 3.1`，支持单人替换与多人同框分别替换（1–4 位角色），通过 `SAM 3.1` 自动跟踪人物并锁定原视频背景，完整替换人物脸部与全身服饰同时保留动作、光影和原声，支持可选关键帧锚点引导与 A/B 卷帘视频对比。
 
 ### SeedVR2
 
@@ -104,7 +52,7 @@ Quick Tunnel 的临时地址随实例停止而失效。需要固定域名时，�
 
 ### Qwen3.8-27B
 
-支持文字、图片和视频对话，可开关深度思考、设置回复长度和随机程度。也可接入兼容 OpenAI / Anthropic 接口的客户端。
+支持文字、图片和视频多轮对话，在 Web 工作台内置实时可折叠深度思考流、回复长度与采样随机度设置。
 
 ### 挂载 LoRA
 
@@ -130,4 +78,4 @@ Colab 从 GitHub Releases 安装预构建应用。源码更新后，运行 GitHu
 
 ## 许可
 
-代码采用 [Apache-2.0](LICENSE)。模型权重请遵循各项目许可证：[Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE)、[MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)、[Viggle Remake](https://huggingface.co/Viggle/Viggle-Remake)、[SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2)、[IndexTTS](https://huggingface.co/IndexTeam/IndexTTS-2.5)、[Qwen3.8](https://huggingface.co/Qwen/Qwen3.8-27B)。
+代码采用 [Apache-2.0](LICENSE)。模型权重请遵循各项目许可证：[Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE)、[MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)、[H3 Character Swap LoRA](https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA)、[SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2)、[IndexTTS](https://huggingface.co/IndexTeam/IndexTTS-2.5)、[Qwen3.8](https://huggingface.co/Qwen/Qwen3.8-27B)。

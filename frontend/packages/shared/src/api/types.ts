@@ -1,5 +1,5 @@
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
-export type TunnelMode = "local" | "quick" | "custom";
+export type AccessMode = "local" | "colab";
 
 export interface GpuStats {
   available: boolean;
@@ -48,13 +48,9 @@ export interface SystemStatus {
   subtitle: string;
   version: string;
   engine: string;
-  auth_required: boolean;
-  web_auth_required?: boolean;
-  api_key_configured?: boolean;
-  browser_authenticated?: boolean;
   mock_mode: boolean;
   public_url?: string;
-  tunnel_mode?: TunnelMode;
+  access_mode?: AccessMode;
   gpu: GpuStats;
   host?: HostStats;
   queue: QueueStats;
@@ -92,10 +88,6 @@ export interface TaskRecord<TResult = Record<string, unknown>, TParams = Record<
   params: TParams;
   result?: TResult | null;
   error?: string | null;
-}
-
-export interface AuthConfig {
-  apiKey: string;
 }
 
 export interface LoraCatalogEntry {

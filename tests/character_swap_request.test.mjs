@@ -86,7 +86,7 @@ test("character swap history restores custom clip range and ensures multi slots"
   assert.deepEqual(restored.guide_frames, [{ image: "g.png", frame_index: 12 }]);
 });
 
-test("canvas dimensions and window count estimates align with Viggle Remake backend math", () => {
+test("canvas dimensions and window count estimates align with H3 backend math", () => {
   assert.deepEqual(computeSwapPreviewDimensions(1920, 1080, "480p", true), { width: 864, height: 480 });
   assert.deepEqual(computeSwapPreviewDimensions(1920, 1080, "480p", false), { width: 832, height: 480 });
   assert.equal(estimateWindowCount(5), 1);

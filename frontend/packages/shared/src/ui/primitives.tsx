@@ -12,16 +12,22 @@ import {
   type M3ETextFieldSingleLineProps,
 } from "m3eui";
 import { QuestionCircleOutlined } from "./icons";
-import { StudioI18nProvider, toM3ELocale, useStudioLocale } from "../i18n";
+import { StudioI18nProvider, toM3ELocale, useStudioLocale, type StudioLocale } from "../i18n";
 
 function ThemedM3EProvider({ children }: { children: React.ReactNode }) {
   const { locale } = useStudioLocale();
   return <M3EProvider initialColorMode="light" locale={toM3ELocale(locale)}>{children}</M3EProvider>;
 }
 
-export function StudioThemeProvider({ children }: { children: React.ReactNode }) {
+export function StudioThemeProvider({
+  children,
+  fallbackLocale,
+}: {
+  children: React.ReactNode;
+  fallbackLocale?: StudioLocale;
+}) {
   return (
-    <StudioI18nProvider>
+    <StudioI18nProvider fallbackLocale={fallbackLocale}>
       <ThemedM3EProvider>{children}</ThemedM3EProvider>
     </StudioI18nProvider>
   );

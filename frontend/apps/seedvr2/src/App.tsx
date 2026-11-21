@@ -244,13 +244,13 @@ export function SeedVR2StudioApp() {
   }, [historyItems, selectedTakeId]);
 
   const stageOutputUrl = displayedEntry
-    ? resolveApiUrl(displayedEntry.result.output_url, true)
+    ? resolveApiUrl(displayedEntry.result.output_url)
     : "";
   const stageDownloadUrl = displayedEntry
-    ? resolveApiUrl(`${displayedEntry.result.output_url}?download=1`, true)
+    ? resolveApiUrl(`${displayedEntry.result.output_url}?download=1`)
     : "";
   const stageInputUrl = displayedEntry?.result.input_url
-    ? resolveApiUrl(displayedEntry.result.input_url, true)
+    ? resolveApiUrl(displayedEntry.result.input_url)
     : "";
 
   const leftPane = (
@@ -885,7 +885,7 @@ export function SeedVR2StudioApp() {
             <div className="studio-video-history-list" style={{ paddingInlineEnd: 8 }}>
               {historyItems.map((item) => {
                 const isSelected = displayedEntry?.id === item.id;
-                const mediaSrc = resolveApiUrl(item.result.output_url, true);
+                const mediaSrc = resolveApiUrl(item.result.output_url);
                 const isVideo = item.result.media_type === "video";
                 const titleText = `${
                   isVideo ? t("Video Upscale", "视频超分") : t("Image Upscale", "图片超分")
@@ -1017,9 +1017,6 @@ export function SeedVR2StudioApp() {
         "Video & Image Super-Resolution · 7B Sharp or 3B Fast",
         "视频与图片超分 · 清晰优先或速度优先",
       )}
-      apiEndpointPath="/api/v1/generate"
-      mediaKind={params.mode === "image" ? "image" : "video"}
-      sampleRequestBody={effectivePayload as unknown as Record<string, unknown>}
       leftPane={leftPane}
       rightPane={rightPane}
     />

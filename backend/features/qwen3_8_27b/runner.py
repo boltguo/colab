@@ -1,4 +1,4 @@
-"""Native vLLM runner, multimodal attachment resolver, and OpenAI/Anthropic streaming gateway."""
+"""Native vLLM runner and multimodal attachment resolver for Qwen3.8-27B Web Studio."""
 import asyncio
 import base64
 import http.client
@@ -19,7 +19,6 @@ from ...core.task_manager import ProgressCallback
 from .schemas import QwenAttachment, QwenChatMessage, QwenChatRequest
 
 DEFAULT_VLLM_BASE = "http://127.0.0.1:8189"
-SERVED_MODEL_IDS = ["qwen3.8-27b", "Qwen/Qwen3.8-27B"]
 
 
 def get_vllm_base_url() -> str:
@@ -121,30 +120,6 @@ def _convert_message_to_openai(msg: QwenChatMessage, storage: MediaStorage) -> D
     else:
         out["content"] = text_val
     return out
-
-
-def rewrite_openai_payload_uploads(payload: Dict[str, Any], storage: MediaStorage) -> Dict[str, Any]:
-    """Sanitize file:// URLs and resolve upload:<file_id> shortcuts in raw /v1/chat/completions calls."""
-    msgs = payload.get("messages")
-    if not isinstance(msgs, list):
-        return payload
-    updated_msgs = []
-    for m in msgs:
-        if not isinstance(m, dict):
-            updated_msgs.append(m)
-            continue
-        content = m.get("content")
-        if not isinstance(content, list):
-            updated_msgs.append(m)
-            continue
-        new_parts = []
-        for part in content:
-            if not isinstance(part, dict):
-                new_parts.append(part)
-                continue
-            new_parts.append(_rewrite_media_part(part, storage))
-        updated_msgs.append({**m, "content": new_parts})
-    return {**payload, "messages": updated_msgs}
 
 
 def build_vllm_chat_payload(
@@ -693,134 +668,3 @@ def execute_qwen_task(
         "elapsed_sec": elapsed,
         "mock": False,
     }
-
-
-# ---------------------------------------------------------------------------
-# Mock OpenAI /v1/chat/completions & Anthropic /v1/messages Helpers
-# ---------------------------------------------------------------------------
-
-
-def build_mock_models_payload() -> Dict[str, Any]:
-    created = int(time.time())
-    return {
-        "object": "list",
-        "data": [
-            {
-                "id": mid,
-                "object": "model",
-                "created": created,
-                "owned_by": "Qwen",
-                "max_model_len": 262144,
-            }
-            for mid in SERVED_MODEL_IDS
-        ],
-    }
-
-
-async def build_mock_openai_chat_response(
-    raw_body: Dict[str, Any],
-) -> Tuple[bool, Any]:
-    stream = bool(raw_body.get("stream"))
-    model = str(raw_body.get("model") or "qwen3.8-27b")
-    msgs = raw_body.get("messages") or []
-    last_text = ""
-    if isinstance(msgs, list):
-        for m in reversed(msgs):
-            if isinstance(m, dict) and m.get("role") == "user":
-                last_text = str(m.get("content") or "")
-                break
-    enable_thinking = True
-    ctk = raw_body.get("chat_template_kwargs")
-    if isinstance(ctk, dict) and "enable_thinking" in ctk:
-        enable_thinking = bool(ctk["enable_thinking"])
-
-    reasoning_text = f"Mock 思考过程：分析请求「{last_text[:60]}」。" if enable_thinking else ""
-    reply_text = f"[Qwen3.8-27B Mock] 已收到 OpenAI 协议请求：{last_text[:120]}"
-    chat_id = f"chatcmpl-{uuid.uuid4().hex[:16]}"
-    created = int(time.time())
-
-    if not stream:
-        return False, {
-            "id": chat_id,
-            "object": "chat.completion",
-            "created": created,
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "reasoning_content": reasoning_text or None,
-                        "content": reply_text,
-                    },
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 20, "completion_tokens": 28, "total_tokens": 48},
-        }
-
-    async def _gen() -> AsyncIterator[bytes]:
-        if reasoning_text:
-            chunk = {
-                "id": chat_id,
-                "object": "chat.completion.chunk",
-                "created": created,
-                "model": model,
-                "choices": [{"index": 0, "delta": {"role": "assistant", "reasoning_content": reasoning_text}, "finish_reason": None}],
-            }
-            yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode("utf-8")
-            await asyncio.sleep(0.02)
-        chunk2 = {
-            "id": chat_id,
-            "object": "chat.completion.chunk",
-            "created": created,
-            "model": model,
-            "choices": [{"index": 0, "delta": {"content": reply_text}, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 20, "completion_tokens": 28, "total_tokens": 48},
-        }
-        yield f"data: {json.dumps(chunk2, ensure_ascii=False)}\n\n".encode("utf-8")
-        yield b"data: [DONE]\n\n"
-
-    return True, _gen()
-
-
-async def build_mock_anthropic_messages_response(
-    raw_body: Dict[str, Any],
-) -> Tuple[bool, Any]:
-    stream = bool(raw_body.get("stream"))
-    model = str(raw_body.get("model") or "qwen3.8-27b")
-    msgs = raw_body.get("messages") or []
-    last_text = ""
-    if isinstance(msgs, list) and msgs:
-        last_m = msgs[-1]
-        if isinstance(last_m, dict):
-            last_text = str(last_m.get("content") or "")
-    reply_text = f"[Qwen3.8-27B Mock / Anthropic Messages] 已收到请求：{last_text[:120]}"
-    msg_id = f"msg_{uuid.uuid4().hex[:16]}"
-
-    if not stream:
-        return False, {
-            "id": msg_id,
-            "type": "message",
-            "role": "assistant",
-            "model": model,
-            "content": [{"type": "text", "text": reply_text}],
-            "stop_reason": "end_turn",
-            "stop_sequence": None,
-            "usage": {"input_tokens": 24, "output_tokens": 26},
-        }
-
-    async def _gen() -> AsyncIterator[bytes]:
-        events = [
-            ("message_start", {"type": "message_start", "message": {"id": msg_id, "type": "message", "role": "assistant", "model": model, "content": [], "stop_reason": None, "usage": {"input_tokens": 24, "output_tokens": 1}}}),
-            ("content_block_start", {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}}),
-            ("content_block_delta", {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": reply_text}}),
-            ("content_block_stop", {"type": "content_block_stop", "index": 0}),
-            ("message_delta", {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}, "usage": {"output_tokens": 26}}),
-            ("message_stop", {"type": "message_stop"}),
-        ]
-        for evt_name, data in events:
-            yield f"event: {evt_name}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
-            await asyncio.sleep(0.01)
-
-    return True, _gen()

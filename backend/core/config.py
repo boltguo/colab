@@ -37,10 +37,9 @@ class AppSettings:
     port: int
     data_dir: Path
     dist_dir: Optional[Path]
-    api_key: str
     mock_inference: bool
     repo_root: Path
-    access_password: str = ""
+    proxy_origin: str = ""
 
     @classmethod
     def from_env(cls, feature_override: Optional[str] = None) -> "AppSettings":
@@ -51,17 +50,16 @@ class AppSettings:
         raw_data_dir = os.environ.get("COLAB_DATA_DIR", "").strip()
         data_dir = Path(raw_data_dir) if raw_data_dir else _default_data_dir(feature)
         dist_dir = _resolve_dist_dir(feature, repo_root)
-        api_key = os.environ.get("COLAB_API_KEY", "").strip()
         mock_raw = os.environ.get("COLAB_MOCK_INFERENCE", "").strip().lower()
         mock_inference = mock_raw in {"1", "true", "yes", "on"}
+        proxy_origin = os.environ.get("COLAB_PROXY_ORIGIN", "").strip().rstrip("/")
         return cls(
             feature=feature,
             host=host,
             port=port,
             data_dir=data_dir,
             dist_dir=dist_dir,
-            api_key=api_key,
             mock_inference=mock_inference,
             repo_root=repo_root,
-            access_password=os.environ.get("COLAB_ACCESS_PASSWORD", "").strip(),
+            proxy_origin=proxy_origin,
         )

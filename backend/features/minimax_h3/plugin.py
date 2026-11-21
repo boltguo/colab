@@ -3,7 +3,7 @@ from pathlib import Path
 import threading
 from typing import Any, Dict, Optional, Tuple
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from backend.core.app_factory import FeaturePlugin
 from backend.core.config import AppSettings
@@ -96,7 +96,6 @@ def _build_router(
     task_manager: TaskManager,
     storage: MediaStorage,
     settings: AppSettings,
-    auth_dep: Any,
 ) -> APIRouter:
     runner = _RUNNER_HOLDER.get(storage, settings)
     router = APIRouter(prefix="/api/v1", tags=["MiniMax-H3"])
@@ -113,7 +112,6 @@ def _build_router(
     )
     async def submit_generate(
         req: MiniMaxH3GenerateRequest,
-        _: None = Depends(auth_dep),
     ) -> TaskResponse:
         try:
             _validate_request_refs(req, storage)
@@ -126,7 +124,7 @@ def _build_router(
         response_model=LoraListResponse,
         summary="列出官方 Turbo LoRA 与当前实例已缓存的自定义 .safetensors 权重",
     )
-    async def list_loras(_: None = Depends(auth_dep)) -> LoraListResponse:
+    async def list_loras() -> LoraListResponse:
         return runner.lora_manager.list_all()
 
     @router.post(
@@ -136,7 +134,6 @@ def _build_router(
     )
     async def download_lora(
         req: LoraDownloadRequest,
-        _: None = Depends(auth_dep),
     ) -> TaskResponse:
         return task_manager.submit(
             {
@@ -152,7 +149,6 @@ def _build_router(
     )
     async def upload_lora(
         file: UploadFile = File(...),
-        _: None = Depends(auth_dep),
     ) -> LoraCatalogEntry:
         return await runner.lora_manager.save_upload(file)
 
@@ -162,7 +158,6 @@ def _build_router(
     )
     async def remove_lora(
         filename: str,
-        _: None = Depends(auth_dep),
     ) -> Dict[str, object]:
         return runner.lora_manager.delete_lora(filename)
 
@@ -170,7 +165,7 @@ def _build_router(
         "/resolution-presets",
         summary="查询 MiniMax-H3 各分辨率档位画幅宽高与 17k+5 帧数网格对照表",
     )
-    async def get_resolution_presets(_: None = Depends(auth_dep)) -> Dict[str, object]:
+    async def get_resolution_presets() -> Dict[str, object]:
         res_table: Dict[str, Dict[str, Dict[str, int]]] = {}
         for tier in ("540p", "768p"):
             res_table[tier] = {
@@ -193,7 +188,7 @@ def _build_router(
         "/model/release",
         summary="手动通知内部无头推理引擎卸载模型并释放 GPU 显存",
     )
-    async def release_loaded_models(_: None = Depends(auth_dep)) -> Dict[str, Any]:
+    async def release_loaded_models() -> Dict[str, Any]:
         runner.release_vram()
         return {"status": "ok", "feature": "minimax-h3"}
 
@@ -203,7 +198,7 @@ def _build_router(
 MINIMAX_H3_PLUGIN = FeaturePlugin(
     name="minimax-h3",
     title="MiniMax-H3 音画视频工作台",
-    subtitle="音画同步文生视频 · 首尾帧图生视频 · 多模态参考视频 · Turbo 加速与标准 API",
+    subtitle="音画同步文生视频 · 首尾帧图生视频 · 多模态参考视频 · Turbo 加速",
     engine="Headless ComfyUI Worker (MiniMax-H3 INT8 ConvRot + Qwen3-VL-32B)",
     version="0.1.0",
     validate_params=_validate_h3_params,

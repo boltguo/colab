@@ -14,20 +14,6 @@
 .studio-dimension-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
 .studio-dimension-fields > .studio-field-group { inline-size: 176px; min-inline-size: 176px; }
 
-/* One inset scroll area owns long API content; the rounded popup never scrolls. */
-.studio-api-dialog.m3e-dialog__popup { block-size: min(85dvh, 680px); overflow: hidden; --studio-code-max-height: 100%; }
-.studio-api-dialog > .m3e-dialog__header { flex-shrink: 0; }
-.studio-api-dialog > .m3e-dialog__body { flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
-.studio-api-content { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; gap: 16px; }
-.studio-api-content > :not(.studio-api-tabs) { flex-shrink: 0; }
-.studio-api-address { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.studio-api-tabs { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; }
-.studio-api-tabs > .m3e-tabs__list { flex-shrink: 0; }
-.studio-api-tabs > .m3e-tabs__panel:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
-.studio-api-tabs .m3e-tabs__panel-content { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; overflow: hidden; }
-.studio-api-dialog .studio-syntax-block { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; }
-.studio-api-dialog .studio-syntax-header { flex-shrink: 0; }
-.studio-api-dialog .studio-code-scroll { flex: 1 1 auto; min-block-size: 0; }
 .studio-preset-field { display: flex; flex-direction: column; gap: 12px; }
 .studio-lora-accordion .m3e-accordion__content { padding-block-end: 18px; }
 .studio-preview-content { display: flex; flex-direction: column; gap: 20px; padding-inline-end: 12px; padding-block: 2px; }
@@ -52,7 +38,6 @@
   .studio-aspect-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .studio-settings-grid { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-height: 640px) { .studio-api-guidance { display: none; } }
 
 /* Fit the entire image before offering pixel-level zoom. */
 .studio-compare-viewport { block-size: clamp(220px, 52dvh, 560px); }

@@ -99,7 +99,7 @@ class IndexTTSEngineTests(unittest.TestCase):
         storage.register_preset("ref_audio", reference, "Reference")
         settings = AppSettings(
             feature="indextts-2.5", host="127.0.0.1", port=8188,
-            data_dir=storage.base_dir, dist_dir=None, api_key="",
+            data_dir=storage.base_dir, dist_dir=None,
             mock_inference=False, repo_root=self.root,
         )
         params = {

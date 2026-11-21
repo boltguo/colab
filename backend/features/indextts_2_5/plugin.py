@@ -2,7 +2,7 @@
 from pathlib import Path
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from backend.core.app_factory import FeaturePlugin
 from backend.core.config import AppSettings
@@ -48,7 +48,6 @@ def _build_router(
     task_manager: TaskManager,
     storage: MediaStorage,
     settings: AppSettings,
-    auth_dep: Any,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", tags=["IndexTTS 2.5"])
 
@@ -63,7 +62,6 @@ def _build_router(
     )
     async def submit_indextts_generate(
         payload: IndexTTSGenerateRequest,
-        _: None = Depends(auth_dep),
     ) -> TaskResponse:
         try:
             storage.resolve_input_ref(payload.speaker_audio)
@@ -78,7 +76,7 @@ def _build_router(
         "/model/release",
         summary="手动卸载已驻留显存中的 IndexTTS 2.5 模型实例",
     )
-    async def release_loaded_models(_: None = Depends(auth_dep)) -> Dict[str, Any]:
+    async def release_loaded_models() -> Dict[str, Any]:
         info = ENGINE_MANAGER.release()
         if info.get("busy"):
             raise HTTPException(status_code=409, detail="模型正在加载或合成语音，请在任务完成后释放显存。")

@@ -105,8 +105,8 @@ export function IndexTTSStudioApp() {
   const displayed = history.find((item) => item.id === selectedId) || history[0] || null;
   const referenceId = displayed?.params.speaker_audio || form.speakerAudio;
   const referenceUrl = referenceId.startsWith("preset:")
-    ? resolveApiUrl(presets.find((preset) => preset.id === referenceId)?.url || `/api/v1/presets/${encodeURIComponent(referenceId.slice(7))}`, true)
-    : resolveApiUrl(`/api/v1/files/${encodeURIComponent(referenceId)}`, true);
+    ? resolveApiUrl(presets.find((preset) => preset.id === referenceId)?.url || `/api/v1/presets/${encodeURIComponent(referenceId.slice(7))}`)
+    : resolveApiUrl(`/api/v1/files/${encodeURIComponent(referenceId)}`);
 
   const generate = async (event?: React.FormEvent) => {
     event?.preventDefault();
@@ -354,7 +354,7 @@ export function IndexTTSStudioApp() {
               controls
               preload="metadata"
               key={`${displayed.id}-${auditionSource}`}
-              src={auditionSource === "synth" ? resolveApiUrl(displayed.result.audio_url, true) : referenceUrl}
+              src={auditionSource === "synth" ? resolveApiUrl(displayed.result.audio_url) : referenceUrl}
             />
             <Space wrap size={8} className="studio-tabular">
               <Tag>{t(`${displayed.result.duration_sec}s`, `${displayed.result.duration_sec} 秒`)}</Tag>
@@ -366,7 +366,7 @@ export function IndexTTSStudioApp() {
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
-                href={resolveApiUrl(displayed.result.download_url, true)}
+                href={resolveApiUrl(displayed.result.download_url)}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -438,8 +438,6 @@ export function IndexTTSStudioApp() {
       brandBadge="TTS"
       defaultTitle="IndexTTS 2.5"
       defaultSubtitle={t("Reference Voice · Text Input · Audition", "选择音色 · 输入文本 · 生成试听")}
-      onAuthChanged={refreshPresets}
-      sampleRequestBody={{ ...payload, text: payload.text || EXAMPLE_TEXT[form.language] }}
       leftPane={leftPane}
       rightPane={rightPane}
     />

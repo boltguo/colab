@@ -13,7 +13,6 @@ RELEASE_TAG = "{{RELEASE_TAG}}"
 APP_ARCHIVE = "{{APP_ARCHIVE}}"
 APP_SHA256 = "{{APP_SHA256}}"
 BUNDLED_NODES_REL = "{{BUNDLED_NODES_REL}}"
-CLOUDFLARED_VERSION = "2026.10.6"
 
 {{NODE_CONSTANTS}}EXTRA_PACKAGES = {{EXTRA_PACKAGES}}
 APP_SERVER_PACKAGES = [
@@ -150,6 +149,5 @@ run([sys.executable, "-m", "pip", "install", "-q", "-r", str(requirements), *EXT
 install_release_app()
 sync_bundled_custom_nodes()
 
-{{CLOUDFLARED}}
-print(f"Engine: ComfyUI {COMFY_VERSION} ({COMFY_REVISION[:12]}){{NODE_SUMMARY}} | app: {RELEASE_TAG} ({APP_SHA256[:12]}) | cloudflared: {CLOUDFLARED_VERSION}")
-print("[OK] Internal inference engine and Web/API bundle installed.")
+print(f"Engine: ComfyUI {COMFY_VERSION} ({COMFY_REVISION[:12]}){{NODE_SUMMARY}} | app: {RELEASE_TAG} ({APP_SHA256[:12]})")
+print("[OK] Internal inference engine and Web Studio bundle installed.")

@@ -3,7 +3,7 @@ from pathlib import Path
 import threading
 from typing import Any, Dict, Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from backend.core.app_factory import FeaturePlugin
 from backend.core.config import AppSettings
@@ -73,7 +73,6 @@ def _build_router(
     task_manager: TaskManager,
     storage: MediaStorage,
     settings: AppSettings,
-    auth_dep: Any,
 ) -> APIRouter:
     runner = _RUNNER_HOLDER.get(storage, settings)
     router = APIRouter(prefix="/api/v1", tags=["SeedVR2 Super-Resolution"])
@@ -90,7 +89,6 @@ def _build_router(
     )
     async def submit_generate(
         req: SeedVR2GenerateRequest,
-        _: None = Depends(auth_dep),
     ) -> TaskResponse:
         try:
             storage.resolve_input_ref(req.input_file)
@@ -102,7 +100,7 @@ def _build_router(
         "/models",
         summary="查询当前内置的 SeedVR2 超分主模型规格说明",
     )
-    async def list_seedvr2_models(_: None = Depends(auth_dep)) -> Dict[str, object]:
+    async def list_seedvr2_models() -> Dict[str, object]:
         return {
             "models": [
                 {
@@ -124,7 +122,7 @@ def _build_router(
         "/model/release",
         summary="手动通知内部无头推理引擎卸载模型并释放 GPU 显存",
     )
-    async def release_loaded_models(_: None = Depends(auth_dep)) -> Dict[str, Any]:
+    async def release_loaded_models() -> Dict[str, Any]:
         runner.release_vram()
         return {"status": "ok", "feature": "seedvr2"}
 

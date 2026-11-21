@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 TaskStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
-TunnelMode = Literal["local", "quick", "custom"]
+AccessMode = Literal["local", "colab"]
 
 
 class GpuStats(BaseModel):
@@ -53,13 +53,9 @@ class SystemStatusResponse(BaseModel):
     subtitle: str = ""
     version: str = "0.1.0"
     engine: str
-    auth_required: bool = False
-    web_auth_required: bool = False
-    api_key_configured: bool = False
-    browser_authenticated: bool = False
     mock_mode: bool = False
     public_url: str = ""
-    tunnel_mode: TunnelMode = "local"
+    access_mode: AccessMode = "local"
     gpu: GpuStats
     host: HostStats = Field(default_factory=HostStats)
     queue: QueueStats
@@ -81,10 +77,6 @@ class PresetItem(BaseModel):
     kind: Literal["audio", "image", "video"] = "audio"
     url: str
     filename: str
-
-
-class GenericTaskCreateRequest(BaseModel):
-    params: Dict[str, Any] = Field(default_factory=dict, description="模型任务参数字典")
 
 
 class TaskResponse(BaseModel):

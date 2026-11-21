@@ -3,28 +3,27 @@ from typing import Dict, List, Literal, Tuple
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 NATIVE_FPS = 24
-DEFAULT_SWAP_SIGMAS = "1.0, 0.990476, 0.965243, 0.923077, 0.8, 0.631579, 0.0"
+DEFAULT_SWAP_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
+DEFAULT_SWAP_STEPS = 8
+DEFAULT_SWAP_SCHEDULER = "normal"
+DEFAULT_SHIFT_VIDEO = 12.0
+DEFAULT_SHIFT_AUDIO = 3.0
+DEFAULT_MASK_EXPANSION_PX = 64
 MAX_CHARACTERS = 9
 MAX_GUIDE_FRAMES = 4
 MIN_WINDOW_FRAMES = 22
 MAX_WINDOW_FRAMES = 345
 DEFAULT_WINDOW_FRAMES = 226
-HISTORY_OVERLAP_FRAMES = 18
+HISTORY_OVERLAP_FRAMES = 5
 MAX_CLIP_DURATION_SEC = 60.0
 
 SwapMode = Literal["single", "multi"]
 ResolutionTier = Literal["480p", "736p"]
-SamplerChoice = Literal["euler", "er_sde", "lcm"]
+SamplerChoice = Literal["er_sde", "euler", "lcm"]
+SchedulerChoice = Literal["normal", "simple", "beta", "sgm_uniform"]
+MaskSelection = Literal["largest", "leftmost", "rightmost", "index"]
+RefImageSize = Literal["match", "max"]
 VideoOutputFormat = Literal["mp4", "webm", "mkv"]
-
-_PROMPT_SECTIONS = (
-    "subject_definitions:",
-    "summary:",
-    "retention_analysis:",
-    "detailed_description:",
-    "overall_soundscape:",
-    "non_diegetic_music:",
-)
 
 
 def snap32(value: float, minimum: int = 32) -> int:
@@ -39,7 +38,7 @@ def compute_swap_dimensions(
     resolution_tier: ResolutionTier,
     preserve_aspect: bool = True,
 ) -> Tuple[int, int]:
-    """Compute 32-pixel-aligned canvas dimensions for Viggle Remake Swap."""
+    """Compute 32-pixel-aligned canvas dimensions for H3 Character Swap."""
     sw = max(2, int(src_w))
     sh = max(2, int(src_h))
     short_edge = 736 if resolution_tier == "736p" else 480
@@ -69,7 +68,7 @@ def plan_swap_windows(
     max_window_frames: int = DEFAULT_WINDOW_FRAMES,
     overlap_frames: int = HISTORY_OVERLAP_FRAMES,
 ) -> List[Dict[str, int]]:
-    """Plan single or 18-frame overlapping continuation windows for a clip."""
+    """Plan single or overlapping continuation windows for a clip."""
     total = max(1, int(total_frames))
     max_win = max(56, min(MAX_WINDOW_FRAMES, int(max_window_frames)))
     overlap = max(0, min(max_win - 1, int(overlap_frames)))
@@ -154,106 +153,65 @@ class GuideFrameSlot(BaseModel):
         return clean
 
 
-def build_remake_prompt(
+def _format_character_phrase(pic_ref: str, name: str, appearance: str) -> str:
+    details = ", ".join(part for part in (name, appearance) if part)
+    return f"{details} in {pic_ref}" if details else f"the character in {pic_ref}"
+
+
+def build_swap_prompt(
     mode: SwapMode,
     characters: List[CharacterSlot],
     user_prompt: str,
     keep_audio: bool = True,
 ) -> str:
-    """Return user's 6-section prompt verbatim, or expand structured Viggle Remake sections."""
+    """Return user's explicit <Video 1>/<Picture 1> prompt verbatim, or build natural H3 swap prompt."""
     cleaned_user = (user_prompt or "").strip()
     lower = cleaned_user.lower()
-    if cleaned_user and all(section in lower for section in _PROMPT_SECTIONS):
+    if cleaned_user and "<video 1>" in lower and "<picture 1>" in lower:
         return cleaned_user
 
-    pic_count = len(characters)
-    if pic_count == 1:
-        pic_intro = "<Picture 1> shows the target character appearance."
-    else:
-        pic_labels = ", ".join(f"<Picture {i}>" for i in range(1, pic_count + 1))
-        pic_intro = f"{pic_labels} show the target replacement character references."
-
-    subject_lines = [
-        f"<Video 1> is the source video for editing: keep its motion, pose, camera framing, lighting and background.",
-        pic_intro,
-    ]
-    retention_subjects: List[str] = []
-    summary_swaps: List[str] = []
-
-    if mode == "single" and pic_count > 1:
-        pic_refs = " and ".join(f"<Picture {i}>" for i in range(1, pic_count + 1))
-        primary = characters[0]
-        subj_name = primary.name or "the target character"
-        target = primary.target_description or "the main person in <Video 1>"
-        appearance = primary.appearance_description or f"the face, hairstyle, build and complete outfit in {pic_refs}"
-        subject_lines.append(
-            f"<Subject 1> is {subj_name} in {pic_refs}: {appearance}. "
-            f"<Subject 1> replaces {target} in <Video 1>."
+    parts: List[str] = []
+    if mode == "single":
+        pic_refs = (
+            "<Picture 1>"
+            if len(characters) == 1
+            else " and ".join(f"<Picture {i}>" for i in range(1, len(characters) + 1))
         )
-        summary_swaps.append(f"{target} becomes <Subject 1>")
-        retention_subjects.append(
-            f"<Subject 1>: fully_preserved - {appearance} stays identical across every frame."
+        primary = characters[0]
+        target = primary.target_description or "the selected person"
+        char_phrase = _format_character_phrase(
+            pic_refs, primary.name, primary.appearance_description
+        )
+        parts.append(
+            f"Replace {target} in <Video 1> with {char_phrase}. "
+            "Match the reference face, hairstyle and complete outfit consistently from the first frame. "
+            "Match the reference garment shapes, layers, colors, hemline, exposed skin, legwear and shoes. "
+            "Follow the source person's pose, gaze, expressions, motion, position, scale and timing. "
+            "Preserve the scene, camera movement, lighting and other people."
         )
     else:
         for idx, slot in enumerate(characters, 1):
-            subj_name = slot.name or f"Character {idx}"
             target = slot.target_description or (
-                "the primary person in <Video 1>" if idx == 1 else f"person {idx} in <Video 1>"
+                f"person {idx}" if len(characters) > 1 else "the selected person"
             )
-            appearance = (
-                slot.appearance_description
-                or f"the exact face, hairstyle, outfit and proportions shown in <Picture {idx}>"
+            char_phrase = _format_character_phrase(
+                f"<Picture {idx}>", slot.name, slot.appearance_description
             )
-            subject_lines.append(
-                f"<Subject {idx}> is {subj_name} in <Picture {idx}>: {appearance}. "
-                f"<Subject {idx}> replaces {target} in <Video 1> cleanly without swapping into other people."
-            )
-            summary_swaps.append(f"{target} becomes <Subject {idx}>")
-            retention_subjects.append(
-                f"<Subject {idx}> (<Picture {idx}>): fully_preserved - {appearance} stays consistent in every frame."
-            )
+            parts.append(f"Replace {target} in <Video 1> with {char_phrase}.")
+        parts.append(
+            "Match each reference character's face, hairstyle and complete outfit consistently from the first frame. "
+            "Keep each replacement matched to its source person; leave all other people unchanged. "
+            "Follow the source motion, pose, gaze, expressions, camera movement, lighting and background."
+        )
 
-    swap_clause = "; ".join(summary_swaps)
-    extra_detail = cleaned_user or (
-        "Preserve natural lighting, sharp textures, facial expressions, gaze, hand gestures and camera movement."
-    )
+    if keep_audio:
+        parts.append("Follow <Audio 1> for speech and performance timing.")
+    if cleaned_user:
+        parts.append(cleaned_user)
+    return " ".join(parts)
 
-    retention_pics = "\n".join(
-        f"<Picture {idx}>: reference - exact character identity, face, hair and garments are taken from <Picture {idx}>."
-        for idx in range(1, pic_count + 1)
-    )
-    soundscape = (
-        "The original <Video 1> soundtrack, voice timing and ambient audio continue seamlessly."
-        if keep_audio
-        else "Silent output video preserving clean visual pacing."
-    )
 
-    return "\n".join(
-        [
-            "subject_definitions:",
-            *subject_lines,
-            "",
-            "summary:",
-            f"[video editing + character replacement] The target video reproduces <Video 1> where {swap_clause}. "
-            "All unchanged people, scene geometry, camera motion and lighting remain identical to <Video 1>.",
-            "",
-            "retention_analysis:",
-            "<Video 1> (source video editing): fully_preserved - shots, cuts, camera movement, background, "
-            "lighting, pose and motion timing are copied accurately frame by frame.",
-            retention_pics,
-            *retention_subjects,
-            "",
-            "detailed_description:",
-            "The target video maintains natural clear illumination, sharp details and the camera look of <Video 1>. "
-            f"{extra_detail}",
-            "",
-            "overall_soundscape:",
-            soundscape,
-            "",
-            "non_diegetic_music:",
-            "N/A",
-        ]
-    )
+build_remake_prompt = build_swap_prompt
 
 
 def parse_sigma_schedule(raw: str) -> List[float]:
@@ -290,7 +248,20 @@ class H3CharacterSwapGenerateRequest(BaseModel):
     window_frames: int = Field(default=DEFAULT_WINDOW_FRAMES, ge=56, le=MAX_WINDOW_FRAMES)
     keyframe_until: float = Field(default=0.9, ge=0.0, le=1.0)
     sigmas: str = Field(default=DEFAULT_SWAP_SIGMAS, max_length=256)
-    sampler_name: SamplerChoice = "euler"
+    sampler_name: SamplerChoice = "er_sde"
+    steps: int = Field(default=DEFAULT_SWAP_STEPS, ge=4, le=40)
+    scheduler: SchedulerChoice = DEFAULT_SWAP_SCHEDULER
+    shift_video: float = Field(default=DEFAULT_SHIFT_VIDEO, ge=0.5, le=30.0)
+    shift_audio: float = Field(default=DEFAULT_SHIFT_AUDIO, ge=0.5, le=20.0)
+    turbo_lora_strength: float = Field(default=1.0, ge=0.0, le=2.0)
+    pika_lora_strength: float = Field(default=1.0, ge=0.0, le=2.0)
+    swap_lora_strength: float = Field(default=1.0, ge=0.0, le=2.0)
+    enable_edit_mask: bool = True
+    mask_subject_prompt: str = Field(default="person", max_length=120)
+    mask_selection: MaskSelection = "largest"
+    mask_index: int = Field(default=0, ge=0, le=16)
+    mask_expansion_px: int = Field(default=DEFAULT_MASK_EXPANSION_PX, ge=0, le=256)
+    ref_image_size: RefImageSize = "match"
     seed: int = Field(default=0, ge=0, le=0xFFFFFFFFFFFFFFFF)
     output_format: VideoOutputFormat = "mp4"
 

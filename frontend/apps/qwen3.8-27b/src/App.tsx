@@ -5,7 +5,6 @@ import {
   Card,
   CloseOutlined,
   CodeBlock,
-  CodeOutlined,
   DeleteOutlined,
   Empty,
   ImageLightbox,
@@ -21,7 +20,6 @@ import {
   Slider,
   Space,
   StopOutlined,
-  StudioCustomApiTabContext,
   StudioShell,
   Switch,
   Tag,
@@ -36,7 +34,7 @@ import {
 } from "@colab/shared";
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { MarkdownBody } from "./MarkdownBody";
-import { buildChatMessages, buildOpenAiPayload, parseStopWords, parseToolsJson, readChatEvents } from "./chat";
+import { buildChatMessages, parseStopWords, parseToolsJson, readChatEvents } from "./chat";
 import {
   ChatAttachmentItem,
   ChatTurn,
@@ -213,7 +211,7 @@ export function QwenChatStudioApp() {
               kind,
               fileId: uploaded.file_id,
               filename: uploaded.filename,
-              previewUrl: resolveApiUrl(uploaded.url, true),
+              previewUrl: resolveApiUrl(uploaded.url),
               sizeBytes: uploaded.size_bytes,
             },
           ]);
@@ -496,125 +494,6 @@ export function QwenChatStudioApp() {
     }
     return null;
   }, [turns]);
-
-  const sampleTurns = useMemo<ChatTurn[]>(() => {
-    if (inputText.trim() || pendingAttachments.length) {
-      return [...turns, { id: "draft", role: "user", content: inputText.trim(), attachments: pendingAttachments }];
-    }
-    const requestTurns = turns.at(-1)?.role === "assistant" ? turns.slice(0, -1) : turns;
-    return requestTurns.length
-      ? requestTurns
-      : [{ id: "sample", role: "user", content: t("Hello, please briefly introduce yourself.", "你好，请简要介绍你自己。") }];
-  }, [inputText, pendingAttachments, t, turns]);
-
-  const sampleRequestBody = useMemo(() => {
-    const parsed = parseToolsSafe();
-    return buildApiPayloadFromHistory(sampleTurns, parsed.ok ? parsed.tools : undefined) as unknown as Record<string, unknown>;
-  }, [buildApiPayloadFromHistory, parseToolsSafe, sampleTurns]);
-
-  const renderCustomApiTabs = useCallback(
-    ({ origin, savedKey, authRequired }: StudioCustomApiTabContext) => {
-      const effectiveKey = savedKey || (authRequired ? "<YOUR_APP_API_KEY>" : "EMPTY");
-      const authHeaderCurl =
-        savedKey || authRequired ? `  -H "Authorization: Bearer ${effectiveKey}" \\\n` : "";
-
-      const claudeCodeSnippet = `# ${t(
-        "Qwen3.8-27B natively implements the Anthropic /v1/messages API for Claude Code:",
-        "Qwen3.8-27B 原生兼容 Anthropic /v1/messages 协议，可直接驱动 Claude Code：",
-      )}
-export ANTHROPIC_BASE_URL="${origin}"
-export ANTHROPIC_AUTH_TOKEN="${effectiveKey}"
-export ANTHROPIC_API_KEY="${effectiveKey}"
-export ANTHROPIC_MODEL="qwen3.8-27b"
-export ANTHROPIC_SMALL_FAST_MODEL="qwen3.8-27b"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-
-claude --model qwen3.8-27b`;
-
-      let requestPayload: Record<string, unknown>;
-      try {
-        requestPayload = {
-          ...buildOpenAiPayload(sampling, sampleTurns),
-          stream: true,
-          stream_options: { include_usage: true },
-        };
-      } catch (err) {
-        return [
-          {
-            key: "validation",
-            label: t("Validation", "参数检查"),
-            children: <Alert type="warning" showIcon message={err instanceof Error ? err.message : String(err)} />,
-          },
-        ];
-      }
-      const payloadJson = JSON.stringify(requestPayload, null, 2);
-      const openaiPySnippet = `import json
-from openai import OpenAI
-
-client = OpenAI(
-    base_url=${JSON.stringify(`${origin}/v1`)},
-    api_key=${JSON.stringify(effectiveKey)},
-)
-
-# ${t(
-        "Includes current prompt, attachments, sampling, JSON mode, and tools.",
-        "当前问题、附件、采样参数、JSON 模式和工具配置均已带入。",
-      )}
-# ${t(
-        "upload: attachment refs are valid only on this active Colab instance.",
-        "upload: 引用只在当前 Colab 实例中有效。",
-      )}
-payload = json.loads(${JSON.stringify(payloadJson)})
-extra_keys = ("top_k", "min_p", "repetition_penalty", "chat_template_kwargs")
-extra_body = {key: payload.pop(key) for key in extra_keys if key in payload}
-stream = client.chat.completions.create(**payload, extra_body=extra_body)
-
-for chunk in stream:
-    if not chunk.choices:
-        continue
-    delta = chunk.choices[0].delta
-    reasoning = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
-    if reasoning:
-        print(reasoning, end="", flush=True)
-    if delta.content:
-        print(delta.content, end="", flush=True)
-    if delta.tool_calls:
-        print(delta.tool_calls)`;
-
-      const curlSnippet = `# ${t(
-        "Streaming request synced with your current playground settings",
-        "流式调用；参数与当前工作台一致",
-      )}
-curl -N -X POST "${origin}/v1/chat/completions" \\
-  -H "Content-Type: application/json" \\
-${authHeaderCurl}  -d '${payloadJson.replace(/'/g, "'\\''")}'
-
-# ${t("List available models", "查询在线模型")}
-curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bearer ${effectiveKey}"` : ""}`;
-
-      return [
-        {
-          key: "claude-code",
-          label: t("Claude Code (/v1/messages)", "Claude Code 直连 (/v1/messages)"),
-          icon: <CodeOutlined />,
-          children: <CodeBlock code={claudeCodeSnippet} language="bash" />,
-        },
-        {
-          key: "openai-sdk",
-          label: "OpenAI Python SDK (/v1/chat/completions)",
-          icon: <CodeOutlined />,
-          children: <CodeBlock code={openaiPySnippet} language="python" />,
-        },
-        {
-          key: "curl",
-          label: t("cURL CLI", "cURL 命令行示例"),
-          icon: <CodeOutlined />,
-          children: <CodeBlock code={curlSnippet} language="bash" />,
-        },
-      ];
-    },
-    [sampling, sampleTurns, t]
-  );
 
   const leftPane = (
     <div className="studio-chat-stage">
@@ -1081,12 +960,6 @@ curl "${origin}/v1/models"${savedKey || authRequired ? ` -H "Authorization: Bear
         "对话与深度思考 · 图片和视频理解",
       )}
       layoutRatio="chat"
-      apiModalTitle={t(
-        "Claude Code / OpenAI SDK / HTTP API Setup (live params)",
-        "Claude Code / OpenAI SDK / HTTP 调用配置（实时同步参数）",
-      )}
-      customApiTabs={renderCustomApiTabs}
-      sampleRequestBody={sampleRequestBody}
       leftPane={leftPane}
       rightPane={rightPane}
     />

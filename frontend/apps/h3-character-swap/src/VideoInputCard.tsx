@@ -97,15 +97,14 @@ export function VideoInputCard({
   const previewUrl = (() => {
     if (!value) return "";
     if (uploadedMeta && uploadedMeta.fileId === value) {
-      return resolveApiUrl(uploadedMeta.url, true);
+      return resolveApiUrl(uploadedMeta.url);
     }
     if (value.startsWith("output:")) {
       return resolveApiUrl(
         `/api/v1/outputs/${encodeURIComponent(value.slice("output:".length))}`,
-        true
       );
     }
-    return resolveApiUrl(`/api/v1/files/${encodeURIComponent(value)}`, true);
+    return resolveApiUrl(`/api/v1/files/${encodeURIComponent(value)}`);
   })();
 
   const displayFilename = (() => {

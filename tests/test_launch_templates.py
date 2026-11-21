@@ -1,37 +1,40 @@
-"""Exercise notebook restart decisions and release guards without starting services or publishing."""
+"""Exercise notebook restart decisions, Colab native proxy helpers, and release guards."""
 import ast
-import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import textwrap
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
-import urllib.request
-from urllib.error import HTTPError
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATES = ("step4_app", "step4_comfy_app", "step4_vllm")
+STEP2_TEMPLATES = ("step2_comfy_app", "step2_indextts", "step2_vllm")
+STEP4_TEMPLATES = ("step4_app", "step4_comfy_app", "step4_vllm")
 
 
 def template_ast(name):
     source = (ROOT / "tools/templates" / f"{name}.py").read_text()
-    values = {"REQUIRED_NODES": "set()", "SAMPLE_REQUEST_JSON": "{}", "BUNDLED_NODES_REL": ""}
+    values = {"REQUIRED_NODES": "set()", "BUNDLED_NODES_REL": ""}
     source = re.sub(r"\{\{([A-Z_]+)\}\}", lambda match: values.get(match[1], ""), source)
     return ast.parse(source)
 
 
-def fingerprint(name, *, release="v0.1.1:abc", key="key-one", environment=None):
+def fingerprint(name, *, release="v0.1.1:abc", proxy_origin="https://8188-one.prod.r.colab.dev", environment=None):
     namespace = {
-        "json": json, "hashlib": hashlib, "APP_DIR": Path("/content/app"),
+        "json": json,
+        "APP_DIR": Path("/content/app"),
         "cmd": ["python", "backend/run_server.py"],
         "app_cmd": ["python", "backend/run_server.py"],
-        "access_password": key,
-        "env_overrides": {"COLAB_ACCESS_PASSWORD": key, "COLAB_API_KEY": "", "COLAB_FEATURE": "feature", **(environment or {})},
+        "env_overrides": {
+            "COLAB_FEATURE": "feature",
+            "COLAB_PROXY_ORIGIN": proxy_origin,
+            **(environment or {}),
+        },
         "read_text": lambda _: release,
     }
     assignment = next(
@@ -44,57 +47,76 @@ def fingerprint(name, *, release="v0.1.1:abc", key="key-one", environment=None):
 
 
 class NotebookRestartTests(unittest.TestCase):
-    def test_web_password_is_required_without_an_api_toggle(self):
-        for template in TEMPLATES:
-            tree = template_ast(template)
-            defaults = {node.targets[0].id: ast.literal_eval(node.value) for node in tree.body
-                        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
-                        and node.targets[0].id in {"REQUIRE_API_KEY", "ACCESS_PASSWORD"}}
-            self.assertNotIn("REQUIRE_API_KEY", defaults)
-            self.assertEqual(defaults["ACCESS_PASSWORD"], "")
-            resolver = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "resolve_access_password")
-            namespace = {"ACCESS_PASSWORD": "test-access-password"}
-            exec(compile(ast.Module(body=[resolver], type_ignores=[]), template, "exec"), namespace)
-            self.assertEqual(namespace["resolve_access_password"](), "test-access-password")
-            guard = next(node for node in tree.body if isinstance(node, ast.If) and ast.unparse(node.test) == "not access_password")
-            with self.assertRaisesRegex(RuntimeError, "ACCESS_PASSWORD"):
-                exec(compile(ast.Module(body=[guard], type_ignores=[]), template, "exec"), {"access_password": ""})
-            # The web password is passed only as its own environment variable.
-            assignment = next(node for node in tree.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "env_overrides")
-            namespace.update(FEATURE_NAME="test", PORT=8188, DATA_DIR=Path("/data"), APP_DIR=Path("/app"),
-                             access_password="test-access-password", COMFY_BASE="http://127.0.0.1:8189", COMFY_DIR=Path("/engine"), VLLM_BASE="http://127.0.0.1:8189")
-            exec(compile(ast.Module(body=[assignment], type_ignores=[]), template, "exec"), namespace)
-            self.assertEqual(namespace["env_overrides"]["COLAB_ACCESS_PASSWORD"], "test-access-password")
-            self.assertEqual(namespace["env_overrides"]["COLAB_API_KEY"], "")
+    def test_step2_and_step4_templates_use_colab_native_proxy_without_tunnel_or_api_exposed(self):
+        forbidden = (
+            "cloudflared",
+            "trycloudflare",
+            "TUNNEL_MODE",
+            "CF_TUNNEL_TOKEN",
+            "ACCESS_PASSWORD",
+            "COLAB_API_KEY",
+            "COLAB_ACCESS_PASSWORD",
+            "/docs",
+        )
+        for name in (*STEP2_TEMPLATES, *STEP4_TEMPLATES):
+            raw = (ROOT / "tools/templates" / f"{name}.py").read_text(encoding="utf-8")
+            with self.subTest(template=name):
+                for marker in forbidden:
+                    self.assertNotIn(marker, raw)
+        for name in STEP4_TEMPLATES:
+            source = (ROOT / "tools/templates" / f"{name}.py").read_text(encoding="utf-8")
+            with self.subTest(template=name):
+                self.assertIn("resolve_colab_proxy_url(PORT)", source)
+                self.assertIn("open_colab_proxy(PORT, proxy_url, access_mode)", source)
+                self.assertIn('"COLAB_PROXY_ORIGIN": proxy_origin', source)
 
-    def test_updated_bundle_changes_the_restart_fingerprint(self):
-        for template in TEMPLATES:
+    def test_updated_bundle_or_proxy_or_engine_changes_restart_fingerprint(self):
+        for template in STEP4_TEMPLATES:
             with self.subTest(template=template):
+                self.assertEqual(fingerprint(template), fingerprint(template))
                 self.assertNotEqual(fingerprint(template), fingerprint(template, release="v0.1.2:def"))
-
-    def test_rotating_web_password_restarts_without_storing_the_password(self):
-        for template in TEMPLATES:
-            with self.subTest(template=template):
-                first = fingerprint(template, key="private-key-one")
-                second = fingerprint(template, key="private-key-two")
-                self.assertNotEqual(first, second)
-                self.assertNotIn("private-key", first)
-                self.assertNotIn("private-key", second)
-                self.assertNotIn("COLAB_API_KEY", first)
-                self.assertNotIn("COLAB_ACCESS_PASSWORD", first)
-
-    def test_engine_environment_changes_restart_the_gateway(self):
-        for template in TEMPLATES:
-            with self.subTest(template=template):
+                self.assertNotEqual(
+                    fingerprint(template),
+                    fingerprint(template, proxy_origin="https://8188-two.prod.r.colab.dev"),
+                )
                 self.assertNotEqual(
                     fingerprint(template, environment={"ENGINE_BASE": "http://127.0.0.1:8189"}),
                     fingerprint(template, environment={"ENGINE_BASE": "http://127.0.0.1:8190"}),
                 )
 
-    def test_unchanged_configuration_has_a_stable_fingerprint(self):
-        for template in TEMPLATES:
-            with self.subTest(template=template):
-                self.assertEqual(fingerprint(template), fingerprint(template))
+
+class ColabProxyHelperTests(unittest.TestCase):
+    def _load_helpers(self):
+        tree = ast.parse((ROOT / "tools/templates/helpers.py").read_text(encoding="utf-8"))
+        ns = {}
+        exec(compile(tree, "helpers", "exec"), ns)
+        return ns
+
+    def test_local_fallback_when_google_colab_missing(self):
+        ns = self._load_helpers()
+        with patch.dict(sys.modules, {"google": None, "google.colab": None}):
+            url, mode = ns["resolve_colab_proxy_url"](8188)
+        self.assertEqual((url, mode), ("http://127.0.0.1:8188", "local"))
+
+    def test_colab_proxy_resolution_and_window_open(self):
+        ns = self._load_helpers()
+        output_mod = SimpleNamespace(
+            eval_js=Mock(return_value="https://8188-test.prod.r.colab.dev/"),
+            serve_kernel_port_as_window=Mock(),
+        )
+        colab_pkg = SimpleNamespace(output=output_mod)
+        google_pkg = SimpleNamespace(colab=colab_pkg)
+        with patch.dict(sys.modules, {"google": google_pkg, "google.colab": colab_pkg}):
+            url, mode = ns["resolve_colab_proxy_url"](8188)
+            self.assertEqual((url, mode), ("https://8188-test.prod.r.colab.dev", "colab"))
+            output_mod.eval_js.assert_called_once_with("google.colab.kernel.proxyPort(8188)")
+
+            ns["open_colab_proxy"](8188, url, mode)
+            output_mod.serve_kernel_port_as_window.assert_called_once_with(8188)
+
+            output_mod.eval_js.return_value = "http://not-https.example"
+            with self.assertRaisesRegex(RuntimeError, "valid HTTPS proxy URL"):
+                ns["resolve_colab_proxy_url"](8188)
 
 
 class VllmSingleGpuLaunchTests(unittest.TestCase):
@@ -170,35 +192,6 @@ class MediaPrerequisiteTests(unittest.TestCase):
 
     def test_image_studio_does_not_require_video_tools(self):
         self.run_guard("step4_comfy_app", "qwen-image-2.1", {"ffmpeg", "ffprobe"})
-
-
-class PasswordLaunchVerificationTests(unittest.TestCase):
-    def run_verification(self, opener, stop=None):
-        tree = ast.parse((ROOT / "tools/templates/helpers.py").read_text())
-        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "verify_web_password")
-        stop = stop or Mock()
-        namespace = {"urllib": __import__("urllib"), "stop_processes": stop, "print": lambda *args: None}
-        exec(compile(ast.Module(body=[function], type_ignores=[]), "helper", "exec"), namespace)
-        with patch("urllib.request.build_opener", return_value=opener):
-            namespace["verify_web_password"]("http://127.0.0.1:8188", "app-pattern")
-        return stop
-
-    def test_login_redirect_is_verified_before_exposing_the_tunnel(self):
-        opener = Mock()
-        opener.open.side_effect = HTTPError("http://127.0.0.1:8188/", 303, "Redirect", {"Location": "/auth/login"}, None)
-        self.run_verification(opener).assert_not_called()
-        for template in TEMPLATES:
-            source = (ROOT / "tools/templates" / f"{template}.py").read_text()
-            self.assertLess(source.index("verify_web_password(BASE,"), source.index("host_url = start_cf_tunnel"))
-
-    def test_unprotected_service_is_stopped_even_when_health_would_succeed(self):
-        opener = Mock()
-        opener.open.return_value.__enter__ = Mock(return_value=Mock(status=200))
-        opener.open.return_value.__exit__ = Mock(return_value=False)
-        stop = Mock()
-        with self.assertRaisesRegex(RuntimeError, "stopped web server"):
-            self.run_verification(opener, stop)
-        stop.assert_called_once_with("app-pattern", 30)
 
     def test_generated_notebook_code_cells_are_pure_english_and_markdown_has_chinese_notes(self):
         cjk_re = re.compile(r"[\u4e00-\u9fff]")

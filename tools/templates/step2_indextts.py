@@ -11,7 +11,6 @@ RELEASE_REPO = "{{RELEASE_REPO}}"
 RELEASE_TAG = "{{RELEASE_TAG}}"
 APP_ARCHIVE = "{{APP_ARCHIVE}}"
 APP_SHA256 = "{{APP_SHA256}}"
-CLOUDFLARED_VERSION = "2026.10.6"
 
 RUNTIME_PACKAGES = [
     "transformers==4.52.1",
@@ -147,6 +146,5 @@ run([sys.executable, "-m", "pip", "install", "-q", *RUNTIME_PACKAGES])
 run([sys.executable, "-m", "pip", "install", "-q", "-U", "protobuf>=5.28.0,<7.0.0"])
 install_release_app()
 
-{{CLOUDFLARED}}
-print(f"index-tts: {INDEXTTS_REVISION[:12]} | app: {RELEASE_TAG} ({APP_SHA256[:12]}) | cloudflared: {CLOUDFLARED_VERSION}")
-print("[OK] IndexTTS 2.5 engine and Web/API bundle installed (zero ComfyUI dependency).")
+print(f"index-tts: {INDEXTTS_REVISION[:12]} | app: {RELEASE_TAG} ({APP_SHA256[:12]})")
+print("[OK] IndexTTS 2.5 engine and Web Studio bundle installed (zero ComfyUI dependency).")

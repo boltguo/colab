@@ -186,12 +186,12 @@ export function AudioSourceField({
     if (!value) return "";
     if (value.startsWith("preset:")) {
       const found = presets.find((p) => p.id === value);
-      return found ? resolveApiUrl(found.url, true) : "";
+      return found ? resolveApiUrl(found.url) : "";
     }
     if (uploadedMeta && uploadedMeta.fileId === value) {
-      return resolveApiUrl(uploadedMeta.url, true);
+      return resolveApiUrl(uploadedMeta.url);
     }
-    return resolveApiUrl(`/api/v1/files/${encodeURIComponent(value)}`, true);
+    return resolveApiUrl(`/api/v1/files/${encodeURIComponent(value)}`);
   })();
 
   const activeSourceTitle = (() => {

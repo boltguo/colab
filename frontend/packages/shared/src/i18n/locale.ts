@@ -31,11 +31,15 @@ export function detectBrowserLocale(
 
 export function resolveInitialLocale(options?: {
   stored?: string | null;
+  fallback?: StudioLocale;
   languages?: readonly string[] | null;
   language?: string | null;
 }): StudioLocale {
   if (options?.stored === "en" || options?.stored === "zh") {
     return options.stored;
+  }
+  if (options?.fallback) {
+    return options.fallback;
   }
   return detectBrowserLocale(options?.languages, options?.language);
 }

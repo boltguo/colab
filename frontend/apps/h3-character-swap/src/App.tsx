@@ -394,8 +394,8 @@ export function H3CharacterSwapStudioApp() {
               htmlFor={promptInputId}
               label={t("Swap Prompt (optional)", "替换描述（Prompt，可选）")}
               tooltip={t(
-                "Leave blank to automatically generate the structured 6-section Viggle Remake prompt, or customize lighting, framing, or exact mapping rules.",
-                "留空时后端会自动生成标准六段式 Viggle Remake 替换提示词；也可补充镜头氛围或特定替换关系。",
+                "Leave blank to automatically build the <Video 1> + <Picture 1..N> replacement instruction, or write your own custom prompt referencing <Video 1> and <Picture 1>.",
+                "留空时会自动生成基于 <Video 1> 与 <Picture 1..N> 的人物替换指令；也可补充细节要求或自定义完整替换提示词。",
               )}
               extra={
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -464,8 +464,8 @@ export function H3CharacterSwapStudioApp() {
                     htmlFor="swap-guide-frame-index"
                     label={t("Anchor Frame Index (24 fps)", "锚定帧序号（24 fps）")}
                     tooltip={t(
-                      "0 = first frame (recommended). The first 90% of denoising steps align closely to this frame.",
-                      "0 表示第 1 帧（推荐），前 90% 去噪步数严格对齐该帧画面。",
+                      "0 = first frame (recommended). Anchors the edited frame as a keyframe guide at this exact 24 fps position.",
+                      "0 表示第 1 帧（推荐），将该引导图锚定在对应 24 fps 帧位置以锁定人物与构图。",
                     )}
                   />
                   <InputNumber
@@ -525,8 +525,8 @@ export function H3CharacterSwapStudioApp() {
             <FieldLabel
               label={t("Clip Range", "处理时长范围")}
               tooltip={t(
-                "Clips longer than 226 frames automatically chain with 18-frame motion overlap. Try First 5s first to verify look & alignment.",
-                "整段处理时超过单个 226 帧窗口会自动使用 18 帧历史无缝接续；首次建议先试跑前 5 秒检查替换效果。",
+                "Clips longer than 226 frames automatically chain with 5-frame motion overlap. Try First 5s first to verify look & alignment.",
+                "整段处理时超过单个 226 帧窗口会自动使用 5 帧历史无缝接续；首次建议先试跑前 5 秒检查替换效果。",
               )}
             />
             <Segmented
@@ -677,13 +677,12 @@ export function H3CharacterSwapStudioApp() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <VideoCompareStage
               result={displayedEntry.result}
-              outputUrl={resolveApiUrl(displayedEntry.result.video_url, true)}
-              downloadUrl={resolveApiUrl(`${displayedEntry.result.video_url}?download=true`, true)}
+              outputUrl={resolveApiUrl(displayedEntry.result.video_url)}
+              downloadUrl={resolveApiUrl(`${displayedEntry.result.video_url}?download=true`)}
               inputUrl={
                 displayedEntry.result.source_video_ref
                   ? resolveApiUrl(
                       `/api/v1/files/${encodeURIComponent(displayedEntry.result.source_video_ref)}`,
-                      true
                     )
                   : undefined
               }
@@ -759,7 +758,7 @@ export function H3CharacterSwapStudioApp() {
             <div className="studio-video-history-list" style={{ paddingInlineEnd: 8 }}>
               {historyItems.map((item) => {
                 const isSelected = displayedEntry?.id === item.id;
-                const mediaSrc = resolveApiUrl(item.result.video_url, true);
+                const mediaSrc = resolveApiUrl(item.result.video_url);
                 const titleText = `${
                   item.result.mode === "multi"
                     ? t("Multi-Person Swap", "多人物替换")
@@ -857,9 +856,6 @@ export function H3CharacterSwapStudioApp() {
         "Character & Multi-Person Video Swap · Preserves motion, lighting & audio",
         "人物 / 多人物视频替换 · 保留动作、光影与原声",
       )}
-      apiEndpointPath="/api/v1/generate"
-      mediaKind="video"
-      sampleRequestBody={effectivePayload as unknown as Record<string, unknown>}
       leftPane={leftPane}
       rightPane={rightPane}
     />

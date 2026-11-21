@@ -1,4 +1,4 @@
-"""H3 Character Swap (Viggle Remake) ComfyUI dynamic graph builder & runner."""
+"""H3 Character Swap (MiniMax-H3 Ref2VA + FL2V Turbo8 + Character Swap V1.5 + SAM 3.1) runner."""
 from __future__ import annotations
 
 from fractions import Fraction
@@ -18,21 +18,30 @@ from ...core.comfy_client import ComfyClient
 from ...core.security import ensure_safe_dir, ensure_safe_path
 from ...core.storage import MediaStorage
 from .schemas import (
+    DEFAULT_MASK_EXPANSION_PX,
+    DEFAULT_SHIFT_AUDIO,
+    DEFAULT_SHIFT_VIDEO,
+    DEFAULT_SWAP_SCHEDULER,
     DEFAULT_SWAP_SIGMAS,
+    DEFAULT_SWAP_STEPS,
     HISTORY_OVERLAP_FRAMES,
     H3CharacterSwapGenerateRequest,
     H3CharacterSwapResult,
     MAX_CLIP_DURATION_SEC,
     NATIVE_FPS,
     VideoOutputFormat,
-    build_remake_prompt,
+    build_swap_prompt,
     compute_swap_dimensions,
     plan_swap_windows,
 )
 
 ProgressFn = Callable[[float, str], None]
 
-UNET_FILENAME = "int8/viggle_remake_swap_pruned_int8_convrot.safetensors"
+UNET_FILENAME = "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+TURBO_LORA_FILENAME = "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+PIKA_LORA_FILENAME = TURBO_LORA_FILENAME
+SWAP_LORA_FILENAME = "h3_character_swap_v1.5.safetensors"
+SAM_CHECKPOINT_FILENAME = "sam3.1_multiplex_fp16.safetensors"
 CLIP_FILENAME = "qwen3vl_32b_minimax_h3_int8_convrot.safetensors"
 VIDEO_VAE_FILENAME = "minimax_h3_video_vae_fp16.safetensors"
 AUDIO_VAE_FILENAME = "minimax_h3_audio_vae_fp32.safetensors"
@@ -115,7 +124,11 @@ def _probe_video_meta(path: Path) -> Tuple[int, int, float, float, bool]:
         raise ValueError("无法读取源视频，请重新上传可播放的 MP4、WebM、MOV 或 MKV 文件。") from exc
 
 
-def build_viggle_remake_graph(
+def _is_valid_history_frames(history_frames: int) -> bool:
+    return history_frames == 1 or (history_frames >= 5 and (history_frames - 5) % 17 == 0)
+
+
+def build_character_swap_graph(
     *,
     unet_name: str,
     staged_source: str,
@@ -125,34 +138,72 @@ def build_viggle_remake_graph(
     width: int,
     height: int,
     seed: int,
-    sampler_name: str = "euler",
+    mode: str = "single",
+    turbo_lora_name: str = TURBO_LORA_FILENAME,
+    swap_lora_name: str = SWAP_LORA_FILENAME,
+    sam_ckpt_name: str = SAM_CHECKPOINT_FILENAME,
+    turbo_lora_strength: Optional[float] = None,
+    pika_lora_strength: Optional[float] = None,
+    swap_lora_strength: float = 1.0,
+    shift_video: float = DEFAULT_SHIFT_VIDEO,
+    shift_audio: float = DEFAULT_SHIFT_AUDIO,
+    ref_image_size: str = "match",
+    sampler_name: str = "er_sde",
+    scheduler: str = DEFAULT_SWAP_SCHEDULER,
+    steps: int = DEFAULT_SWAP_STEPS,
     sigmas: str = DEFAULT_SWAP_SIGMAS,
     keyframe_until: float = 0.9,
+    enable_edit_mask: bool = True,
+    mask_subject_prompt: str = "person",
+    mask_selection: str = "largest",
+    mask_index: int = 0,
+    mask_expansion_px: int = DEFAULT_MASK_EXPANSION_PX,
     keep_audio: bool = True,
     filename_prefix: str = "h3_character_swap/window",
     staged_history: Optional[str] = None,
     history_frames: int = 0,
     window_guides: Optional[List[Tuple[str, int]]] = None,
 ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str], str]:
-    """Assemble an executable ComfyUI API graph for a Viggle Remake Swap window."""
+    """Assemble an executable ComfyUI API graph for Ref2VA + V1.5 + SAM 3.1 character swap."""
+    del sigmas, keyframe_until  # Retained for API/signature backward compatibility.
     if len(staged_refs) < 1:
         raise ValueError("至少需要 1 张人物参考图。")
-    if history_frames not in (0, 1, HISTORY_OVERLAP_FRAMES) or (history_frames and not staged_history):
-        raise ValueError("接续窗口需要提供有效的历史重叠视频。")
+    if history_frames and (not _is_valid_history_frames(history_frames) or not staged_history):
+        raise ValueError("接续窗口需要提供有效的历史重叠视频（1 帧或 17k+5 帧）。")
+
+    effective_turbo_strength = float(
+        turbo_lora_strength
+        if turbo_lora_strength is not None
+        else (pika_lora_strength if pika_lora_strength is not None else 1.0)
+    )
 
     def node(class_type: str, **inputs: Any) -> Dict[str, Any]:
         return {"class_type": class_type, "inputs": inputs}
 
     graph: Dict[str, Dict[str, Any]] = {
         "model": node("UNETLoader", unet_name=unet_name, weight_dtype="default"),
-        "keyframe_release": node(
-            "H3RemakeKeyframeUntil", model=["model", 0], keyframe_until=float(keyframe_until)
+        "shift": node(
+            "MiniMaxH3SigmaShift",
+            model=["model", 0],
+            shift_video=float(shift_video),
+            shift_audio=float(shift_audio),
+        ),
+        "lora_turbo": node(
+            "LoraLoaderModelOnly",
+            model=["shift", 0],
+            lora_name=turbo_lora_name,
+            strength_model=effective_turbo_strength,
+        ),
+        "lora_swap": node(
+            "LoraLoaderModelOnly",
+            model=["lora_turbo", 0],
+            lora_name=swap_lora_name,
+            strength_model=float(swap_lora_strength),
         ),
         "clip": node(
             "CLIPLoader", clip_name=CLIP_FILENAME, type="minimax", device="default"
         ),
         "vae": node("VAELoader", vae_name=VIDEO_VAE_FILENAME),
-        "audio_vae": node("VAELoader", vae_name=AUDIO_VAE_FILENAME),
         "source": node("LoadVideo", file=staged_source),
         "frames": node("GetVideoComponents", video=["source", 0]),
     }
@@ -160,38 +211,94 @@ def build_viggle_remake_graph(
     cond_inputs: Dict[str, Any] = {
         "clip": ["clip", 0],
         "vae": ["vae", 0],
-        "audio_vae": ["audio_vae", 0],
-        "source": ["frames", 0],
         "prompt": prompt,
-        "frames": int(padded_frames),
-        "pins": "",
+        "width": int(width),
+        "height": int(height),
+        "length": int(padded_frames),
+        "ref_image_size": ref_image_size,
+        "ref_videos.ref_video_0": ["frames", 0],
     }
     if keep_audio:
-        cond_inputs["audio"] = ["frames", 1]
+        graph["audio_vae"] = node("VAELoader", vae_name=AUDIO_VAE_FILENAME)
+        cond_inputs["audio_vae"] = ["audio_vae", 0]
+        cond_inputs["ref_video_audios.ref_video_audio_0"] = ["frames", 1]
 
     for idx, ref_name in enumerate(staged_refs, 1):
         ref_id = f"reference_{idx}"
         graph[ref_id] = node("LoadImage", image=ref_name)
-        cond_inputs[f"ref_{idx}"] = [ref_id, 0]
+        cond_inputs[f"ref_images.ref_image_{idx - 1}"] = [ref_id, 0]
 
-    graph["conditioning"] = {"class_type": "H3RemakeConditioning", "inputs": cond_inputs}
+    graph["conditioning"] = {"class_type": "MiniMaxH3ReferenceToVideo", "inputs": cond_inputs}
 
     pos_ref: List[Any] = ["conditioning", 0]
     lat_ref: List[Any] = ["conditioning", 1]
+
+    if enable_edit_mask:
+        max_subjects = len(staged_refs) if mode == "multi" else 1
+        sel_mode = "top_n" if (mode == "multi" and max_subjects > 1) else mask_selection
+        graph["sam"] = node("CheckpointLoaderSimple", ckpt_name=sam_ckpt_name)
+        graph["sam_subject"] = node(
+            "CLIPTextEncode", clip=["sam", 1], text=(mask_subject_prompt or "person")
+        )
+        graph["sam_first_frame"] = node(
+            "ImageFromBatch", image=["frames", 0], batch_index=0, length=1
+        )
+        graph["sam_detect"] = node(
+            "SAM3_Detect",
+            model=["sam", 0],
+            image=["sam_first_frame", 0],
+            conditioning=["sam_subject", 0],
+            threshold=0.3,
+            refine_iterations=2,
+            individual_masks=True,
+        )
+        graph["sam_select"] = node(
+            "H3SwapSelectMask",
+            masks=["sam_detect", 0],
+            selection=sel_mode,
+            index=int(mask_index),
+            max_subjects=int(max_subjects),
+        )
+        graph["sam_track"] = node(
+            "SAM3_VideoTrack",
+            images=["frames", 0],
+            model=["sam", 0],
+            initial_mask=["sam_select", 0],
+            conditioning=["sam_subject", 0],
+            detection_threshold=0.3,
+            max_objects=int(max_subjects),
+            detect_interval=1,
+        )
+        graph["sam_mask"] = node(
+            "SAM3_TrackToMask", track_data=["sam_track", 0], object_indices=""
+        )
+        graph["sam_expand"] = node(
+            "H3SwapExpandMask",
+            masks=["sam_mask", 0],
+            images=["frames", 0],
+            expansion_px=int(mask_expansion_px),
+        )
+        graph["encode_source"] = node("VAEEncode", pixels=["frames", 0], vae=["vae", 0])
+        graph["edit_mask"] = node(
+            "H3SwapApplyEditMask",
+            latent=lat_ref,
+            source_latent=["encode_source", 0],
+            mask=["sam_expand", 0],
+        )
+        lat_ref = ["edit_mask", 0]
 
     if history_frames and staged_history:
         graph["history_video"] = node("LoadVideo", file=staged_history)
         graph["history_components"] = node("GetVideoComponents", video=["history_video", 0])
         graph["history"] = node(
-            "H3RemakeHistory",
+            "MiniMaxH3AddGuide",
             positive=pos_ref,
             latent=lat_ref,
             vae=["vae", 0],
-            frames=["history_components", 0],
-            history_frames=int(history_frames),
+            image=["history_components", 0],
+            frame_idx=0,
         )
         pos_ref = ["history", 0]
-        lat_ref = ["history", 1]
 
     for idx, (guide_name, local_frame_idx) in enumerate(window_guides or [], 1):
         img_id = f"guide_image_{idx}"
@@ -218,10 +325,16 @@ def build_viggle_remake_graph(
 
     graph.update(
         {
-            "noise": node("H3RemakeNoise", positive=pos_ref, seed=int(seed)),
-            "guider": node("BasicGuider", model=["keyframe_release", 0], conditioning=pos_ref),
+            "noise": node("RandomNoise", noise_seed=int(seed)),
+            "guider": node("BasicGuider", model=["lora_swap", 0], conditioning=pos_ref),
             "sampler": node("KSamplerSelect", sampler_name=sampler_name),
-            "sigmas": node("ManualSigmas", sigmas=sigmas),
+            "sigmas": node(
+                "BasicScheduler",
+                model=["lora_swap", 0],
+                scheduler=scheduler,
+                steps=int(steps),
+                denoise=1.0,
+            ),
             "sample": node(
                 "SamplerCustomAdvanced",
                 noise=["noise", 0],
@@ -232,11 +345,9 @@ def build_viggle_remake_graph(
             ),
             "separate": node("LTXVSeparateAVLatent", av_latent=["sample", 0]),
             "decode": node("VAEDecode", samples=["separate", 0], vae=["vae", 0]),
-            "decode_audio": node("VAEDecodeAudio", samples=["separate", 1], vae=["audio_vae", 0]),
             "create_video": node(
                 "CreateVideo",
                 images=["decode", 0],
-                audio=["decode_audio", 0],
                 fps=float(NATIVE_FPS),
             ),
             "save": node(
@@ -250,15 +361,24 @@ def build_viggle_remake_graph(
     )
 
     labels = {
-        "model": "加载 Viggle Remake Swap 模型",
-        "clip": "加载 Qwen3-VL 文本编码器",
+        "model": "加载 MiniMax-H3 Ref2VA 主模型",
+        "shift": "设置音画流偏移 (12 / 3)",
+        "lora_turbo": "挂载 FL2V Turbo 8 步加速权重",
+        "lora_swap": "挂载 Character Swap V1.5 人物替换权重",
+        "clip": "加载 Qwen3-VL 多模态编码器",
         "conditioning": "编码原视频动作与参考人物特征",
+        "sam_detect": "SAM 3.1 检测目标人物",
+        "sam_track": "SAM 3.1 跟踪人物全身遮罩",
+        "edit_mask": "锁定原视频背景与非目标区域",
         "history": "挂载前窗延续历史帧",
-        "sample": "执行 6 步人物替换扩散采样",
-        "decode": "解码替换视频帧与音轨",
+        "sample": f"执行 {int(steps)} 步人物替换扩散采样",
+        "decode": "解码替换视频帧",
         "save": "封装窗口输出视频",
     }
     return graph, labels, "save"
+
+
+build_viggle_remake_graph = build_character_swap_graph
 
 
 def _encode_container(
@@ -304,7 +424,7 @@ def _encode_container(
 
 
 class H3CharacterSwapRunner:
-    """Orchestrate Viggle Remake character replacement on headless ComfyUI or mock mode."""
+    """Orchestrate MiniMax-H3 Character Swap on headless ComfyUI or mock mode."""
 
     def __init__(
         self,
@@ -322,18 +442,18 @@ class H3CharacterSwapRunner:
         if not self.mock_mode:
             self.comfy.free_memory(unload_models=True, free_memory=True)
 
-    def _resolve_unet_name(self) -> str:
+    def _resolve_model_choice(self, node_name: str, field_name: str, default_name: str) -> str:
         try:
-            info = self.comfy.get_json("/object_info/UNETLoader", timeout=8.0)
+            info = self.comfy.get_json(f"/object_info/{node_name}", timeout=8.0)
             choices = (
-                info.get("UNETLoader", {})
+                info.get(node_name, {})
                 .get("input", {})
                 .get("required", {})
-                .get("unet_name", [[]])[0]
+                .get(field_name, [[]])[0]
             )
-            if UNET_FILENAME in choices:
-                return UNET_FILENAME
-            alt = Path(UNET_FILENAME).name
+            if default_name in choices:
+                return default_name
+            alt = Path(default_name).name
             if alt in choices:
                 return alt
             for candidate in choices:
@@ -341,7 +461,18 @@ class H3CharacterSwapRunner:
                     return str(candidate)
         except Exception:
             pass
-        return UNET_FILENAME
+        return default_name
+
+    def _resolve_unet_name(self) -> str:
+        return self._resolve_model_choice("UNETLoader", "unet_name", UNET_FILENAME)
+
+    def _resolve_lora_name(self, default_name: str) -> str:
+        return self._resolve_model_choice("LoraLoaderModelOnly", "lora_name", default_name)
+
+    def _resolve_sam_name(self) -> str:
+        return self._resolve_model_choice(
+            "CheckpointLoaderSimple", "ckpt_name", SAM_CHECKPOINT_FILENAME
+        )
 
     def _prepare_source_clip(
         self,
@@ -584,7 +715,7 @@ class H3CharacterSwapRunner:
             else min(available_dur, req.duration_sec)
         )
 
-        effective_prompt = build_remake_prompt(
+        effective_prompt = build_swap_prompt(
             req.mode,
             req.characters,
             req.prompt,
@@ -617,11 +748,12 @@ class H3CharacterSwapRunner:
             has_audio = bool(req.keep_audio and src_has_audio)
 
             if self.mock_mode:
-                for step in range(1, 7):
+                mock_steps = min(req.steps, 10)
+                for step in range(1, mock_steps + 1):
                     time.sleep(0.05)
                     on_progress(
-                        0.15 + 0.72 * (step / 6.0),
-                        f"[Mock] Viggle Remake 人物替换采样（步数 {step}/6 · {len(req.characters)} 位角色 · {len(windows)} 个时间窗）...",
+                        0.15 + 0.72 * (step / float(mock_steps)),
+                        f"[Mock] H3 Character Swap 采样（步数 {step}/{mock_steps} · {len(req.characters)} 位角色 · {len(windows)} 个时间窗）...",
                     )
                 on_progress(0.90, "[Mock] 正在封装替换预览视频...")
                 fname, dest = self.storage.allocate_output_path("h3_character_swap", out_ext)
@@ -699,6 +831,9 @@ class H3CharacterSwapRunner:
             staged_paths: List[Path] = []
             try:
                 unet_name = self._resolve_unet_name()
+                turbo_lora_name = self._resolve_lora_name(TURBO_LORA_FILENAME)
+                swap_lora_name = self._resolve_lora_name(SWAP_LORA_FILENAME)
+                sam_ckpt_name = self._resolve_sam_name() if req.enable_edit_mask else SAM_CHECKPOINT_FILENAME
                 staged_refs: List[str] = []
                 for idx, ref_path in enumerate(ref_paths, 1):
                     name = self.comfy.stage_input_file(ref_path, prefix=f"swap_ref_{idx}")
@@ -752,8 +887,12 @@ class H3CharacterSwapRunner:
                         if src_start <= g_abs_frame < src_start + new_n:
                             local_guides.append((g_name, hist_n + (g_abs_frame - src_start)))
 
-                    graph, labels, save_id = build_viggle_remake_graph(
+                    graph, labels, save_id = build_character_swap_graph(
+                        mode=req.mode,
                         unet_name=unet_name,
+                        turbo_lora_name=turbo_lora_name,
+                        swap_lora_name=swap_lora_name,
+                        sam_ckpt_name=sam_ckpt_name,
                         staged_source=staged_src_name,
                         staged_refs=staged_refs,
                         prompt=effective_prompt,
@@ -761,9 +900,21 @@ class H3CharacterSwapRunner:
                         width=out_w,
                         height=out_h,
                         seed=actual_seed + w_idx,
+                        turbo_lora_strength=req.turbo_lora_strength,
+                        swap_lora_strength=req.swap_lora_strength,
+                        shift_video=req.shift_video,
+                        shift_audio=req.shift_audio,
+                        ref_image_size=req.ref_image_size,
                         sampler_name=req.sampler_name,
+                        scheduler=req.scheduler,
+                        steps=req.steps,
                         sigmas=req.sigmas,
                         keyframe_until=req.keyframe_until,
+                        enable_edit_mask=req.enable_edit_mask,
+                        mask_subject_prompt=req.mask_subject_prompt,
+                        mask_selection=req.mask_selection,
+                        mask_index=req.mask_index,
+                        mask_expansion_px=req.mask_expansion_px,
                         keep_audio=has_audio,
                         staged_history=staged_hist_name,
                         history_frames=hist_n,

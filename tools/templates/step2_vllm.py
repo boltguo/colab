@@ -3,7 +3,6 @@ import hashlib, shutil, subprocess, sys, tarfile, tempfile, urllib.request
 from pathlib import Path
 
 VLLM_VERSION = "0.32.0"
-CLOUDFLARED_VERSION = "2026.10.6"
 
 APP_DIR = Path("/content/app")
 RELEASE_REPO = "{{RELEASE_REPO}}"
@@ -92,7 +91,6 @@ def install_release_app():
 run([sys.executable, "-m", "pip", "install", "-q", *APP_SERVER_PACKAGES])
 install_release_app()
 
-{{CLOUDFLARED}}
 vllm_ver = subprocess.check_output([sys.executable, "-c", "import vllm; print(vllm.__version__)"], text=True).strip()
-print(f"Engine: vLLM {vllm_ver} | app: {RELEASE_TAG} ({APP_SHA256[:12]}) | cloudflared: {CLOUDFLARED_VERSION}")
-print("[OK] vLLM engine and Web/API bundle installed.")
+print(f"Engine: vLLM {vllm_ver} | app: {RELEASE_TAG} ({APP_SHA256[:12]})")
+print("[OK] vLLM engine and Web Studio bundle installed.")

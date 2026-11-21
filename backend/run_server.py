@@ -1,4 +1,4 @@
-"""Unified CLI entrypoint to run a single-feature FastAPI Web & API server."""
+"""Unified CLI entrypoint to run a single-feature FastAPI Web Studio server."""
 import argparse
 import os
 from pathlib import Path
@@ -24,7 +24,7 @@ def build_app(feature: str = ""):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Start Colab Feature Web & API Server")
+    parser = argparse.ArgumentParser(description="Start Colab Feature Web Studio Server")
     parser.add_argument("--feature", default=os.environ.get("COLAB_FEATURE", "indextts-2.5"))
     parser.add_argument("--host", default=os.environ.get("COLAB_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("COLAB_PORT", "8188")))

@@ -9,12 +9,10 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
 from backend.core.storage import MediaStorage
 from backend.features.qwen3_8_27b import runner
-from backend.features.qwen3_8_27b.plugin import _build_router
 from backend.features.qwen3_8_27b.schemas import QwenAttachment, QwenChatRequest
 
 
@@ -105,22 +103,6 @@ class QwenChatTests(unittest.IsolatedAsyncioTestCase):
                 with self.subTest(url=url):
                     with self.assertRaisesRegex(ValueError, "file://"):
                         runner.resolve_attachment_to_part(QwenAttachment(file_id=url), self.storage)
-                    for value in (url, {"url": url}):
-                        raw = {"messages": [{"role": "user", "content": [{"type": "image_url", "image_url": value}]}]}
-                        with self.assertRaisesRegex(ValueError, "file://"):
-                            runner.rewrite_openai_payload_uploads(raw, self.storage)
-
-    async def test_non_object_openai_json_returns_400(self):
-        router = _build_router(Mock(), self.storage, self.cfg, lambda: None)
-        endpoint = next(route.endpoint for route in router.routes if route.path == "/v1/chat/completions")
-        for value in ([], None, "text", 1):
-            async def receive():
-                return {"type": "http.request", "body": json.dumps(value).encode(), "more_body": False}
-
-            req = Request({"type": "http", "method": "POST", "path": "/v1/chat/completions", "headers": []}, receive)
-            with self.subTest(value=value), self.assertRaises(HTTPException) as caught:
-                await endpoint(req)
-            self.assertEqual(caught.exception.status_code, 400)
 
     async def collect_stream(self, raw_lines):
         closed = []

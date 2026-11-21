@@ -12,7 +12,7 @@ test("fit view fills the available area while preserving the complete image and 
   }
 });
 
-test("image downloads request the original attachment while retaining auth query", () => {
+test("image downloads request the original attachment while retaining existing query params", () => {
   assert.equal(imageDownloadUrl("/api/v1/outputs/image.png"),"/api/v1/outputs/image.png?download=1");
-  assert.equal(imageDownloadUrl("/api/v1/outputs/image.png?api_key=test-key"),"/api/v1/outputs/image.png?api_key=test-key&download=1");
+  assert.equal(imageDownloadUrl("/api/v1/outputs/image.png?token=v2"),"/api/v1/outputs/image.png?token=v2&download=1");
 });

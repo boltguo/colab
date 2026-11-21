@@ -92,7 +92,7 @@ function resultImages(result: QwenImageResult): StageImageEntry[] {
         },
       ];
   return list.map((it) => ({
-    url: resolveApiUrl(it.url, true),
+    url: resolveApiUrl(it.url),
     filename: it.filename,
     width: it.width,
     height: it.height,
@@ -414,13 +414,8 @@ export function QwenImageStudioApp() {
 
   const stagePrimaryRefUrl = useMemo(() => {
     const r0 = displayedEntry?.result?.reference_urls?.[0];
-    return r0 ? resolveApiUrl(r0, true) : undefined;
+    return r0 ? resolveApiUrl(r0) : undefined;
   }, [displayedEntry]);
-
-  const sampleRequestBody = useMemo(
-    () => buildCleanedPayload() as unknown as Record<string, unknown>,
-    [buildCleanedPayload]
-  );
 
   const negPromptNeedsCfgHint = Boolean(params.negative_prompt.trim()) && params.cfg <= 1.01;
   const activeLoraCount = params.loras.filter((slot) => slot.enabled).length;
@@ -1059,7 +1054,7 @@ export function QwenImageStudioApp() {
             <div className="studio-gallery-grid" style={{ paddingInlineEnd: 8 }}>
               {historyItems.map((item) => {
                 const isSelected = displayedEntry?.id === item.id;
-                const thumbUrl = resolveApiUrl(item.result.image_url, true);
+                const thumbUrl = resolveApiUrl(item.result.image_url);
                 const promptTitle = item.params.prompt || t("Qwen-Image 2.1 Output", "Qwen-Image 2.1 生成作品");
                 return (
                   <div
@@ -1151,9 +1146,6 @@ export function QwenImageStudioApp() {
       brandBadge="QW"
       defaultTitle="Qwen-Image 2.1"
       defaultSubtitle={t("Text to Image · Image Editing · Multi-Reference", "文生图 · 图像编辑 · 多图参考")}
-      apiEndpointPath="/api/v1/generate"
-      mediaKind="image"
-      sampleRequestBody={sampleRequestBody}
       leftPane={leftPane}
       rightPane={rightPane}
     />

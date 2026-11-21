@@ -635,25 +635,20 @@ export function MiniMaxH3StudioApp() {
 
   const stageVideoUrl = useMemo(() => {
     if (!displayedEntry?.result?.video_url) return "";
-    return resolveApiUrl(displayedEntry.result.video_url, true);
+    return resolveApiUrl(displayedEntry.result.video_url);
   }, [displayedEntry]);
 
   const stageDownloadUrl = useMemo(() => {
     if (!displayedEntry?.result?.video_url) return "";
     const raw = displayedEntry.result.video_url;
     const withDl = raw.includes("?") ? `${raw}&download=true` : `${raw}?download=true`;
-    return resolveApiUrl(withDl, true);
+    return resolveApiUrl(withDl);
   }, [displayedEntry]);
 
   const stageRefImageUrl = useMemo(() => {
     if (!displayedEntry?.result?.primary_ref_image_url) return "";
-    return resolveApiUrl(displayedEntry.result.primary_ref_image_url, true);
+    return resolveApiUrl(displayedEntry.result.primary_ref_image_url);
   }, [displayedEntry]);
-
-  const sampleRequestBody = useMemo(
-    () => buildCleanedPayload() as unknown as Record<string, unknown>,
-    [buildCleanedPayload]
-  );
 
   const negPromptNeedsCfgHint = Boolean(params.negative_prompt.trim()) && params.cfg <= 1.01;
   const activeLoraCount = params.loras.filter((slot) => slot.enabled).length;
@@ -1700,7 +1695,7 @@ export function MiniMaxH3StudioApp() {
             <div className="studio-video-history-list" style={{ paddingInlineEnd: 8 }}>
               {historyItems.map((item) => {
                 const isSelected = displayedEntry?.id === item.id;
-                const videoSrc = resolveApiUrl(item.result.video_url, true);
+                const videoSrc = resolveApiUrl(item.result.video_url);
                 const promptTitle = item.params.prompt || t("MiniMax-H3 Video", "MiniMax-H3 音画视频");
                 return (
                   <div
@@ -1837,9 +1832,6 @@ export function MiniMaxH3StudioApp() {
         "Text to Video · First/Last Frame · Multimodal Reference",
         "文生视频 · 首尾帧 · 多模态参考",
       )}
-      apiEndpointPath="/api/v1/generate"
-      mediaKind="video"
-      sampleRequestBody={sampleRequestBody}
       leftPane={leftPane}
       rightPane={rightPane}
     />

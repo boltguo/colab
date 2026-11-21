@@ -1,85 +1,49 @@
 import React, { useCallback, useEffect, useId, useState } from "react";
-import {
-  fetchSystemStatus,
-  configureApiKey,
-  getEffectiveOrigin,
-  loadApiKey,
-  saveApiKey,
-} from "../api/client";
-import { CodeBlock } from "./CodeBlock";
+import { fetchSystemStatus } from "../api/client";
 import { useStudioLocale } from "../i18n";
-import type { SystemStatus, TunnelMode } from "../api/types";
+import type { AccessMode, SystemStatus } from "../api/types";
 import {
   Alert,
-  ApiOutlined,
   Badge,
   Button,
-  BookOutlined,
   CloudServerOutlined,
-  CodeOutlined,
-  CopyOutlined,
-  Dialog,
   DashboardOutlined,
   GithubOutlined,
   GlobalOutlined,
   IconButton,
-  Input,
-  KeyOutlined,
   MaterialShapeView,
   Meter,
-  Modal,
   Popover,
   ReloadOutlined,
   ScrollArea,
   Space,
-  Tabs,
   Tag,
   Text,
   Tooltip,
-  useStudioFeedback,
 } from "../ui/primitives";
-
-export interface StudioCustomApiTabContext {
-  origin: string;
-  savedKey: string;
-  authRequired: boolean;
-  copyText: (text: string, tip: string) => Promise<void>;
-}
 
 export interface StudioShellProps {
   brandBadge?: string;
   defaultTitle: string;
   defaultSubtitle?: string;
-  apiEndpointPath?: string;
-  mediaKind?: "audio" | "image" | "video";
   layoutRatio?: "default" | "chat";
-  apiModalTitle?: string;
-  apiDrawerTitle?: string;
-  customApiTabs?: (
-    ctx: StudioCustomApiTabContext
-  ) => Array<{ key: string; label: React.ReactNode; icon?: React.ReactNode; children: React.ReactNode }>;
-  sampleRequestBody: Record<string, unknown>;
   headerExtra?: React.ReactNode;
   topBanner?: React.ReactNode;
   leftPane: React.ReactNode;
   rightPane: React.ReactNode;
-  onAuthChanged?: () => void;
 }
 
-function detectTunnelMode(sys: SystemStatus | null): TunnelMode {
-  if (sys?.tunnel_mode && sys.tunnel_mode !== "local") {
-    return sys.tunnel_mode;
+function detectAccessMode(sys: SystemStatus | null): AccessMode {
+  if (sys?.access_mode === "colab") {
+    return "colab";
   }
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
-    if (host.endsWith(".trycloudflare.com")) {
-      return "quick";
-    }
-    if (host && host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
-      return "custom";
+    if (host.endsWith(".colab.dev") || host.endsWith(".colab.googleusercontent.com")) {
+      return "colab";
     }
   }
-  return sys?.tunnel_mode || "local";
+  return sys?.access_mode || "local";
 }
 
 function meterState(
@@ -146,21 +110,13 @@ export function StudioShell({
   brandBadge = "AI",
   defaultTitle,
   defaultSubtitle,
-  apiEndpointPath = "/api/v1/generate",
-  mediaKind = "audio",
   layoutRatio = "default",
-  apiModalTitle,
-  apiDrawerTitle,
-  customApiTabs,
-  sampleRequestBody,
   headerExtra,
   topBanner,
   leftPane,
   rightPane,
-  onAuthChanged,
 }: StudioShellProps) {
   const { locale, toggleLocale, t } = useStudioLocale();
-  const { message } = useStudioFeedback();
   const gpuUtilBarId = useId();
   const vramBarId = useId();
   const cpuBarId = useId();
@@ -171,12 +127,6 @@ export function StudioShell({
 
   const [sys, setSys] = useState<SystemStatus | null>(null);
   const [refreshingSys, setRefreshingSys] = useState(false);
-  const [keyModalOpen, setKeyModalOpen] = useState(false);
-  const [apiModalOpen, setApiModalOpen] = useState(false);
-
-  const [savedKey, setSavedKey] = useState<string>(() => loadApiKey());
-  const [apiKeyInput, setApiKeyInput] = useState<string>(() => loadApiKey());
-  const [savingKey, setSavingKey] = useState(false);
 
   const refreshSystem = useCallback(async (manual = false) => {
     if (manual) setRefreshingSys(true);
@@ -210,117 +160,7 @@ export function StudioShell({
     };
   }, [refreshSystem]);
 
-  const tunnelMode = detectTunnelMode(sys);
-  const origin = getEffectiveOrigin(sys?.public_url);
-
-  const authHeaderLine = savedKey
-    ? `  -H "Authorization: Bearer ${savedKey}" \\\n`
-    : sys?.auth_required
-    ? `  -H "Authorization: Bearer <YOUR_APP_API_KEY>" \\\n`
-    : "";
-
-  const authPollSuffix = savedKey
-    ? ` -H "Authorization: Bearer ${savedKey}"`
-    : sys?.auth_required
-    ? ` -H "Authorization: Bearer <YOUR_APP_API_KEY>"`
-    : "";
-
-  const pythonHeaders = savedKey || sys?.auth_required
-    ? { Authorization: `Bearer ${savedKey || "<YOUR_APP_API_KEY>"}` }
-    : {};
-
-  const prettyJson = JSON.stringify(sampleRequestBody, null, 2);
-  const sampleUploadFile =
-    mediaKind === "image"
-      ? "reference.png"
-      : mediaKind === "video"
-        ? "input.mp4"
-        : "your_voice.wav";
-  const sampleMediaLabel =
-    mediaKind === "image"
-      ? t("reference image", "参考图片")
-      : mediaKind === "video"
-        ? t("reference video", "参考视频")
-        : t("reference audio", "参考音频");
-  const resultUrlKey =
-    mediaKind === "image"
-      ? "image_url"
-      : mediaKind === "video"
-        ? "video_url"
-        : "audio_url";
-
-  const curlSnippet = `# ${t(`1. (Optional) Upload a local ${sampleMediaLabel} to obtain file_id`, `1. (可选) 上传本地${sampleMediaLabel}获取 file_id`)}
-curl -X POST "${origin}/api/v1/files" \\
-${authHeaderLine}  -F "file=@./${sampleUploadFile}"
-
-# ${t("2. Submit an asynchronous generation task (synced with current Studio parameters)", "2. 异步提交生成任务 (实时同步左侧全量调优参数)")}
-curl -X POST "${origin}${apiEndpointPath}" \\
-  -H "Content-Type: application/json" \\
-${authHeaderLine}  -d '${prettyJson.replace(/'/g, "'\\''")}'
-
-# ${t("3. Poll task status and fetch outputs", "3. 轮询任务状态与生成结果")}
-curl "${origin}/api/v1/tasks/<TASK_ID>"${authPollSuffix}`;
-
-  const pythonSnippet = `import json
-import time
-import requests
-
-BASE_URL = ${JSON.stringify(origin)}
-HEADERS = json.loads(${JSON.stringify(JSON.stringify(pythonHeaders))})
-
-# ${t(`1. (Optional) Upload custom ${sampleMediaLabel} to get file_id`, `1. 如需使用自定义${sampleMediaLabel}，先上传获取 file_id`)}
-# with open("${sampleUploadFile}", "rb") as f:
-#     file_id = requests.post(f"{BASE_URL}/api/v1/files", headers=HEADERS, files={"file": f}).json()["file_id"]
-
-# ${t("2. Submit async inference task (includes current UI settings)", "2. 提交异步推理任务（包含当前页面设置）")}
-payload = json.loads(${JSON.stringify(prettyJson)})
-resp = requests.post(f"{BASE_URL}${apiEndpointPath}", json=payload, headers=HEADERS, timeout=30)
-resp.raise_for_status()
-task_id = resp.json()["task_id"]
-print("${t("Submitted task:", "已提交任务:")}", task_id)
-
-# ${t("3. Poll progress and inspect result", "3. 轮询进度并下载最终产物")}
-while True:
-    response = requests.get(f"{BASE_URL}/api/v1/tasks/{task_id}", headers=HEADERS, timeout=15)
-    response.raise_for_status()
-    info = response.json()
-    print(f"[{info['status']}] {info['progress'] * 100:.0f}% - {info['stage']}")
-    if info["status"] == "succeeded":
-        res = info["result"]
-        print("${t("Succeeded, output URL:", "生成成功，结果地址:")}", BASE_URL + res["${resultUrlKey}"])
-        print("${t("Metadata:", "返回元数据:")}", {k: v for k, v in res.items() if k not in ("subtitles", "images")})
-        break
-    if info["status"] in ("failed", "cancelled"):
-        raise RuntimeError(info.get("error") or "${t("Task failed", "任务未成功完成")}")
-    time.sleep(1.0)`;
-
-  const copyText = async (text: string, tip: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      message.success(tip);
-    } catch {
-      message.warning(t("Copy failed. Please select and copy manually.", "复制失败，请手动选中代码复制"));
-    }
-  };
-
-  const handleSaveKey = async () => {
-    if (savingKey) return;
-    setSavingKey(true);
-    try {
-      const clean = apiKeyInput.trim();
-      await configureApiKey(clean);
-      saveApiKey(clean);
-      setSavedKey(clean);
-      setKeyModalOpen(false);
-      message.success(clean ? t("API key updated", "API Key 已生效") : t("API authentication disabled", "API 鉴权已关闭"));
-      onAuthChanged?.();
-      await refreshSystem(false);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : t("Failed to save API key", "设置失败"));
-    } finally {
-      setSavingKey(false);
-    }
-  };
+  const accessMode = detectAccessMode(sys);
 
   const vramPct =
     sys?.gpu.available && sys.gpu.vram_total_gib > 0
@@ -490,22 +330,15 @@ while True:
                   {defaultTitle}
                 </h1>
                 {sys?.mock_mode && <Tag color="warning">{t("Mock Preview", "Mock 预览模式")}</Tag>}
-                {tunnelMode === "quick" && (
+                {accessMode === "colab" && (
                   <Tooltip
                     title={t(
-                      "Using an ephemeral Cloudflare Quick Tunnel URL. This URL expires when Colab stops or restarts; select Custom Tunnel in Step 4 for a fixed domain.",
-                      "当前使用 Cloudflare Quick Tunnel 免费临时公网链接，Colab 机器关闭或重启隧道后此地址即失效；如需固定域名请在部署第 4 步选择「自有 Tunnel」",
+                      "Using Google Colab's native proxy bound to your signed-in Google account. This URL expires when the Colab runtime stops.",
+                      "当前通过 Google Colab 原生内置代理访问，仅绑定当前登录的 Google 账号；实例关闭后此地址即失效",
                     )}
                   >
-                    <Tag color="warning" style={{ marginInlineEnd: 0 }}>
-                      {t("Quick Tunnel (Ephemeral)", "Quick 临时链接（关机失效）")}
-                    </Tag>
-                  </Tooltip>
-                )}
-                {tunnelMode === "custom" && (
-                  <Tooltip title={t(`Custom Cloudflare Tunnel domain: ${origin}`, `当前通过自有 Cloudflare Tunnel 固定域名访问：${origin}`)}>
-                    <Tag color="success" style={{ marginInlineEnd: 0 }}>
-                      {t("Custom Domain", "自有固定域名")}
+                    <Tag color="processing" style={{ marginInlineEnd: 0 }}>
+                      {t("Colab Proxy (Ephemeral)", "Colab 内置代理（临时）")}
                     </Tag>
                   </Tooltip>
                 )}
@@ -551,30 +384,6 @@ while True:
               <Badge status="error" text={t("Disconnected", "后端未连接")} />
             )}
 
-            <Button
-              htmlType="button"
-              size="small"
-              icon={<KeyOutlined />}
-              onClick={() => {
-                setApiKeyInput(loadApiKey());
-                setKeyModalOpen(true);
-              }}
-            >
-              {sys?.api_key_configured ? t("API Key Set", "API Key 已设") : "API Key"}
-            </Button>
-
-            <Button
-              htmlType="button"
-              size="small"
-              type="primary"
-              icon={<ApiOutlined />}
-              onClick={() => {
-                setApiModalOpen(true);
-              }}
-            >
-              {t("API Code", "API 调用代码")}
-            </Button>
-
             <Tooltip title={locale === "zh" ? "Switch to English" : "切换为中文"}>
               <Button
                 htmlType="button"
@@ -599,14 +408,6 @@ while True:
                 aria-label={t("Open GitHub repository (boltguo/colab)", "打开 GitHub 仓库 (boltguo/colab)")}
               />
             </Tooltip>
-
-            {sys?.browser_authenticated && (
-              <form method="post" action="/auth/logout">
-                <Button htmlType="submit" size="small" type="text">
-                  {t("Sign out", "退出")}
-                </Button>
-              </form>
-            )}
           </div>
         </div>
       </header>
@@ -632,166 +433,6 @@ while True:
           </aside>
         </div>
       </main>
-
-      <Modal
-        title={t("Configure API Key", "设置 API Key")}
-        open={keyModalOpen}
-        onCancel={() => setKeyModalOpen(false)}
-        onOk={handleSaveKey}
-        confirmLoading={savingKey}
-        okText={t("Save", "保存")}
-        cancelText={t("Cancel", "取消")}
-      >
-        <Space direction="vertical" size={14} style={{ inlineSize: "100%", paddingBlock: 8 }}>
-          <Text>
-            {t(
-              "Used only for external API requests. Save empty to allow anonymous API calls.",
-              "仅用于外部程序调用。留空保存后，API 可免鉴权调用。",
-            )}
-          </Text>
-
-          <div className="studio-field-group">
-            <label htmlFor="studio-api-key" className="studio-field-label">
-              <span>Bearer API Key</span>
-            </label>
-            <Input.Password
-              id="studio-api-key"
-              name="api_key"
-              allowClear
-              placeholder={
-                sys?.api_key_configured
-                  ? t("Enter a new API key", "填写新的 API Key")
-                  : t("At least 8 ASCII characters", "至少 8 位字母、数字或符号")
-              }
-              value={apiKeyInput}
-              onValueChange={(value) => setApiKeyInput(value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                  handleSaveKey();
-                }
-              }}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </div>
-          <Space wrap>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => {
-                const bytes = crypto.getRandomValues(new Uint8Array(24));
-                setApiKeyInput(`sk-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`);
-              }}
-            >
-              {t("Generate Random", "随机生成")}
-            </Button>
-            <Button
-              icon={<CopyOutlined />}
-              disabled={!apiKeyInput}
-              onClick={() => void copyText(apiKeyInput, t("API key copied", "API Key 已复制"))}
-            >
-              {t("Copy", "复制")}
-            </Button>
-          </Space>
-          {sys?.api_key_configured && (
-            <Text type="secondary">
-              {t("Saving a new key invalidates the previous one immediately.", "保存新 Key 后，原 Key 立即失效。")}
-            </Text>
-          )}
-        </Space>
-      </Modal>
-
-      <Dialog
-        title={apiModalTitle || apiDrawerTitle || t("HTTP / WebSocket API Examples", "标准 HTTP / WebSocket API 调用示例")}
-        open={apiModalOpen}
-        onOpenChange={setApiModalOpen}
-        showCloseButton
-        className="studio-api-dialog"
-        style={{ width: "min(1000px, calc(100vw - 48px))", maxWidth: "none" }}
-      >
-        <div className="studio-api-content">
-          {tunnelMode === "quick" && (
-            <Alert
-              type="warning"
-              showIcon
-              message={t("Ephemeral Quick Tunnel Domain Active", "当前为 Quick Tunnel 临时公网域名")}
-              description={t(
-                "The snippets below already use the active tunnel URL. This address expires when the Colab instance stops; choose Custom Tunnel in Step 4 for a permanent URL.",
-                "下方调用代码已自动填入当前临时链接。Colab 实例关闭或重启隧道后该链接即失效；如需固定 API 域名，请在 Colab 第 4 步选择「自有 Tunnel」。",
-              )}
-            />
-          )}
-
-          <div className="studio-api-address">
-            <Space wrap size={6}>
-              <Text strong style={{ fontSize: 13 }}>
-                {t("Endpoint Base URL:", "当前服务调用地址：")}
-              </Text>
-              <Text code>{origin}</Text>
-              {tunnelMode === "quick" && <Tag color="warning">{t("Ephemeral", "临时链接")}</Tag>}
-              {tunnelMode === "custom" && <Tag color="success">{t("Custom Tunnel", "自有 Tunnel")}</Tag>}
-            </Space>
-            <Space size={8}>
-              <Button
-                type="link"
-                size="small"
-                icon={<BookOutlined />}
-                href={`${origin}/docs`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t("API Docs", "API 文档")}
-              </Button>
-              <Tooltip title={t("Copy Base URL", "复制服务地址")}>
-                <Button
-                  htmlType="button"
-                  size="small"
-                  icon={<CopyOutlined />}
-                  aria-label={t("Copy Base URL", "复制服务地址")}
-                  onClick={() => void copyText(origin, t("Base URL copied", "已复制当前服务地址"))}
-                />
-              </Tooltip>
-            </Space>
-          </div>
-
-          <Text type="secondary" className="studio-api-guidance" style={{ fontSize: 13 }}>
-            {t(
-              "The examples below reflect your current server origin and Studio settings:",
-              "下方代码已带入当前服务地址和页面设置，可直接复制运行：",
-            )}
-          </Text>
-
-          <Tabs
-            className="studio-api-tabs"
-            items={
-              customApiTabs
-                ? customApiTabs({
-                    origin,
-                    savedKey,
-                    authRequired: Boolean(sys?.auth_required),
-                    copyText,
-                  })
-                : [
-                    {
-                      key: "python",
-                      label: "Python",
-                      icon: <CodeOutlined />,
-                      children: <CodeBlock code={pythonSnippet} language="python" />,
-                    },
-                    {
-                      key: "curl",
-                      label: "cURL",
-                      icon: <CodeOutlined />,
-                      children: <CodeBlock code={curlSnippet} language="bash" />,
-                    },
-                  ]
-            }
-          />
-        </div>
-      </Dialog>
     </div>
   );
 }

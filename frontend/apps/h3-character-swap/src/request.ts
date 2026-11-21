@@ -8,7 +8,7 @@ import type {
 import { createEmptyCharacterSlot } from "./types.ts";
 
 export const DEFAULT_WINDOW_FRAMES = 226;
-export const HISTORY_OVERLAP_FRAMES = 18;
+export const HISTORY_OVERLAP_FRAMES = 5;
 export const NATIVE_FPS = 24;
 
 export function snap32(value: number, minimum = 32): number {

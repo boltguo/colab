@@ -35,17 +35,24 @@ function readStoredLocale(): string | null {
   }
 }
 
-function getInitialClientLocale(): StudioLocale {
-  if (typeof window === "undefined") return "en";
+function getInitialClientLocale(fallback?: StudioLocale): StudioLocale {
+  if (typeof window === "undefined") return fallback ?? "en";
   return resolveInitialLocale({
     stored: readStoredLocale(),
+    fallback,
     languages: typeof navigator !== "undefined" ? navigator.languages : undefined,
     language: typeof navigator !== "undefined" ? navigator.language : undefined,
   });
 }
 
-export function StudioI18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<StudioLocale>(() => getInitialClientLocale());
+export function StudioI18nProvider({
+  children,
+  fallbackLocale,
+}: {
+  children: React.ReactNode;
+  fallbackLocale?: StudioLocale;
+}) {
+  const [locale, setLocaleState] = useState<StudioLocale>(() => getInitialClientLocale(fallbackLocale));
 
   const setLocale = useCallback((next: StudioLocale) => {
     setLocaleState(next);
@@ -75,12 +82,12 @@ export function StudioI18nProvider({ children }: { children: React.ReactNode }) 
       if (event.newValue === "en" || event.newValue === "zh") {
         setLocaleState(event.newValue);
       } else if (event.newValue === null) {
-        setLocaleState(getInitialClientLocale());
+        setLocaleState(getInitialClientLocale(fallbackLocale));
       }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [fallbackLocale]);
 
   const value = useMemo<StudioI18nContextValue>(
     () => ({

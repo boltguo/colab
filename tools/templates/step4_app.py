@@ -1,9 +1,7 @@
-# @title 4. Launch Web Studio & API Service {display-mode: "form"}
-TUNNEL_MODE = "Quick Tunnel (ephemeral)"  # @param ["Quick Tunnel (ephemeral)", "Custom Tunnel (CF_TUNNEL_TOKEN)"]
-ACCESS_PASSWORD = ""  # @param {type:"string"}
-USE_CF_TUNNEL_TOKEN = TUNNEL_MODE.startswith("Custom")
-import hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
+# @title 4. Launch Web Studio {display-mode: "form"}
+import json, os, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 FEATURE_NAME = "{{FEATURE_NAME}}"
 APP_DIR = Path("/content/app")
@@ -23,31 +21,15 @@ if FEATURE_NAME == "indextts-2.5":
     if missing_media_tools:
         raise RuntimeError(f"Missing required media tools: {', '.join(missing_media_tools)}. Run !apt-get -qq update && apt-get -qq install -y ffmpeg first.")
 
-def resolve_access_password():
-    if ACCESS_PASSWORD.strip():
-        return ACCESS_PASSWORD.strip()
-    key = ""
-    try:
-        from google.colab import userdata
-        key = (userdata.get("ACCESS_PASSWORD") or "").strip()
-    except Exception:
-        key = ""
-    if not key:
-        key = os.environ.get("ACCESS_PASSWORD", "").strip()
-    return key
-
-access_password = resolve_access_password()
-if not access_password:
-    raise RuntimeError(
-        "Set ACCESS_PASSWORD above or configure Colab Secret `ACCESS_PASSWORD`."
-    )
-
 def ready(timeout=5):
     try:
         with urllib.request.urlopen(BASE + "/api/v1/health", timeout=timeout) as r:
             return r.status == 200
     except Exception:
         return False
+
+proxy_url, access_mode = resolve_colab_proxy_url(PORT)
+proxy_origin = f"{urlsplit(proxy_url).scheme}://{urlsplit(proxy_url).netloc}" if access_mode == "colab" else ""
 
 env_overrides = {
     "HF_HUB_DISABLE_IMPLICIT_TOKEN": "1",
@@ -56,8 +38,7 @@ env_overrides = {
     "COLAB_PORT": str(PORT),
     "COLAB_DATA_DIR": str(DATA_DIR),
     "COLAB_DIST_DIR": str(APP_DIR / "dist" / FEATURE_NAME),
-    "COLAB_ACCESS_PASSWORD": access_password,
-    "COLAB_API_KEY": "",
+    "COLAB_PROXY_ORIGIN": proxy_origin,
 {{EXTRA_ENV}}}
 
 cmd = [
@@ -76,17 +57,16 @@ cmd = [
 launch_fingerprint = json.dumps({
     "cmd": cmd,
     "release": read_text(APP_DIR / ".release_sha256").strip(),
-    "web_auth_sha256": hashlib.sha256(access_password.encode("utf-8")).hexdigest(),
-    "env": {key: value for key, value in env_overrides.items() if key not in {"COLAB_ACCESS_PASSWORD", "COLAB_API_KEY"}},
+    "env": env_overrides,
 }, sort_keys=True)
 running = ready() or (process_running(PROCESS_PATTERN) and ready(timeout=15))
 if running and read_text(LAUNCH_CONFIG) != launch_fingerprint:
-    print("Service configuration changed; restarting web server...")
+    print("Service configuration changed; restarting Web Studio...")
     stop_processes(PROCESS_PATTERN, 30)
     running = False
 
 if running:
-    print("[OK] Web Studio and API server already running.")
+    print("[OK] Web Studio server already running.")
 else:
     stop_processes(PROCESS_PATTERN, 30)
     rotate_log(LOG)
@@ -102,53 +82,26 @@ else:
             start_new_session=True,
         )
     LAUNCH_CONFIG.write_text(launch_fingerprint, encoding="utf-8")
-    print("Starting FastAPI server and Web Studio...")
+    print("Starting FastAPI Web Studio...")
     deadline = time.time() + 120
     while time.time() < deadline:
         if process.poll() is not None:
             print(tail(LOG))
             raise RuntimeError(f"App server failed to start (exit code {process.returncode}); see logs above.")
         if ready():
-            print("[OK] Web Studio and API server started.")
+            print("[OK] Web Studio server started.")
             break
         time.sleep(1.5)
     else:
         print(tail(LOG))
         raise TimeoutError("App server did not become ready within 2 minutes; see logs above.")
 
-verify_web_password(BASE, PROCESS_PATTERN)
-host_url = start_cf_tunnel(cf_token)
-tunnel_mode_key = "custom" if cf_token else "quick"
 if not DATA_DIR.is_symlink():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    tunnel_info_path = DATA_DIR / "tunnel_info.json"
-    if not tunnel_info_path.is_symlink():
-        tunnel_info_path.write_text(
-            json.dumps({"public_url": host_url, "tunnel_mode": tunnel_mode_key}, ensure_ascii=False),
+    proxy_info_path = DATA_DIR / "proxy_info.json"
+    if not proxy_info_path.is_symlink():
+        proxy_info_path.write_text(
+            json.dumps({"public_url": proxy_url, "access_mode": access_mode}, ensure_ascii=False),
             encoding="utf-8",
         )
-check_public_url(host_url, "/api/v1/health")
-
-sample_body = json.dumps(
-    {"text": "Hello, welcome to IndexTTS 2.5 API!", "speaker_audio": "preset:ref_audio", "language": "en"},
-    ensure_ascii=False,
-)
-auth_note = ' -H "Authorization: Bearer YOUR_API_KEY"'
-tunnel_tip = (
-    "WARNING: Quick Tunnel provides a temporary URL that expires when the runtime stops. Select Custom Tunnel above for a permanent domain."
-    if tunnel_mode_key == "quick"
-    else "INFO: Using your custom fixed Cloudflare Tunnel domain."
-)
-print(f"""
-=== Endpoints ===
-Web Studio   : {host_url}
-API Docs     : {host_url}/docs
-System Stats : {host_url}/api/v1/system
-{tunnel_tip}
-API Key      : Open by default; configure an optional key in the Web Studio header.
-
-=== Quick API Example ===
-curl -X POST "{host_url}/api/v1/generate" \\
-  -H "Content-Type: application/json"{auth_note} \\
-  -d '{sample_body}'
-""")
+open_colab_proxy(PORT, proxy_url, access_mode)
