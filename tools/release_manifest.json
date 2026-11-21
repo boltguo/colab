@@ -1,36 +1,36 @@
 {
   "repo": "boltguo/colab",
-  "release_tag": "v0.2.4",
+  "release_tag": "v0.3.0",
   "apps": {
     "indextts-2.5": {
       "archive": "app-indextts-2.5.tar.gz",
-      "sha256": "bcbd0d47c8196ecfa614e9be0a040c71895dcaf7eb50145d87f0347ea7354d61",
-      "size_bytes": 762408
+      "sha256": "e877060da4a4763c2f5b0dd94e3836a90755d58a8e726a768801f73dadde962c",
+      "size_bytes": 578090
     },
     "qwen-image-2.1": {
       "archive": "app-qwen-image-2.1.tar.gz",
-      "sha256": "6e52bf3cc6327e1fc137e96f9a59f8450d7da72f1504209379951708eb8ee9bc",
-      "size_bytes": 517520
+      "sha256": "02116599539be05070bbe9d724fc8364a9dc8c5f71b874756b7a684b5038796e",
+      "size_bytes": 334807
     },
     "qwen3.8-27b": {
       "archive": "app-qwen3.8-27b.tar.gz",
-      "sha256": "ccd142ec6725425806e789627a5c1f446cf20404514cc6942498ff6207fd9ef8",
-      "size_bytes": 481156
+      "sha256": "9e3e08c5aef268a93799ef0e317be8276ea835cee2b74419773e13dc8631d35d",
+      "size_bytes": 463146
     },
     "minimax-h3": {
       "archive": "app-minimax-h3.tar.gz",
-      "sha256": "d9295c6e0a9d9bada61a7253f9d6a14dfcd0883bb1c4512d27d6dc03c67188f9",
-      "size_bytes": 525333
+      "sha256": "8f39d06ba9505765d1b01250e5e1b89e17b1af3820d2721834e1666a5cf96c1b",
+      "size_bytes": 341907
     },
     "seedvr2": {
       "archive": "app-seedvr2.tar.gz",
-      "sha256": "29a3108f3a0bcc05b74bd6f580a132c739b7edc8377bc1ec2de2d2562515042c",
-      "size_bytes": 514515
+      "sha256": "13e746dac282c6412d3a49ad9f1207eadeb4d09060358225fb5bc8ff5436a9cf",
+      "size_bytes": 331106
     },
     "h3-character-swap": {
       "archive": "app-h3-character-swap.tar.gz",
-      "sha256": "d7e97c965739baf30459bccf330c4cf9fd7de0399fa6adbdedb08de878ade6a4",
-      "size_bytes": 517590
+      "sha256": "a4ec1e091583c0c575f21943f91ec62c29b9ec6a1cea7b099458517bae8ca1fe",
+      "size_bytes": 334087
     }
   }
 }
